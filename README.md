@@ -64,6 +64,7 @@ Optional: Jira Cloud (an API token), Codex CLI (shows its usage limits).
 | `codex` | `false` hides the Codex secretary |
 | `city` | `{ "lat", "lng" }` for sunrise and sunset outside the window |
 | `newSessionDirs` | folders offered when opening a new session from the page |
+| `language` | `"zh-TW"` (default) or `"en"`: the heading sessions use for decisions (`## 要你決定` / `## Decisions for you`). The page itself follows the browser's language, with a 中 / EN switch in the header |
 
 Only `jira.site`, `codex`, `city` and `newSessionDirs` reach the page (as
 `meta/config`); the Jira email and token stay on your machine.

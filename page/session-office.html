@@ -92,6 +92,8 @@
   .stat { margin-left: auto; display: flex; gap: 14px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .stat b { color: var(--fg); font-weight: 600; }
   .spawn-btn { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
+  .lang-btn { font: inherit; font-size: .8rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
+  .lang-btn:hover { color: var(--fg); border-color: var(--fg); }
   .spawn-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
   .field { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
   .field input, .field textarea { font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
@@ -211,7 +213,7 @@
   <header>
     <h1>Session Office</h1>
     <p class="sub">每個 Claude Code session 一張桌子。做完一輪的同事會走到你桌前匯報；點他或泡泡看全文，回覆或按「收到」他就回座位。</p>
-    <div class="stat"><span>在線 <b id="n-online">0</b></span><span>待匯報 <b id="n-waiting">0</b></span><button type="button" class="spawn-btn" id="spawn-open">＋ 新開 session</button></div>
+    <div class="stat"><span>在線 <b id="n-online">0</b></span><span>待匯報 <b id="n-waiting">0</b></span><button type="button" class="lang-btn" id="lang-toggle">EN</button><button type="button" class="spawn-btn" id="spawn-open">＋ 新開 session</button></div>
   </header>
 
   <div class="banner" id="banner" hidden></div>
@@ -298,18 +300,120 @@
   const colorOf = id => PALETTE[hash(id) % PALETTE.length];
 
   const now = () => Date.now();
+
+  // ---- language ------------------------------------------------------------
+  // Traditional Chinese or English: the viewer's choice from the header button
+  // (kept in this browser), else the browser's language. Session replies are not
+  // translated; the fixed texts the office mod writes are (see trMod).
+  const LANG = (() => { try { const v = localStorage.getItem('lang'); if (v === 'zh' || v === 'en') return v; } catch (e) {} return /^zh/i.test(navigator.language || '') ? 'zh' : 'en'; })();
+  const I18N = {
+    zh: {
+      sub: '每個 Claude Code session 一張桌子。做完一輪的同事會走到你桌前匯報；點他或泡泡看全文，回覆或按「收到」他就回座位。',
+      online: '在線', waitingN: '待匯報', spawnBtn: '＋ 新開 session', langBtn: 'EN', langTitle: 'Switch to English',
+      help: '每個 session 由 <code>office</code> mod 自動把桌卡寫到本機，再由一個橋接視窗同步進來，所以要有橋接視窗開著才會更新。桌牌預設是那個 session 的第一句任務，在視窗裡打 <code>/office name 名字</code> 可以改。桌卡超過 2 分鐘沒更新會標成離線，30 分鐘後從辦公室移除。角色圖來自 <a href="https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32">Pipoya</a>。',
+      canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
+      decide: '要你決定', decideN: '要你決定（{n} 件）',
+      replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
+      ack: '收到，回座位', focus: '切到它的 terminal 分頁', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消',
+      spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
+      spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
+      jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
+      sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
+      working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
+      noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
+      codexNone: '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。', codexTitle: '**Codex 用量**',
+      codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫',
+      seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
+      jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
+      code: '（程式碼）',
+      askOpts: '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。', askOld: '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。',
+      permWait: '這個 session 在 terminal 等你確認權限，頁面回覆進不去，請切過去回答。',
+      ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
+      sent: '已送出「{text}」，等 session 接手（{ago}）', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
+      histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
+      bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      bridgeNone: '還沒有橋接視窗。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      reqPending: '等橋接開新 session：{where}（{ago}）', reqStarted: '已開新分頁', reqFailed: '開不起來',
+      iconPerm: '在 terminal 等你確認權限', iconAsk: '在等你回答', iconReport: '來匯報',
+      dbFail: '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。', needLogin: '需要登入 claude.ai 才能看到即時狀態。',
+      noSessions: '還沒有 session 進來。裝好 <code>office</code> mod 的 session 啟動後會自己走進來坐下。', liveBroken: '即時更新中斷（{code}），請重新整理。',
+    },
+    en: {
+      sub: 'One desk per Claude Code session. When one finishes a turn it walks over to your desk to report; click it or its bubble for the full text, and reply or press “Got it” to send it back to its desk.',
+      online: 'Online', waitingN: 'Reporting', spawnBtn: '+ New session', langBtn: '中', langTitle: '切換成中文',
+      help: 'Each session’s <code>office</code> mod writes its desk card to this machine, and one bridge session syncs the cards in, so the office only updates while the bridge is running. A desk is named after the session’s first task; type <code>/office name &lt;name&gt;</code> in it to rename. A card not updated for 2 minutes shows as offline, and leaves the office after 30. Characters by <a href="https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32">Pipoya</a>.',
+      canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
+      decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
+      replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
+      ack: 'Got it, back to desk', focus: 'Switch to its terminal tab', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel',
+      spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
+      spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
+      jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
+      sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
+      working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
+      noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
+      codexNone: '**Codex**\n\nNo usage yet (after your next Codex call the bridge picks it up within a minute).', codexTitle: '**Codex usage**',
+      codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}',
+      seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
+      jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
+      code: '(code)',
+      askOpts: 'It is waiting for your answer: pick an option, or type an answer below (the terminal works too; the first answer counts).', askOld: 'It is asking you something in the terminal (an older mod; the question is not shown here). Switch over to answer.',
+      permWait: 'This session is waiting for a permission prompt in the terminal; replies from the page cannot reach it. Switch over to answer.',
+      ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
+      sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
+      histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
+      bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. In a new tab run: CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      bridgeNone: 'No bridge yet. In a new tab run: CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      reqPending: 'Waiting for the bridge to open a session: {where} ({ago})', reqStarted: 'Opened a new tab', reqFailed: 'Could not open',
+      iconPerm: 'Waiting for a permission prompt in the terminal', iconAsk: 'Waiting for your answer', iconReport: 'Reporting',
+      dbFail: 'Cannot reach the database. Reload the page, or check that you are signed in to claude.ai.', needLogin: 'Sign in to claude.ai to see live status.',
+      noSessions: 'No sessions yet. A session with the <code>office</code> mod walks in and takes a desk when it starts.', liveBroken: 'Live updates stopped ({code}); please reload.',
+    },
+  };
+  const tt = (key, vars) => (I18N[LANG][key] ?? I18N.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars && vars[k] != null ? vars[k] : '');
+  // the office mod writes its activity lines and a few fixed reports in Chinese
+  const MOD_EN = [
+    [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
+    [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
+    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'],
+    [/^被辦公室開除，下線$/, 'Let go by the office'], [/^接回別的對話$/, 'Resumed another conversation'], [/^Bash：/, 'Bash: '], [/^子代理：/, 'Subagent: '],
+    [/^### 需要你決定$/m, '### Needs your decision'], [/^### 在 terminal 等你確認權限$/m, '### Waiting for permission in the terminal'],
+    [/_切到它的 terminal 分頁按允許或拒絕。_/, '_Switch to its terminal tab to allow or deny._'],
+    [/這個 session 在 terminal 問你問題（它還在用舊版 mod，這裡看不到題目）。/, 'This session is asking you something in the terminal (an older mod; the question is not shown here).'],
+    [/_請切到它的 terminal 分頁作答。_/, '_Switch to its terminal tab to answer._'],
+    [/_（這輪沒有文字回覆：API 錯誤）_/, '_(no text this turn: API error)_'], [/_（這輪沒有文字回覆：模型拒絕）_/, '_(no text this turn: refused)_'], [/_（這輪沒有文字回覆：(\w+)）_/, '_(no text this turn: $1)_'],
+  ];
+  const trMod = s => LANG === 'zh' || !s ? s : MOD_EN.reduce((out, [re, to]) => out.replace(re, to), s);
+  function applyStatic() {
+    document.documentElement.lang = LANG === 'zh' ? 'zh-Hant' : 'en';
+    const set = (sel, key, prop = 'textContent') => { const el = document.querySelector(sel); if (el) el[prop] = tt(key); };
+    const label = (sel, key) => { const el = document.querySelector(sel)?.closest('label'); if (el && el.firstChild.nodeType === 3) el.firstChild.nodeValue = tt(key); };
+    set('.sub', 'sub'); set('#help', 'help', 'innerHTML'); set('#spawn-open', 'spawnBtn');
+    document.querySelector('#n-online').previousSibling.nodeValue = tt('online') + ' '; document.querySelector('#n-waiting').previousSibling.nodeValue = tt('waitingN') + ' ';
+    const lb = document.getElementById('lang-toggle'); lb.textContent = tt('langBtn'); lb.title = tt('langTitle');
+    canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
+    document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
+    set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
+    set('#m-ack', 'ack'); set('#m-focus', 'focus'); set('#m-compact', 'compact'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
+    set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
+    set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
+    document.querySelector('#feed > h2').firstChild.nodeValue = tt('jiraTitle') + ' '; set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
+  }
+  applyStatic();
+  document.getElementById('lang-toggle').addEventListener('click', () => { try { localStorage.setItem('lang', LANG === 'zh' ? 'en' : 'zh'); } catch (e) {} location.reload(); });
+
   const ago = t => {
     if (!t) return '';
     const s = Math.max(0, Math.round((now() - t) / 1000));
-    if (s < 60) return s + ' 秒前';
-    const m = Math.round(s / 60); if (m < 60) return m + ' 分鐘前';
-    const h = Math.round(m / 60); if (h < 24) return h + ' 小時前';
-    return Math.round(h / 24) + ' 天前';
+    if (s < 60) return tt('sAgo', { n: s });
+    const m = Math.round(s / 60); if (m < 60) return tt('mAgo', { n: m });
+    const h = Math.round(m / 60); if (h < 24) return tt('hAgo', { n: h });
+    return tt('dAgo', { n: Math.round(h / 24) });
   };
   const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
   const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
   const effState = d => liveness(d) !== 'live' ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' ? 'working' : 'idle');
-  const STATE_TEXT = { working: '工作中', reporting: '來匯報', idle: '閒置' };
+  const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
   // ---- layout -------------------------------------------------------------
   // Benches are fixed furniture: bench 0 sits right of your office on the same
@@ -758,7 +862,7 @@
     }
     const speaking = (speak[id] || 0) > now() || (modalId === id);
     if ((st === 'reporting' && !a.walking && a.atBoss && a.queue === 0) || speaking) {
-      if (!bubbleWanted || modalId === id) bubbleWanted = { id, x, y: y - 76, side: a.atBoss ? 'side' : 'above', text: splitDecide(d.report).decide ? '#decide\n' + splitDecide(d.report).decide : d.report || (st === 'reporting' ? '（沒有摘要）' : '（還沒有匯報過）') };
+      if (!bubbleWanted || modalId === id) bubbleWanted = { id, x, y: y - 76, side: a.atBoss ? 'side' : 'above', text: splitDecide(d.report).decide ? '#decide\n' + splitDecide(d.report).decide : trMod(d.report) || (st === 'reporting' ? tt('noSummary') : tt('noReport')) };
     }
     if (hover === id) { ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.strokeRect(x - 32, y - 56, 64, 72); }
   }
@@ -806,7 +910,7 @@
     ctx.font = `500 12px ${css('--body')}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
     const maxW = 260, all = wrap(text, maxW), lines = all.slice(0, 3);
     if (all.length > 3) lines[2] = lines[2].slice(0, -1) + '…';
-    lines.push('點開看全文、回覆');
+    lines.push(tt('more'));
     const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, h = lines.length * 16 + 12;
     let bx, by;
     if (align === 'side') {
@@ -873,10 +977,10 @@
   function drawBoss(a) {
     px(a.x - 14, a.y + 10, 28, 5, 'rgba(0,0,0,.18)');
     drawSprite(0, 'down', 1, a.x, a.y + 12);
-    nameTag(a.x, a.y - 56, '你', css('--ok'));
+    nameTag(a.x, a.y - 56, tt('you'), css('--ok'));
     // your health: what is left of the 5-hour and weekly limits
     const lim = accountLimits() || [];
-    const rows = [['5h', lim.find(l => /five_hour/.test(l.kind))], ['週', lim.find(l => /seven_day/.test(l.kind) && !/opus|sonnet/i.test(l.kind))]].filter(r => r[1]);
+    const rows = [['5h', lim.find(l => /five_hour/.test(l.kind))], [tt('week'), lim.find(l => /seven_day/.test(l.kind) && !/opus|sonnet/i.test(l.kind))]].filter(r => r[1]);
     if (rows.length) {
       const top = a.y - 56 - 22 - 12 - (rows.length - 1) * 11 - 5;
       ctx.fillStyle = 'rgba(28,24,22,.88)';
@@ -901,14 +1005,14 @@
   }
   // what clicking her shows: what is left of each window and when it resets
   function codexCard() {
-    if (!codex) return '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。';
-    const t = Date.now(), when = ms => new Date(ms).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    if (!codex) return tt('codexNone');
+    const t = Date.now(), when = ms => new Date(ms).toLocaleString(LANG === 'zh' ? 'zh-TW' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
     const line = (label, w) => {
       if (!w) return null;
       const reset = w.resetsAt && w.resetsAt <= t;
-      return `- ${label}：剩 ${reset ? 100 : Math.round(100 - (w.usedPercent || 0))}%` + (w.resetsAt ? (reset ? '（已重置）' : `，${when(w.resetsAt)} 重置`) : '');
+      return tt('codexLeft', { label, p: reset ? 100 : Math.round(100 - (w.usedPercent || 0)) }) + (w.resetsAt ? (reset ? tt('codexReset') : tt('codexResetsAt', { when: when(w.resetsAt) })) : '');
     };
-    return ['**Codex 用量**', '', line('5h', codex.primary), line('週', codex.secondary), '', codex.at ? `數字來自 ${ago(codex.at)}的 Codex 呼叫` : ''].filter(l => l !== null).join('\n');
+    return [tt('codexTitle'), '', line('5h', codex.primary), line(tt('week'), codex.secondary), '', codex.at ? tt('codexFrom', { ago: ago(codex.at) }) : ''].filter(l => l !== null).join('\n');
   }
   function codexHit(ev) {
     const r = canvas.getBoundingClientRect(), mx = (ev.clientX - r.left) * canvas.width / r.width, my = (ev.clientY - r.top) * canvas.height / r.height;
@@ -917,7 +1021,7 @@
   function codexRows() {
     if (!codex) return [];
     const t = Date.now();
-    return [['5h', codex.primary], ['週', codex.secondary]].filter(r => r[1])
+    return [['5h', codex.primary], [tt('week'), codex.secondary]].filter(r => r[1])
       .map(([label, w]) => [label, w.resetsAt && w.resetsAt <= t ? 0 : (w.usedPercent || 0)]);
   }
   function drawCodex(a) {
@@ -950,7 +1054,7 @@
       groups[liveness(d) !== 'live' ? 'gone' : (isWaiting(d) || d.blocked) ? 'waiting' : st === 'working' ? 'working' : 'idle'].push(d);
     }
     groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
-    const titles = { waiting: '等你處理', working: '工作中', idle: '閒置', gone: '離線' };
+    const titles = { waiting: tt('waitingYou'), working: tt('working'), idle: tt('idle'), gone: tt('gone') };
     const parts = [];
     for (const key of ['waiting', 'working', 'idle', 'gone']) {
       if (key === 'gone' && !groups.gone.length) continue;
@@ -962,13 +1066,13 @@
         el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
-        el.querySelector('.meta').textContent = (d.seat ? d.seat + ' 號 · ' : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
-        el.title = d.blocked ? '卡住等你' : key === 'waiting' ? '來匯報' : titles[key];
+        el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
+        el.title = d.blocked ? tt('blocked') : key === 'waiting' ? tt('reporting') : titles[key];
         el.addEventListener('click', () => openModal(d.id));
         parts.push(el);
       }
     }
-    const h = document.createElement('h2'); h.textContent = L.list.length ? `${L.list.length} 個 session，${live.length} 個在線` : '還沒有 session';
+    const h = document.createElement('h2'); h.textContent = L.list.length ? tt('rosterHead', { n: L.list.length, live: live.length }) : tt('rosterNone');
     rosterEl.replaceChildren(h, ...parts);
     nOnline.textContent = live.length;
     nWaiting.textContent = L.list.filter(d => isWaiting(d) && liveness(d) === 'live').length;
@@ -992,9 +1096,9 @@
     if (!jira) return;
     const issues = Array.isArray(jira.issues) ? jira.issues : [];
     const age = now() - (jira.fetchedAt || 0);
-    jMeta.textContent = `${issues.length} 張 · ${ago(jira.fetchedAt)}`;
+    jMeta.textContent = tt('jiraMeta', { n: issues.length, ago: ago(jira.fetchedAt) });
     jWarn.hidden = age < 10 * 60 * 1000;
-    jWarn.textContent = '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。';
+    jWarn.textContent = tt('jiraStale');
     const byKey = new Map();
     for (const d of desks.values()) {
       if (liveness(d) !== 'live') continue;
@@ -1029,7 +1133,7 @@
       }
       out.push(sec);
     }
-    if (!out.length) { const n = document.createElement('div'); n.className = 'none'; n.textContent = '沒有指派給你的未完成票。'; out.push(n); }
+    if (!out.length) { const n = document.createElement('div'); n.className = 'none'; n.textContent = tt('jiraEmpty'); out.push(n); }
     jGroups.replaceChildren(...out);
   }
 
@@ -1061,11 +1165,11 @@
     el.classList.add('plain'); el.textContent = text;
   }
   // the canvas bubble shows a short plain-text preview of the markdown
-  const plainPreview = t => (t || '').replace(/```[\s\S]*?```/g, '（程式碼）').replace(/^#{1,6}\s+/gm, '').replace(/[*_`>]/g, '').replace(/^\s*[-+]\s+/gm, '• ').replace(/\n{2,}/g, '\n');
+  const plainPreview = s => trMod(s || '').replace(/```[\s\S]*?```/g, tt('code')).replace(/^#{1,6}\s+/gm, '').replace(/[*_`>]/g, '').replace(/^\s*[-+]\s+/gm, '• ').replace(/\n{2,}/g, '\n');
   // A report with a "要你決定" heading has its decisions split out:
   // the modal highlights them in their own block under the rest and the bubble shows only them.
   function splitDecide(text) {
-    const t = text || '', m = t.match(/^#{1,4}\s*要你決定[^\n]*$/m);
+    const t = text || '', m = t.match(/^#{1,4}\s*(?:要你決定|Decisions for you)[^\n]*$/mi);
     if (!m) {
       // no heading (a session that has not seen the format yet): a closing
       // paragraph that asks something counts, with a lead-in line ending in "："
@@ -1087,31 +1191,31 @@
     const pending = !!(d.instructionAt && !(d.instructionDoneAt >= d.instructionAt));
     document.getElementById('m-title').textContent = d.title || d.label || d.id;
     const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
-    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? '卡住等你' : STATE_TEXT[st]) : '離線';
+    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? tt('blocked') : STATE_TEXT[st]) : tt('gone');
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
     blockedEl.textContent = d.blocked === 'question'
-      ? (Array.isArray(d.ask) && d.ask.length ? '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。' : '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。')
-      : '這個 session 在 terminal 等你確認權限，頁面回覆進不去，請切過去回答。';
+      ? (Array.isArray(d.ask) && d.ask.length ? tt('askOpts') : tt('askOld'))
+      : tt('permWait');
     renderAsk(d);
     document.getElementById('m-focus').hidden = !d.tty;
     const k = n => n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
-    const ctxText = d.ctx && typeof d.ctx.percent === 'number' ? `context 剩 ${100 - d.ctx.percent}%` + (d.ctx.tokens != null ? `（已用 ${k(d.ctx.tokens)} / ${k(d.ctx.window)}）` : '') : '';
-    const costText = typeof d.cost === 'number' ? '花費 $' + d.cost.toFixed(2) : '';
-    document.getElementById('m-branch').textContent = [d.seat ? '座位 ' + d.seat : '', d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
-    document.getElementById('m-task').textContent = (d.task ? '任務：' + d.task : '還沒有任務') + (st === 'working' && d.activity ? '　·　' + d.activity : '');
+    const ctxText = d.ctx && typeof d.ctx.percent === 'number' ? tt('ctx', { p: 100 - d.ctx.percent }) + (d.ctx.tokens != null ? tt('ctxUsed', { used: k(d.ctx.tokens), win: k(d.ctx.window) }) : '') : '';
+    const costText = typeof d.cost === 'number' ? tt('cost', { c: d.cost.toFixed(2) }) : '';
+    document.getElementById('m-branch').textContent = [d.seat ? tt('seat', { n: d.seat }) : '', d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + (st === 'working' && d.activity ? '　·　' + trMod(d.activity) : '');
     const { decide, rest } = splitDecide(d.report);
     const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
     document.getElementById('m-decide').hidden = !decide || asking;
     if (decide) renderReport(document.getElementById('m-decide-body'), decide);
     document.getElementById('m-report').hidden = asking || (!!decide && !rest);
-    renderReport(document.getElementById('m-report'), (decide ? rest : d.report) || '（還沒有匯報過）');
+    renderReport(document.getElementById('m-report'), (decide ? rest : trMod(d.report)) || tt('noReport'));
     const sent = document.getElementById('m-sent'); sent.hidden = !pending;
-    if (pending) sent.textContent = '已送出「' + (d.instruction || '').slice(0, 60) + '」，等 session 接手（' + ago(d.instructionAt) + '）';
-    document.getElementById('m-meta').textContent = (d.reportedAt ? '匯報 ' + ago(d.reportedAt) + '  ·  ' : '') + '最後更新 ' + ago(d.seenAt);
+    if (pending) sent.textContent = tt('sent', { text: (d.instruction || '').slice(0, 60), ago: ago(d.instructionAt) });
+    document.getElementById('m-meta').textContent = (d.reportedAt ? tt('reportedAgo', { ago: ago(d.reportedAt) }) + '  ·  ' : '') + tt('updatedAgo', { ago: ago(d.seenAt) });
     renderHistory(d);
     mSend.disabled = !(lv === 'live' && canWrite);
     document.getElementById('m-ack').hidden = !(isWaiting(d) && lv === 'live' && canWrite);
-    mReply.placeholder = (st === 'reporting' ? '回覆或下一步…' : '給它一個任務…') + '（Enter 送出，Shift+Enter 換行，截圖可直接貼上）';
+    mReply.placeholder = st === 'reporting' ? tt('replyPh') : tt('taskPh');
   }
   // the earlier rounds from the desk's `history` (oldest first, the last one is the current
   // report), newest first and folded; a desk from an older mod has no history and shows nothing
@@ -1122,13 +1226,13 @@
     const key = d.id + ':' + past.map(h => h.at).join(',');
     if (histEl.dataset.key === key) return;   // re-rendered every few seconds; keep it open and in place
     histEl.dataset.key = key;
-    histEl.querySelector('summary').textContent = `之前的回覆（${past.length}）`;
+    histEl.querySelector('summary').textContent = tt('histN', { n: past.length });
     document.getElementById('m-hist-list').replaceChildren(...past.map(h => {
       const item = document.createElement('div'); item.className = 'item';
       const when = document.createElement('div'); when.className = 'when';
-      when.textContent = ago(h.at) + (h.task ? '　·　任務：' + h.task : '');
+      when.textContent = ago(h.at) + (h.task ? '　·　' + tt('task', { t: h.task }) : '');
       const rep = document.createElement('div'); rep.className = 'report';
-      renderReport(rep, h.report || '（沒有內容）');
+      renderReport(rep, trMod(h.report) || tt('noContent'));
       item.append(when, rep); return item;
     }));
   }
@@ -1170,7 +1274,7 @@
     const parts = qs.map(q => {
       const box = document.createElement('div'); box.className = 'q';
       const h = document.createElement('div'); h.className = 'qh'; h.innerHTML = '<span class="tag"></span><span></span>';
-      h.firstChild.textContent = q.header || '問題'; h.lastChild.textContent = q.question + (q.multiSelect ? '（可複選）' : '');
+      h.firstChild.textContent = q.header || tt('question'); h.lastChild.textContent = q.question + (q.multiSelect ? tt('multi') : '');
       const opts = document.createElement('div'); opts.className = 'opts';
       for (const o of q.options || []) {
         const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.innerHTML = '<b></b><span></span>';
@@ -1184,7 +1288,7 @@
       }
       box.append(h, opts); return box;
     });
-    const go = document.createElement('button'); go.type = 'button'; go.className = 'go'; go.textContent = '送出答案'; go.disabled = true;
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'go'; go.textContent = tt('sendAnswer'); go.disabled = true;
     go.addEventListener('click', () => answer(d.id, qs));
     askEl.replaceChildren(...parts, ...(qs.length === 1 && !qs[0].multiSelect ? [] : [go]));
   }
@@ -1242,8 +1346,8 @@
     shotsEl.hidden = !list.length;
     shotsEl.replaceChildren(...list.map((s, i) => {
       const el = document.createElement('div'); el.className = 'shot';
-      const img = document.createElement('img'); img.src = s.url; img.alt = '附圖 ' + (i + 1);
-      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = '移除';
+      const img = document.createElement('img'); img.src = s.url; img.alt = tt('image', { n: i + 1 });
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = tt('remove');
       x.addEventListener('click', () => { list.splice(i, 1); renderShots(); });
       el.append(img, x); return el;
     }));
@@ -1283,7 +1387,7 @@
   const drafts = {};
   async function send(id, text, images = []) {
     text = (text || '').trim();
-    if (!text && images.length) text = '請看附圖。';
+    if (!text && images.length) text = tt('seeImage');
     if (!db || !canWrite || !text) return false;
     mSend.disabled = true;
     try {
@@ -1337,8 +1441,8 @@
     const stale = now() - bridgeSeenAt > 30 * 1000;
     bannerEl.hidden = !stale;
     if (stale) bannerEl.textContent = bridgeSeenAt
-      ? `橋接視窗沒在跑（最後一次 ${ago(bridgeSeenAt)}），辦公室不會更新，指令也送不出去。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits`
-      : '還沒有橋接視窗。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits';
+      ? tt('bridgeDown', { ago: ago(bridgeSeenAt) })
+      : tt('bridgeNone');
   }
   setInterval(judgeBridge, 5000);
   const requestsEl = document.getElementById('requests');
@@ -1347,9 +1451,9 @@
     requestsEl.replaceChildren(...recent.map(r => {
       const el = document.createElement('div');
       const where = (r.title ? r.title + '　' : '') + (r.cwd || '');
-      if (r.status === 'pending') el.textContent = `等橋接開新 session：${where}（${ago(r.at)}）`;
-      else if (r.status === 'started') { el.innerHTML = '<span class="ok">已開新分頁</span>：'; el.append(where + '（' + ago(r.startedAt || r.at) + '）'); }
-      else { el.innerHTML = '<span class="bad">開不起來</span>：'; el.append(where + '　' + (r.error || '')); }
+      if (r.status === 'pending') el.textContent = tt('reqPending', { where, ago: ago(r.at) });
+      else if (r.status === 'started') { el.innerHTML = '<span class="ok"></span>: '; el.firstChild.textContent = tt('reqStarted'); el.append(where + ' (' + ago(r.startedAt || r.at) + ')'); }
+      else { el.innerHTML = '<span class="bad"></span>: '; el.firstChild.textContent = tt('reqFailed'); el.append(where + '　' + (r.error || '')); }
       return el;
     }));
   }
@@ -1389,10 +1493,10 @@
   const narrow = matchMedia('(max-width: 860px)');
   const hiconsEl = document.getElementById('hicons'), hicons = new Map();
   function iconOf(d) {
-    if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: '在 terminal 等你確認權限' };
-    if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: '在等你回答' };
+    if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: tt('iconPerm') };
+    if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: tt('iconAsk') };
     const { decide } = splitDecide(d.report);
-    return decide ? { cls: 'decide', text: '❗' + decideCount(decide), title: '要你決定' } : { cls: '', text: '💬', title: '來匯報' };
+    return decide ? { cls: 'decide', text: '❗' + decideCount(decide), title: tt('decide') } : { cls: '', text: '💬', title: tt('iconReport') };
   }
   function placeIcons() {
     const want = new Set();
@@ -1426,7 +1530,7 @@
     hbMore.hidden = id === 'codex';
     if (text.startsWith('#decide\n')) {
       const body = text.slice(8);
-      renderReport(hbClip, '<div class="dh">要你決定（' + decideCount(body) + ' 件）</div>\n\n' + body);
+      renderReport(hbClip, '<div class="dh">' + tt('decideN', { n: decideCount(body) }) + '</div>\n\n' + body);
     } else renderReport(hbClip, text);
     hb.hidden = false;
     const k = canvas.clientWidth / canvas.width, ox = canvas.offsetLeft, oy = canvas.offsetTop;
@@ -1456,14 +1560,14 @@
 
   // ---- data ----------------------------------------------------------------
   renderRoster(L);
-  const connectTimer = setTimeout(() => { if (!db) emptyEl.textContent = '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。'; }, 10000);
+  const connectTimer = setTimeout(() => { if (!db) emptyEl.textContent = tt('dbFail'); }, 10000);
   (async () => {
     const [d, user] = await Promise.all([claude.use('db'), claude.use('user')]);
     if (user) { const c = await user.can('data.write'); if (c === false) canWrite = false; }
-    if (!d) { clearTimeout(connectTimer); emptyEl.textContent = '需要登入 claude.ai 才能看到即時狀態。'; return; }
+    if (!d) { clearTimeout(connectTimer); emptyEl.textContent = tt('needLogin'); return; }
     db = d; clearTimeout(connectTimer);
-    emptyEl.innerHTML = '還沒有 session 進來。裝好 <code>office</code> mod 的 session 啟動後會自己走進來坐下。';
-    d.doc('meta/jira').onSnapshot(snap => { jira = snap.exists ? snap.data() : null; if (!snap.exists) jMeta.textContent = '還沒同步'; renderJira(); }, e => console.warn('jira doc', e));
+    emptyEl.innerHTML = tt('noSessions');
+    d.doc('meta/jira').onSnapshot(snap => { jira = snap.exists ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); }, e => console.warn('jira doc', e));
     d.doc('meta/codex').onSnapshot(snap => { codex = snap.exists ? snap.data() : null; }, e => console.warn('codex doc', e));
     d.doc('meta/config').onSnapshot(snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); }, e => console.warn('config doc', e));
     d.doc('meta/bridge').onSnapshot(snap => { bridgeSeenAt = snap.exists ? (snap.data().seenAt || 0) : 0; judgeBridge(); }, e => console.warn('bridge heartbeat', e));
@@ -1473,7 +1577,7 @@
     d.collection('desks').onSnapshot(snap => {
       desks = new Map(snap.docs.filter(s => s.exists).map(s => [s.id, { id: s.id, ...s.data() }]));
       rosterDirty = true;
-    }, e => { console.warn('desks subscription', e); emptyEl.hidden = false; emptyEl.textContent = '即時更新中斷（' + (e && e.code || 'unknown') + '），請重新整理。'; });
+    }, e => { console.warn('desks subscription', e); emptyEl.hidden = false; emptyEl.textContent = tt('liveBroken', { code: e && e.code || 'unknown' }); });
   })();
 })();
 </script>

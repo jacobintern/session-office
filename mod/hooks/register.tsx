@@ -5,13 +5,14 @@ import type { Register, EngineInterface } from 'claude-code'
 // the artifact's database and brings instructions typed on the page back as
 // files. Workers never call a tool, so they run under auto mode untouched.
 // Everything about the person running it lives in ~/.claude/office/config.json:
-// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, city?: { lat, lng }, newSessionDirs? }
+// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, city?: { lat, lng }, newSessionDirs?, language? }
 type OfficeConfig = {
   officeUrl?: string
   jira?: { site: string; email: string; jql?: string; tokenFile?: string } | null
   codex?: boolean
   city?: { lat: number; lng: number }
   newSessionDirs?: string[]
+  language?: 'zh-TW' | 'en'
 }
 let cfg: OfficeConfig = {}
 let OFFICE_URL = ''
@@ -452,7 +453,9 @@ async function syncJira($: EngineInterface) {
   }
 }
 
-const REPORT_FORMAT = '# Report format (Session Office)\nWhen a reply has anything the user must decide or answer, collect all of it in a final section headed exactly `## 要你決定`: one line per item with the question, the options and your recommendation, at most 3 items. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.'
+// The heading follows `language` in config.json ("zh-TW" by default, or "en"); the page reads both.
+const DECIDE_HEADING = () => (cfg.language === 'en' ? 'Decisions for you' : '要你決定')
+const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: one line per item with the question, the options and your recommendation, at most 3 items. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
 
 // Codex: every Codex call logs the account's limits in its rollout file
 // (~/.codex/sessions/**/rollout-*.jsonl, a token_count event). The bridge
@@ -692,7 +695,7 @@ export const register: Register = on => {
   // The report format the page relies on rides along with every prompt, so a
   // running session follows it from its next turn (CLAUDE.md is read only at start;
   // prompt.compose is taken by another plugin before ours).
-  on('prompt.submit', async ($, e, next) => next({ ...e, context: [...(e.context ?? []), REPORT_FORMAT] }))
+  on('prompt.submit', async ($, e, next) => next({ ...e, context: [...(e.context ?? []), REPORT_FORMAT()] }))
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     home = (await $.env.get('HOME')) ?? ''
@@ -732,6 +735,10 @@ export const register: Register = on => {
           if (typeof prev.startedAt === 'number') me.startedAt = prev.startedAt
           if (!me.title && prev.title) me.title = prev.title
           if (Array.isArray(prev.history)) me.history = prev.history
+          // and what the page shows: the task, and a report still waiting for you
+          if (prev.task) me.task = prev.task
+          if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
+          else if (prev.report) Object.assign(me, { report: prev.report, reportedAt: prev.reportedAt ?? null })
         }
       } catch { /* no desk yet */ }
       await refreshUsage($)

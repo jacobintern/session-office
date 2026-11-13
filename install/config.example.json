@@ -3,6 +3,12 @@
   "bridgeCwd": "~",
   "jira": null,
   "codex": true,
-  "city": { "lat": 25.033, "lng": 121.565 },
-  "newSessionDirs": ["~/code"]
+  "city": {
+    "lat": 25.033,
+    "lng": 121.565
+  },
+  "newSessionDirs": [
+    "~/code"
+  ],
+  "language": "zh-TW"
 }
