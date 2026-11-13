@@ -1,0 +1,5 @@
+{
+  "name": "session-office",
+  "owner": { "name": "jacobintern" },
+  "plugins": [{ "name": "office", "source": "./mod" }]
+}

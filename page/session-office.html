@@ -1,0 +1,1479 @@
+<title>Session Office</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.9/purify.min.js"></script>
+<style>
+  /* Layout: a pixel office drawn on canvas on top, the roster as plain cards beneath it; one column at phone width. */
+  :root {
+    --bg: #efe9dc;
+    --fg: #2b2622;
+    --muted: #7a7066;
+    --line: #d9d0bf;
+    --panel: #f8f4ec;
+    --accent: #c2572b;
+    --ok: #3f8f5a;
+    --hp-hi: #5fc46e; --hp-mid: #e8c23a; --hp-low: #e0503c;
+    --wait: #d08a1f;
+    --idle: #8a8f9a;
+    --floor-a: #3a3a40;
+    --floor-b: #303036;
+    --wall: #b9a98a;
+    --desk: #8a5a3b;
+    --desk-top: #a86f49;
+    --screen: #1f2a35;
+    --screen-on: #78d3ff;
+    --bubble: #fffdf7;
+    --bubble-fg: #2b2622;
+    --display: "Silkscreen", "Courier New", monospace;
+    --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+    --mono: "IBM Plex Mono", "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1916; --fg: #ece5d8; --muted: #a39a8c; --line: #3a342c; --panel: #26221d;
+      --accent: #e3794a; --ok: #6cc08a; --wait: #e8a640; --idle: #8b919c;
+      --floor-a: #2c2c32; --floor-b: #232328; --wall: #6e6250; --desk: #6b4530; --desk-top: #8c5c3e;
+      --screen: #0e141b; --screen-on: #78d3ff; --bubble: #f4efe4; --bubble-fg: #2b2622;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1916; --fg: #ece5d8; --muted: #a39a8c; --line: #3a342c; --panel: #26221d;
+    --accent: #e3794a; --ok: #6cc08a; --wait: #e8a640; --idle: #8b919c;
+    --floor-a: #2c2c32; --floor-b: #232328; --wall: #6e6250; --desk: #6b4530; --desk-top: #8c5c3e;
+    --screen: #0e141b; --screen-on: #78d3ff; --bubble: #f4efe4; --bubble-fg: #2b2622;
+    color-scheme: dark;
+  }
+  body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+  .wrap {
+    max-width: none; margin: 0 auto;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 20px 48px;
+    display: grid; grid-template-columns: 260px minmax(0, 1100px) minmax(280px, 1fr); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
+  }
+  .wrap > header { grid-area: head; }
+  .banner { grid-column: 1 / -1; background: var(--wait); color: var(--bg); font-weight: 600; padding: 10px 14px; border-radius: 6px; font-size: .9rem; }
+  .side { grid-area: side; display: flex; flex-direction: column; gap: 14px; min-width: 0; position: sticky; top: 16px; }
+  .main { grid-area: main; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+  .feed { grid-area: feed; display: flex; flex-direction: column; gap: 14px; min-width: 0; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  @media (max-width: 1480px) { .wrap { grid-template-columns: 260px minmax(0, 1fr); grid-template-areas: "head head" "side main" "side feed"; } .feed { position: static; max-height: none; } }
+  @media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "feed" "side"; } .side { position: static; } }
+  .feed > h2 { font-size: .9rem; font-weight: 600; margin: 0; color: var(--muted); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .feed > h2 .meta { margin-left: auto; }
+  .feed .warn { font-size: .8rem; color: var(--accent); }
+  .feed details { display: flex; flex-direction: column; gap: 6px; }
+  .feed details > *:not(summary) { margin-top: 6px; }
+  .feed summary { list-style: none; cursor: pointer; font-size: .78rem; font-weight: 600; letter-spacing: .04em; margin: 4px 0 0; color: var(--muted); display: flex; align-items: center; gap: 8px; user-select: none; }
+  .feed summary::-webkit-details-marker { display: none; }
+  .feed summary::before { content: '▸'; font-size: .7rem; width: .8em; transition: transform .15s; }
+  .feed details[open] > summary::before { transform: rotate(90deg); }
+  .feed summary:hover { color: var(--fg); }
+  .feed summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .feed summary .n { font-weight: 500; }
+  .feed .none { font-size: .82rem; color: var(--muted); padding: 2px 0; }
+  .ticket { display: grid; gap: 4px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); min-width: 0; }
+  .ticket.hot { border-color: var(--ok); box-shadow: inset 3px 0 0 var(--ok); }
+  .ticket .head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .ticket .key { font-family: var(--mono); font-size: .8rem; font-weight: 600; color: var(--accent); text-decoration: none; flex: none; }
+  .ticket .key:hover { text-decoration: underline; }
+  .ticket .type { font-size: .68rem; font-weight: 600; letter-spacing: .03em; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); flex: none; }
+  .ticket .type.bug, .ticket .type.incident { border-color: var(--accent); color: var(--accent); }
+  .ticket .head .meta { margin-left: auto; }
+  .ticket .sum { font-size: .84rem; line-height: 1.4; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+  .ticket .foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: .75rem; color: var(--muted); }
+  .ticket .foot .parent { font-family: var(--mono); }
+  .ticket .dog { font: inherit; font-size: .75rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--ok); background: none; color: var(--ok); cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ticket .dog:hover { background: var(--ok); color: var(--bg); }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
+  h1 { font-family: var(--display); font-weight: 700; font-size: 1.35rem; letter-spacing: .02em; margin: 0; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: .9rem; margin: 0; }
+  .stat { margin-left: auto; display: flex; gap: 14px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat b { color: var(--fg); font-weight: 600; }
+  .spawn-btn { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
+  .spawn-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .field { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .field input, .field textarea { font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
+  .field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .field code { font-family: var(--mono); }
+  .requests { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .requests .ok { color: var(--ok); } .requests .bad { color: var(--accent); }
+  .office { position: relative; border: 2px solid var(--line); background: var(--wall); border-radius: 6px; overflow: hidden; max-width: 1100px; }
+  canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: default; }
+  canvas.hit { cursor: pointer; }
+  .hbubble { position: absolute; max-width: 340px; font-size: 12px; line-height: 1.45; padding: 8px 10px 6px; border-radius: 6px; box-shadow: 0 2px 0 rgba(0,0,0,.18); cursor: pointer; z-index: 3; pointer-events: auto; }
+  .hbubble .clip { max-height: 5.8em; overflow: hidden; -webkit-mask-image: linear-gradient(#000 70%, transparent); mask-image: linear-gradient(#000 70%, transparent); }
+  .hbubble.whole .clip { max-height: none; -webkit-mask-image: none; mask-image: none; }
+  .hbubble .more { font-size: 11px; color: var(--accent); font-weight: 600; margin-top: 2px; }
+  .hbubble.report p, .hbubble.report ul, .hbubble.report ol, .hbubble.report pre, .hbubble.report table { margin: 0 0 .3em; }
+  .hbubble.report h1, .hbubble.report h2, .hbubble.report h3, .hbubble.report h4 { font-size: 12px; margin: .3em 0 .2em; }
+  .hbubble.report pre { padding: 4px 6px; }
+  .hbubble::after { content: ""; position: absolute; width: 8px; height: 8px; background: inherit; transform: rotate(45deg); }
+  .hbubble.above::after { left: calc(50% - 4px); bottom: -4px; }
+  .hbubble.right::after { left: -4px; top: calc(50% - 4px); }
+  .hbubble.left::after { right: -4px; top: calc(50% - 4px); }
+  .empty {
+    position: absolute; inset: auto 12px 12px 12px; background: var(--bubble); color: var(--bubble-fg);
+    border-radius: 6px; padding: 10px 14px; font-size: .9rem; box-shadow: 0 2px 0 rgba(0,0,0,.15);
+  }
+  .empty code { font-family: var(--mono); font-size: .85em; }
+  .roster { display: flex; flex-direction: column; gap: 2px; }
+  .roster h2 { font-size: .9rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
+  .roster h3 { font-size: .74rem; font-weight: 600; letter-spacing: .05em; margin: 10px 0 2px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .roster h3 .n { font-weight: 500; }
+  .roster h3.waiting { color: var(--wait); } .roster h3.working { color: var(--ok); }
+  .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px 6px 10px; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+  .row .label { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; font-size: .88rem; }  /* the full name, wrapped, not an ellipsis */
+  .row:hover { background: var(--panel); }
+  .row.waiting { border-left-color: var(--wait); background: var(--panel); }
+  .row.gone { opacity: .55; }
+  .row:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .dot.working { background: var(--ok); } .dot.reporting { background: var(--wait); } .dot.idle, .dot.gone { background: var(--idle); }
+  .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+  .pill { flex: none; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; color: var(--bg); }
+  .pill.working { background: var(--ok); } .pill.reporting { background: var(--wait); } .pill.idle, .pill.gone { background: var(--idle); }
+  .meta { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
+  .modal { position: fixed; inset: 0; background: rgba(20,16,12,.55); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-left, 0px)); z-index: 20; }
+  .panel { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; width: min(1100px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+  .panel header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .panel header .label { font-size: 1.05rem; }
+  .panel .close { margin-left: auto; font: inherit; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 1.3rem; line-height: 1; padding: 4px 8px; }
+  .panel .close:focus-visible { outline: 2px solid var(--accent); }
+  .branch { font-family: var(--mono); font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .line { font-size: .9rem; overflow-wrap: anywhere; color: var(--muted); }
+  .body { padding: 14px 18px; display: grid; gap: 10px; overflow-y: auto; min-height: 0; }
+  .report { font-size: .95rem; line-height: 1.65; background: var(--bubble); color: var(--bubble-fg); border-radius: 6px; padding: 14px 18px; overflow-wrap: anywhere; }
+  .report.plain { white-space: pre-wrap; }
+  .report > :first-child { margin-top: 0; } .report > :last-child { margin-bottom: 0; }
+  .report p, .report ul, .report ol, .report pre, .report table, .report blockquote { margin: 0 0 .7em; }
+  .report h1, .report h2, .report h3, .report h4 { font-size: 1rem; margin: 1em 0 .4em; text-wrap: balance; }
+  .report ul, .report ol { padding-left: 1.4em; } .report li { margin: .15em 0; } .report li > p { margin: 0; }
+  .report code { font-family: var(--mono); font-size: .86em; background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 3px; overflow-wrap: anywhere; }
+  .report pre { background: #2b2622; color: #ece5d8; padding: 10px 12px; border-radius: 6px; white-space: pre-wrap; overflow-wrap: anywhere; overflow-x: hidden; }
+  .report pre code { background: none; padding: 0; color: inherit; font-size: .84em; }
+  .report table { border-collapse: collapse; width: 100%; table-layout: auto; font-size: .9em; }
+  .report th, .report td { border: 1px solid rgba(0,0,0,.15); padding: 4px 8px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+  .report td code, .report th code { white-space: normal; overflow-wrap: anywhere; }
+  .report th { background: rgba(0,0,0,.05); }
+  .report blockquote { border-left: 3px solid rgba(0,0,0,.2); margin-left: 0; padding-left: 10px; color: rgba(0,0,0,.65); }
+  .report a { color: var(--accent); }
+  .report hr { border: 0; border-top: 1px solid rgba(0,0,0,.15); margin: .8em 0; }
+  .sent { font-size: .8rem; color: var(--muted); }
+  .hist summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .hist summary:hover { color: var(--fg); }
+  .hist[open] summary { margin-bottom: 8px; }
+  .hist .item { display: grid; gap: 6px; margin-bottom: 12px; }
+  .hist .when { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .ask { display: grid; gap: 14px; }
+  .ask .q { display: grid; gap: 8px; }
+  .ask .qh { font-weight: 600; }
+  .ask .qh .tag { font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-right: 6px; }
+  .ask .opts { display: grid; gap: 6px; }
+  .ask .opt { display: grid; gap: 2px; text-align: left; font: inherit; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bubble); color: var(--bubble-fg); cursor: pointer; }
+  .ask .opt:hover { border-color: var(--accent); }
+  .ask .opt.on { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
+  .ask .opt b { font-weight: 600; } .ask .opt span { font-size: .84rem; opacity: .75; }
+  .ask .go { justify-self: start; font: inherit; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
+  .ask .go:disabled { opacity: .5; cursor: default; }
+  .decide { font-size: .95rem; line-height: 1.6; background: var(--bubble); color: var(--bubble-fg); border: 2px solid var(--wait); border-radius: 6px; padding: 10px 16px 12px; overflow-wrap: anywhere; display: grid; gap: 4px; }
+  .decide .dh { font-size: .8rem; font-weight: 700; letter-spacing: .06em; color: var(--wait); }
+  .decide .report { background: none; padding: 0; border-radius: 0; }
+  .hbubble .dh { font-size: 11px; font-weight: 700; color: var(--wait); margin-bottom: 2px; }
+  .hicons { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .hicon { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; font: 700 11px/1 var(--body); padding: 3px 5px; border: 0; border-radius: 999px; background: var(--bubble); color: var(--bubble-fg); box-shadow: 0 1px 0 rgba(0,0,0,.25); cursor: pointer; white-space: nowrap; }
+  .hicon.decide { box-shadow: inset 0 0 0 2px var(--wait); }
+  .blocked { font-size: .9rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 6px; padding: 8px 12px; }
+  .reply { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding: 12px 18px; border-top: 1px solid var(--line); }
+  .reply textarea { flex: 1; min-width: 0; font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 2.6em; }
+  .reply textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .reply button { font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
+  .reply button:disabled { opacity: .5; cursor: default; }
+  .reply .ghost { background: none; color: var(--muted); border: 1px solid var(--line); align-self: flex-start; font-weight: 500; }
+  .reply .ghost:hover { color: var(--fg); border-color: var(--fg); }
+  .reply .fire { margin-left: auto; display: flex; gap: 6px; }
+  .reply.drop textarea { outline: 2px dashed var(--accent); }
+  .shots { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px 0; border-top: 1px solid var(--line); }
+  .shots .shot { position: relative; width: 72px; height: 72px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
+  .shots img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .shots button { position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: rgba(0,0,0,.65); color: #fff; font-size: 12px; line-height: 20px; cursor: pointer; }
+  .shots .note { align-self: center; font-size: .8rem; color: var(--muted); }
+  .reply .ghost.danger { color: var(--accent); border-color: var(--accent); }
+  .reply .ghost.danger:hover { background: var(--accent); color: var(--bg); }
+  .reply .danger-solid { background: var(--accent); color: var(--bg); align-self: flex-start; }
+  .help { font-size: .78rem; line-height: 1.5; color: var(--muted); margin: 8px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
+  .help code { font-family: var(--mono); font-size: .85em; }
+  @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Session Office</h1>
+    <p class="sub">每個 Claude Code session 一張桌子。做完一輪的同事會走到你桌前匯報；點他或泡泡看全文，回覆或按「收到」他就回座位。</p>
+    <div class="stat"><span>在線 <b id="n-online">0</b></span><span>待匯報 <b id="n-waiting">0</b></span><button type="button" class="spawn-btn" id="spawn-open">＋ 新開 session</button></div>
+  </header>
+
+  <div class="banner" id="banner" hidden></div>
+  <aside class="side">
+    <div class="roster" id="roster"></div>
+    <div class="requests" id="requests"></div>
+  <p class="help" id="help">每個 session 由 <code>office</code> mod 自動把桌卡寫到本機，再由一個橋接視窗同步進來，所以要有橋接視窗開著才會更新。桌牌預設是那個 session 的第一句任務，在視窗裡打 <code>/office name 名字</code> 可以改。桌卡超過 2 分鐘沒更新會標成離線，30 分鐘後從辦公室移除。角色圖來自 <a href="https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32">Pipoya</a>。</p>
+  </aside>
+
+  <main class="main">
+  <div class="office">
+    <canvas id="c" width="960" height="560" aria-label="辦公室平面圖，每張桌子是一個 session"></canvas>
+    <div class="hbubble report" id="hbubble" hidden><div class="clip"></div><div class="more">點開看全文、回覆</div></div>
+    <div class="hicons" id="hicons"></div>
+    <div class="empty" id="empty">正在連線資料庫…</div>
+  </div>
+
+  <div class="modal" id="modal" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="m-title">
+      <header><span class="dot" id="m-dot"></span><span class="label" id="m-title"></span><span class="pill" id="m-pill"></span><button type="button" class="close" id="m-close" aria-label="關閉">×</button></header>
+      <div class="body">
+        <div class="branch" id="m-branch"></div>
+        <div class="line" id="m-task"></div>
+        <div class="report" id="m-report"></div>
+        <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
+        <div class="blocked" id="m-blocked" hidden></div>
+        <div class="ask" id="m-ask" hidden></div>
+        <div class="sent" id="m-sent" hidden></div>
+        <div class="meta" id="m-meta"></div>
+        <details class="hist" id="m-hist" hidden><summary></summary><div id="m-hist-list"></div></details>
+      </div>
+      <div class="shots" id="m-shots" hidden></div>
+      <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button></form>
+      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-focus" hidden>切到它的 terminal 分頁</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+    </div>
+  </div>
+
+  <div class="modal" id="spawn" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="s-title">
+      <header><span class="label" id="s-title">新開 session</span><button type="button" class="close" id="s-close" aria-label="關閉">×</button></header>
+      <form id="s-form">
+        <div class="body">
+          <label class="field">目錄<input id="s-cwd" list="dirs" required placeholder="/path/to/repo" autocomplete="off"><datalist id="dirs"></datalist></label>
+          <label class="field">桌牌（可空，空的話用第一句任務）<input id="s-name" maxlength="40" autocomplete="off"></label>
+          <label class="field">第一個任務（可空）<textarea id="s-task" rows="3" maxlength="4000" placeholder="Enter 送出，Shift+Enter 換行"></textarea></label>
+          <div class="line">橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。</div>
+        </div>
+        <div class="reply"><button type="submit" id="s-send">開</button></div>
+      </form>
+    </div>
+  </div>
+  </main>
+
+  <aside class="feed" id="feed" aria-label="Jira">
+    <h2>Jira 我的票 <span class="meta" id="j-meta">還沒同步</span></h2>
+    <div class="warn" id="j-warn" hidden></div>
+    <div id="j-groups"><div class="none">等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。</div></div>
+  </aside>
+</div>
+
+<script>
+(() => {
+  const TILE = 40, COLS = 30, WALL_H = 5.4, MIN_ROWS = 18.75; // the frame stays 30 x 18.75 tiles; the glass wall is 5.4 tiles tall
+  // Your office: a small room top-left behind the glass; the dogs sit at two long benches of six.
+  const OFFICE = { w: 12, h: 9, doorX: 10.3 }; // tiles; door is a gap in the bottom partition
+  const SEATS_PER_BENCH = 6;
+  const canvas = document.getElementById('c');
+  const ctx = canvas.getContext('2d');
+  const rosterEl = document.getElementById('roster');
+  const emptyEl = document.getElementById('empty');
+  const nOnline = document.getElementById('n-online');
+  const nWaiting = document.getElementById('n-waiting');
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const STALE_MS = 2 * 60 * 1000, GONE_MS = 30 * 60 * 1000;
+  let desks = new Map();      // id -> doc data
+  let actors = new Map();     // id -> animation state
+  let db = null, canWrite = true;
+  let hover = null;
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const hash = s => { let h = 2166136261; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const PALETTE = ['#e0565b', '#3d8bd6', '#48a86a', '#d79a2b', '#9b63d1', '#2aa7a3', '#d66aa6', '#7f8c3a'];
+  const colorOf = id => PALETTE[hash(id) % PALETTE.length];
+
+  const now = () => Date.now();
+  const ago = t => {
+    if (!t) return '';
+    const s = Math.max(0, Math.round((now() - t) / 1000));
+    if (s < 60) return s + ' 秒前';
+    const m = Math.round(s / 60); if (m < 60) return m + ' 分鐘前';
+    const h = Math.round(m / 60); if (h < 24) return h + ' 小時前';
+    return Math.round(h / 24) + ' 天前';
+  };
+  const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
+  const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
+  const effState = d => liveness(d) !== 'live' ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' ? 'working' : 'idle');
+  const STATE_TEXT = { working: '工作中', reporting: '來匯報', idle: '閒置' };
+
+  // ---- layout -------------------------------------------------------------
+  // Benches are fixed furniture: bench 0 sits right of your office on the same
+  // band, later benches run the full width below it. Seats fill in order.
+  // Row r of furniture. 0: bench right of your office; 1: full-width bench;
+  // 2-5: two pods of three desks back to back (top row sits above facing down,
+  // bottom row sits below facing up); 6+: extra full-width benches if ever needed.
+  function benchGeometry(r) {
+    const row = (xStart, xEnd, y, seats, side) => ({ r, xStart, xEnd, y, side, spacing: (xEnd - xStart) / seats, seats: Array.from({ length: seats }, (_, k) => xStart + (xEnd - xStart) / seats * (k + 0.5)) });
+    // Both pods sit in the open floor right of your office, one above the other.
+    // Measured from the glass wall: a pod block (name tags above the top dogs down to
+    // the bottom dogs' feet) is 5 tiles tall, so with the room 13.35 tiles below the
+    // wall the two pods and the three gaps around them share the space evenly (about 1.1 each).
+    // Sideways the pod sits midway between the office wall and the right edge.
+    const T = TILE, podW = 9.6, blockH = 5.0, gapY = (MIN_ROWS - WALL_H - 2 * blockH) / 3;
+    const xStart = (OFFICE.w + (COLS - OFFICE.w - podW) / 2) * T, xEnd = xStart + podW * T;
+    const pod = Math.floor(r / 2), top = (WALL_H + gapY + 2.75 + pod * (blockH + gapY)) * T, bottom = top + 1.1 * T;
+    return row(xStart, xEnd, r % 2 === 0 ? top : bottom, 3, r % 2 === 0 ? 'above' : 'below');
+  }
+  function layout() {
+    const list = [...desks.values()].filter(d => liveness(d) !== 'gone').sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
+    // seat numbers come from the bridge (`seat`, fixed per session); a desk that
+    // has none yet takes the lowest free number until the bridge assigns one
+    const used = new Set(list.filter(d => d.seat).map(d => d.seat));
+    const seatNo = new Map(); let free = 1;
+    for (const d of list) { if (d.seat) seatNo.set(d.id, d.seat); else { while (used.has(free)) free++; used.add(free); seatNo.set(d.id, free); } }
+    const benches = [];
+    let capacity = 0;
+    while (capacity < Math.max(12, ...seatNo.values())) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
+    const ROWS = Math.max(MIN_ROWS, benches[benches.length - 1].y / TILE + 1.6);
+    const W = COLS * TILE, H = Math.round(ROWS * TILE);
+    if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+    const seatList = benches.flatMap(b => b.seats.map(x => ({ bench: b, x })));
+    const slots = list.map(d => {
+      const n = seatNo.get(d.id), { bench: b, x } = seatList[n - 1];
+      return { d, seat: n, bench: b, deskX: x, deskY: b.y, seatX: x, seatY: b.y + (b.side === 'below' ? 1 : -1) * TILE * 0.85, face: b.side === 'below' ? 'up' : 'down' };
+    });
+    const office = { x: 0, y: WALL_H * TILE, w: OFFICE.w * TILE, h: OFFICE.h * TILE, doorX: OFFICE.doorX * TILE, bottom: (WALL_H + OFFICE.h) * TILE };
+    const boss = { x: OFFICE.w * TILE / 2, y: (WALL_H + 3.4) * TILE }; // low enough that the HP panels clear the glass
+    const visitorY = boss.y + TILE * 1.3;
+    const aisleY = office.bottom + TILE * 0.45;
+    return { list, slots, benches, office, boss, visitorY, aisleY, W, H, ROWS };
+  }
+
+  // ---- actors (positions + walking) -------------------------------------
+  // Queue order is fixed when a dog joins the queue (first come, first served):
+  // when the one in front is done it steps down off the row and walks out below it,
+  // while everyone behind follows the dog ahead at a steady distance (see tick).
+  let queueSeq = 0;
+  function syncActors(L) {
+    const seen = new Set();
+    const isQueued = s => (isWaiting(s.d) || s.d.blocked) && liveness(s.d) === 'live';
+    const joining = L.slots.filter(s => isQueued(s) && actors.get(s.d.id)?.queueNo === undefined).sort((a, b) => (a.d.reportedAt || 0) - (b.d.reportedAt || 0));
+    for (const s of joining) { let a = actors.get(s.d.id); if (!a) { a = { x: s.seatX, y: s.seatY, path: [], facing: 1, step: 0 }; actors.set(s.d.id, a); } a.queueNo = ++queueSeq; }
+    for (const s of L.slots) if (!isQueued(s)) { const a = actors.get(s.d.id); if (a) delete a.queueNo; }
+    const waiting = L.slots.filter(isQueued).sort((a, b) => actors.get(a.d.id).queueNo - actors.get(b.d.id).queueNo);
+    const door = L.office.doorX;
+    const insideOffice = p => p.y < L.office.bottom && p.x < L.office.w;
+    // the lane one step below the queue row, where a dog that is done walks out
+    const laneY = Math.min(L.visitorY + TILE * 0.9, L.office.bottom - TILE * 0.3);
+    L.slots.forEach(s => {
+      seen.add(s.d.id);
+      let a = actors.get(s.d.id);
+      if (!a) { a = { x: s.seatX, y: s.seatY, path: [], facing: 1, step: 0 }; actors.set(s.d.id, a); }
+      const qi = waiting.indexOf(s);
+      // three wait inside your office in a row in front of the desk; the rest line up outside the door
+      const target = qi < 0 ? { x: s.seatX, y: s.seatY }
+        : qi < 3 ? { x: L.boss.x + qi * TILE * 1.3, y: L.visitorY }
+        : { x: door + (qi - 2) * TILE * 1.3, y: L.aisleY };
+      if (!a.target || a.target.x !== target.x || a.target.y !== target.y) {
+        a.target = target;
+        const b = s.bench, endX = s.seatX > (b.xStart + b.xEnd) / 2 ? b.xEnd + TILE * 0.5 : b.xStart - TILE * 0.5;
+        const here = { x: a.x, y: a.y }, nowIn = insideOffice(here), wasQueued = a.atBoss;
+        if (qi >= 0 && wasQueued) {
+          // already in the queue: step forward along it (through the door when moving inside)
+          const goIn = target.y < L.office.bottom;
+          a.path = nowIn === goIn ? [target]
+            : goIn ? [{ x: door, y: L.aisleY }, { x: door, y: target.y }, target]
+            : [{ x: door, y: a.y }, { x: door, y: L.aisleY }, target];
+        } else if (qi >= 0) {
+          // from the desk: along the bench to its end, down to the aisle, then to the door and in,
+          // or (outside the door) straight along the aisle to the end of the line
+          a.path = target.y < L.office.bottom
+            ? [{ x: endX, y: a.y }, { x: endX, y: L.aisleY }, { x: door, y: L.aisleY }, { x: door, y: target.y }, target]
+            : [{ x: endX, y: a.y }, { x: endX, y: L.aisleY }, target];
+        } else {
+          // back to the desk: step down off the queue row, out the door below the line, along the aisle, up the bench end
+          a.path = [...(nowIn ? [{ x: a.x, y: Math.max(a.y, laneY) }, { x: door, y: Math.max(a.y, laneY) }] : []), { x: door, y: L.aisleY }, { x: endX, y: L.aisleY }, { x: endX, y: target.y }, target];
+        }
+        while (a.path.length > 1 && Math.abs(a.path[0].x - a.x) < 2 && Math.abs(a.path[0].y - a.y) < 2) a.path.shift();
+        // a dog retargeted mid-walk would cut a diagonal and flip between facings; walk in L-shapes instead
+        // (up/down first, then across, so a queued dog reaches the row before turning along it)
+        a.path = a.path.reduce((out, p) => {
+          const from = out.length ? out[out.length - 1] : a;
+          if (Math.abs(p.x - from.x) > 2 && Math.abs(p.y - from.y) > 2) out.push({ x: from.x, y: p.y });
+          out.push(p); return out;
+        }, []);
+        if (reduced) { a.x = target.x; a.y = target.y; a.path = []; }
+      }
+      a.slot = s; a.atBoss = qi >= 0; a.queue = qi;
+    });
+    for (const id of [...actors.keys()]) if (!seen.has(id)) actors.delete(id);
+  }
+
+  // A dog in the queue never walks closer than GAP to a dog ahead of it in the line, so
+  // the line moves up like a line: each one follows the one in front at a steady
+  // distance instead of stopping and starting. (If that ever blocks for long, it
+  // gives up the rule rather than stand there forever.)
+  const GAP = TILE * 1.15;
+  function roomAhead(a, ux, uy) {
+    let room = Infinity;
+    for (const b of actors.values()) {
+      if (b === a || !b.atBoss || !(b.queue < a.queue)) continue;   // only those ahead in the line
+      const vx = b.x - a.x, vy = b.y - a.y, along = vx * ux + vy * uy, side = Math.abs(vx * uy - vy * ux);
+      if (along > 0 && side < TILE * 0.6) room = Math.min(room, along - GAP);
+    }
+    return room;
+  }
+  function tick(frameDt) {
+    const speed = TILE * 16; // px per second
+    for (const a of actors.values()) {
+      let dt = frameDt, moved = 0;   // each dog gets the whole frame
+      while (a.path.length && dt > 0) {
+        const p = a.path[0], dx = p.x - a.x, dy = p.y - a.y, dist = Math.hypot(dx, dy);
+        if (dist < 1) { a.x = p.x; a.y = p.y; a.path.shift(); continue; }
+        const ux = dx / dist, uy = dy / dist;
+        let mv = Math.min(dist, speed * dt);
+        if (a.atBoss && (a.blockedFor || 0) < 0.8) mv = Math.max(0, Math.min(mv, roomAhead(a, ux, uy)));
+        a.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 'right' : 'left') : (dy > 0 ? 'down' : 'up');
+        if (Math.abs(dx) > 1) a.facing = Math.sign(dx);
+        if (mv <= 0) break;
+        a.x += ux * mv; a.y += uy * mv; moved += mv;
+        dt -= mv / speed;
+        if (mv < dist) break;            // still on this leg; the rest of the frame was cut by the dog ahead
+      }
+      a.walking = moved > 0.01;
+      a.blockedFor = a.path.length && !a.walking ? (a.blockedFor || 0) + frameDt : 0;
+      a.step += (a.walking ? 10 : 2) * frameDt;
+    }
+  }
+
+  // ---- drawing -------------------------------------------------------------
+  function px(x, y, w, h, color) { ctx.fillStyle = color; ctx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); }
+
+  function drawFloor(L) {
+    const fa = css('--floor-a'), fb = css('--floor-b'), wall = css('--wall');
+    px(0, 0, L.W, L.H, fa);
+    for (let r = 0; r < L.ROWS; r++) for (let c = 0; c < COLS; c++) if ((r + c) % 2) px(c * TILE, r * TILE, TILE, TILE, fb);
+    const wallH = TILE * WALL_H;
+    px(0, 0, L.W, wallH, wall);
+    // floor-to-ceiling glass along the whole back wall, Taipei behind it at the hour it is
+    const faceH = Math.round(TILE * 0.55), faceCol = shadeHex(wall, .72), capCol = shadeHex(wall, 1.1), edgeCol = '#2a221a';
+    const glassTop = 4, glassH = wallH - faceH - 6, gx = TILE * 0.5, gw = L.W - TILE;
+    skyline(gx, glassTop, gw, glassH, L.W / 2);
+    px(gx, glassTop + glassH * 0.6, gw, glassH * 0.4, 'rgba(255,255,255,.08)');
+    for (let x = gx; x <= L.W - gx; x += TILE * 2) px(x - 2, glassTop, 4, glassH, wall);
+    px(0, glassTop + glassH, L.W, 2, capCol);                 // sill
+    px(0, wallH - faceH, L.W, faceH, faceCol);                // the wall's front face below the window
+    px(0, wallH - 3, L.W, 3, edgeCol);
+    // your office: a lighter floor, a rug, two plants, and a partition with a door
+    const o = L.office;
+    const cap = 12, face = Math.round(TILE * 1.2);
+    // pale oak planks: long thin boards, staggered, muted so the room reads grey-beige, not orange
+    const plankH = TILE / 3, plankW = TILE * 3, seam = '#6f6657';
+    px(o.x, o.y, o.w, o.bottom - o.y, '#a89b86');
+    for (let r = 0, y = o.y; y < o.bottom; r++, y += plankH) {
+      const h = Math.min(plankH, o.bottom - y), off = (r % 3) * TILE;
+      for (let x = o.x - off; x < o.w; x += plankW) {
+        const x0 = Math.max(o.x, x);
+        px(x0, y, Math.min(x + plankW, o.w) - x0, h, ['#ada08b', '#a3967f', '#b0a38e'][(r + Math.round(x / TILE)) % 3]);
+        if (x > o.x) px(x, y, 1, h, seam);
+      }
+      px(o.x, y + h - 1, o.w, 1, seam);
+    }
+    // rug: blue-grey with a lighter border and a fringe line at each end
+    const rx = L.boss.x - TILE * 3, ry = L.boss.y + TILE * 0.7, rw = TILE * 6, rh = TILE * 2.2;
+    px(rx, ry, rw, rh, '#6d8396'); px(rx + 6, ry + 6, rw - 12, rh - 12, '#4f6578'); px(rx + 14, ry + 14, rw - 28, rh - 28, '#587189');
+    for (let fy = ry + 4; fy < ry + rh - 4; fy += 6) { px(rx - 4, fy, 4, 2, '#8a9aa8'); px(rx + rw, fy, 4, 2, '#8a9aa8'); }
+    plant(TILE * 0.3, o.y + TILE * 0.4); plant(TILE * 0.3, o.bottom - TILE * 1.2 - cap - TILE); plant(o.w - TILE * 1.6, o.y + TILE * 0.4);
+    // walls in 3/4 view: a narrow cap (seen from above) and, on walls that run
+    // left-to-right, a tall front face below it; a wall running top-to-bottom
+    // shows only its cap plus a thin shaded side, and its end face at the bottom.
+    const capAt = (x, y, w, h) => { px(x, y, w, h, capCol); px(x + w - 3, y, 3, h, shadeHex(wall, .85)); px(x, y + h - 2, w, 2, shadeHex(wall, .85)); };
+    const faceAt = (x, y, w, h) => { px(x, y, w, h, faceCol); px(x, y, w, 2, shadeHex(wall, .9)); px(x, y + h - 3, w, 3, edgeCol); };
+    const wallBottomCapY = o.bottom - face - cap;
+    px(o.w, 0, 8, o.bottom + 8, 'rgba(0,0,0,.35)'); px(o.x, o.bottom, o.w + 8, 8, 'rgba(0,0,0,.35)'); // shadows on the floor
+    // bottom wall, in two pieces around the door
+    const doorL = o.doorX - TILE * 0.6, doorR = o.doorX + TILE * 0.6;
+    capAt(o.x, wallBottomCapY, doorL - o.x, cap); faceAt(o.x, wallBottomCapY + cap, doorL - o.x, face);
+    capAt(doorR, wallBottomCapY, o.w - doorR, cap); faceAt(doorR, wallBottomCapY + cap, o.w - doorR, face);
+    // right wall from the ceiling down, its cap over the glass, ending in the bottom wall's face
+    capAt(o.w - cap, 0, cap, wallBottomCapY + cap);
+    faceAt(o.w - cap, wallBottomCapY + cap, cap, face);
+    // door: posts with their own faces, and a threshold
+    px(doorL - 4, wallBottomCapY, 4, cap + face, edgeCol); px(doorR, wallBottomCapY, 4, cap + face, edgeCol);
+    px(doorL, o.bottom - 4, doorR - doorL, 4, shadeHex(css('--desk'), .9));
+    drawClock(TILE * 0.6, wallBottomCapY + cap + 5, TILE * 4.6, face - 10);
+  }
+  // ---- time of day ---------------------------------------------------------
+  // The sun's real elevation for the office's city (Taipei until the bridge
+  // says otherwise), from the usual low-precision solar formulas: no network.
+  // #t1830 in the address previews 18:30 today.
+  const SKY_AT = { lat: 25.033, lng: 121.565 };
+  const RAD = Math.PI / 180;
+  function sunAt(ms) {
+    const d = ms / 86400000 - 10957.5;                      // days since J2000
+    const g = (357.529 + 0.98560028 * d) * RAD, q = 280.459 + 0.98564736 * d;
+    const L = (q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) * RAD, e = (23.439 - 0.00000036 * d) * RAD;
+    const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L)), dec = Math.asin(Math.sin(e) * Math.sin(L));
+    const lst = ((18.697374558 + 24.06570982441908 * d) % 24) * 15 + SKY_AT.lng;
+    let ha = ((lst * RAD - ra) / RAD) % 360; if (ha > 180) ha -= 360; if (ha < -180) ha += 360;
+    const el = Math.asin(Math.sin(SKY_AT.lat * RAD) * Math.sin(dec) + Math.cos(SKY_AT.lat * RAD) * Math.cos(dec) * Math.cos(ha * RAD)) / RAD;
+    return { el, ha };                                      // ha < 0: morning
+  }
+  function skyClock() {
+    const m = location.hash.match(/t(\d{2})(\d{2})/);
+    if (!m) return now();
+    const t = new Date(); t.setHours(+m[1], +m[2], 0, 0); return t.getTime();
+  }
+  const hexRgb = h => { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
+  const mix = (a, b, t) => { const A = hexRgb(a), B = hexRgb(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  // sky bands (top to bottom) at sun elevations -14, -9, -3, 4, 12 degrees
+  const SKY_KEYS = [-14, -9, -3, 4, 12];
+  const SKY_EVE = [
+    ['#0b1430', '#0f1a3a', '#132044', '#17264d', '#1b2b55', '#20305c'],
+    ['#1b2550', '#2a2f63', '#3d3a70', '#57457a', '#7a5480', '#9a6680'],
+    ['#2c3f78', '#4f4d8a', '#835a8e', '#c06a7e', '#ea8a6a', '#f7b26a'],
+    ['#4a8ccc', '#71a2d4', '#a7b6c8', '#e0b98f', '#f3a96a', '#f7c27e'],
+    ['#62b3ea', '#7cc1ee', '#98cff2', '#b5ddf5', '#d2eaf8', '#e9f3fa'],
+  ];
+  const SKY_MORN = [
+    SKY_EVE[0],
+    ['#1a2a55', '#253766', '#344876', '#4a5d86', '#6c7a96', '#9a98a6'],
+    ['#3a5a92', '#5e78a8', '#8f93b5', '#d3a3a6', '#f1b48c', '#f9d095'],
+    ['#5ea4dc', '#82b7e2', '#aac8e2', '#d9d4cf', '#f2cfa4', '#f8deb0'],
+    SKY_EVE[4],
+  ];
+  function skyBands(el, morning) {
+    const keys = morning ? SKY_MORN : SKY_EVE;
+    if (el <= SKY_KEYS[0]) return keys[0];
+    if (el >= SKY_KEYS[4]) return keys[4];
+    let i = 0; while (el > SKY_KEYS[i + 1]) i++;
+    const t = (el - SKY_KEYS[i]) / (SKY_KEYS[i + 1] - SKY_KEYS[i]);
+    return keys[i].map((c, k) => mix(c, keys[i + 1][k], t));
+  }
+  const STARS = Array.from({ length: 46 }, (_, i) => [((i * 7919) % 1000) / 1000, ((i * 104729) % 1000) / 1000, i % 5]);
+
+  function skyline(x, y, w, h, cx) {
+    const { el, ha } = sunAt(skyClock()), morning = ha < 0;
+    const bands = skyBands(el, morning);
+    bands.forEach((c, i) => px(x, y + h * i / bands.length, w, h / bands.length + 1, c));
+    const ground = y + h;
+    const night = clamp01((-el - 3) / 9);                  // 0 by day, 1 once it is properly dark
+    const warm = clamp01(1 - Math.abs(el - 1) / 9);        // golden hour and twilight
+    const t = now() / 1000;
+    // stars, then the moon on the far side of the sky from the sun
+    if (night > 0) {
+      for (const [fx, fy, k] of STARS) {
+        const a = night * (0.55 + 0.45 * Math.sin(t * (1 + k * 0.3) + k * 2));
+        px(x + 4 + fx * (w - 8), y + 3 + fy * h * 0.62, k ? 1 : 2, k ? 1 : 2, `rgba(255,255,240,${a.toFixed(2)})`);
+      }
+      let mh = ha + 180; if (mh > 180) mh -= 360;
+      const mx = x + w * (0.5 + mh / 200), my = y + 12 + Math.abs(mh) / 180 * h * 0.45;
+      ctx.globalAlpha = night;
+      px(mx - 6, my - 8, 12, 16, '#f4efd2'); px(mx - 8, my - 6, 16, 12, '#f4efd2');
+      px(mx - 2, my - 8, 10, 14, bands[1]); px(mx, my - 6, 9, 10, bands[1]);   // the dark part of a crescent
+      ctx.globalAlpha = 1;
+    }
+    // the sun: across the glass with the hour angle, up with its elevation, redder near the horizon
+    if (el > -3) {
+      // it rises and sets just above the rooftops (so it stays in view), sinking behind them below 0 degrees
+      const sx = x + w * (0.5 + ha / 260), sy = ground - 50 - (h - 70) * clamp01(el / 40) + Math.max(0, -el) * 12;
+      const core = mix('#fff1a8', '#ff8a4c', warm), r = 7 + Math.round(warm * 3);
+      px(sx - r, sy - r + 3, r * 2, r * 2 - 6, core); px(sx - r + 3, sy - r, r * 2 - 6, r * 2, core);
+    }
+    // clouds pick up the sky: white by day, pink-orange at the edges of the day, dim at night
+    const cloud = night > 0.5 ? mix('#c06a7e', '#2c3658', clamp01((night - 0.5) * 2)) : mix('#ffffff', '#ffc2a0', warm);
+    [[0.12, 14], [0.33, 26], [0.58, 10], [0.8, 22]].forEach(([f, cy]) => { const cxp = x + w * f; px(cxp, y + cy, 44, 8, cloud); px(cxp + 8, y + cy - 5, 24, 6, cloud); px(cxp + 16, y + cy + 8, 20, 4, cloud + 'cc'); });
+    if (!reduced) kaiju(x, w, ground);
+    // distant buildings (deterministic layout), the gap in the middle left for 101;
+    // at dusk they turn to silhouettes and their windows come on
+    const dim = clamp01((-el + 6) / 14);
+    const lit = clamp01((-el + 1) / 5);
+    let bx = x + 6, i = 0;
+    while (bx < x + w - 6) {
+      const bw = 14 + ((i * 7) % 18), bh = 18 + ((i * 11) % 34);
+      if (Math.abs(bx + bw / 2 - cx) > 44) {
+        px(bx, ground - bh, bw, bh, mix(i % 3 ? '#8fa3b8' : '#a3b4c6', i % 3 ? '#1f2738' : '#262f42', dim));
+        for (let wy = ground - bh + 4; wy < ground - 4; wy += 6) for (let wx = bx + 3; wx < bx + bw - 3; wx += 5) {
+          const k = (wx * 7 + wy * 13 + i * 5) % 10;
+          if (lit > 0 && k < 6 && k / 6 < lit) px(wx, wy, 2, 3, k % 3 ? '#ffd98a' : '#fff1c4');
+          else if ((wx + wy + i) % 3 !== 0) px(wx, wy, 2, 3, mix('#dde8f0', '#323c52', dim));
+        }
+      }
+      bx += bw + 4 + (i % 2) * 6; i += 1;
+    }
+    // Taipei 101: podium, eight flared sections, crown and spire; lit up at night
+    const H = h - 6, base = ground, col = mix('#5c9c99', '#1f3a44', dim), dark = mix('#3b6e6c', '#14252c', dim), light = mix('#9fd3cc', '#3f6d74', dim);
+    px(cx - 20, base - 8, 40, 8, dark);
+    const secH = Math.max(6, Math.floor((H - 40) / 8));
+    for (let sIdx = 0; sIdx < 8; sIdx++) {
+      const top = base - 8 - (sIdx + 1) * secH;
+      for (let r = 0; r < secH; r++) { const wdt = 12 + Math.floor(r * 10 / secH); px(cx - wdt, top + r, wdt * 2, 1, r === 0 ? light : col); }
+      px(cx - 16, top + secH - 1, 32, 1, dark);
+      for (let wx = cx - 10; wx <= cx + 8; wx += 6) px(wx, top + Math.floor(secH / 2), 2, 2, mix('#dff5f0', '#ffe6a0', lit)); // lit windows per section
+    }
+    const crownTop = base - 8 - 8 * secH;
+    px(cx - 8, crownTop - 10, 16, 10, col); px(cx - 5, crownTop - 16, 10, 6, dark); px(cx - 1, crownTop - 34, 2, 18, light);
+    px(cx - 2, crownTop - 35, 4, 2, lit > 0.5 && Math.floor(t) % 2 ? '#ff5a4a' : '#fff4c2');   // spire beacon blinks after dark
+    // a plane crossing left to right, every ~40 s: a contrail by day, blinking lights at night
+    if (!reduced) {
+      const pt = t % 40, px0 = x - 60 + (w + 120) * (pt / 40), py = y + 18 + Math.sin(pt) * 2;
+      if (px0 > x - 40 && px0 < x + w + 10) {
+        if (night < 0.6) {
+          for (let k = 1; k < 7; k++) px(px0 - 14 - k * 7, py + 3, 5, 2, `rgba(255,255,255,${((0.7 - k * 0.1) * (1 - night)).toFixed(2)})`);
+          px(px0 - 10, py + 2, 22, 4, mix('#f4f7fb', '#3a4560', night)); px(px0 + 10, py + 1, 6, 3, mix('#f4f7fb', '#3a4560', night)); px(px0 - 10, py - 3, 4, 6, '#c9d6e3'); px(px0 - 2, py + 6, 8, 2, '#c9d6e3'); px(px0, py - 1, 6, 2, '#5b7fa6');
+        }
+        if (night > 0.2) { const on = Math.floor(t * 2) % 2; px(px0 + 12, py + 2, 2, 2, on ? '#ff5a4a' : '#ffffff'); px(px0 - 10, py + 2, 2, 2, on ? '#ffffff' : '#7cf08a'); }
+      }
+    }
+  }
+  // A kaiju of our own (chibi, dark grey, yellow eyes, open jaws, back spikes)
+  // wanders past behind the buildings: one 50 s crossing every 150 s (#kaiju: every 50 s).
+  function kaiju(x, w, ground) {
+    const period = location.hash.includes('kaiju') ? 50 : 150, t = (now() / 1000) % period;
+    if (t >= 50) return;
+    const kx = Math.round(x - 90 + (w + 180) * (t / 50)), top = ground - 104 + Math.round(Math.abs(Math.sin(t * 3)) * 2);
+    const k = (dx, dy, bw, bh, c) => px(kx + dx, top + dy, bw, bh, c);
+    const skin = '#4b5059', dark = '#33373e', belly = '#6c727c', spike = '#8a919b', white = '#f4f4f0';
+    k(-60, 80, 22, 10, dark); k(-46, 72, 22, 14, skin);                              // tail
+    for (let sy = 6; sy <= 74; sy += 12) { k(-40, sy, 11, 9, spike); k(-45, sy + 2, 5, 5, spike); } // back spikes
+    k(-32, 50, 50, 46, skin); k(-32, 50, 4, 46, dark); k(-2, 58, 18, 36, belly);     // round body
+    k(-26, 0, 48, 6, skin); k(-32, 4, 60, 46, skin); k(28, 24, 12, 10, skin);         // big head, snout
+    k(10, 13, 18, 4, dark);                                                           // angry brow
+    k(12, 17, 11, 9, '#f2c230'); k(18, 19, 4, 6, '#15171a');                          // yellow eye
+    k(14, 32, 24, 13, '#c9504a'); k(14, 32, 24, 2, dark);                             // open jaws
+    for (const tx of [15, 22, 29, 34]) k(tx, 34, 4, 4, white);                        // top teeth
+    for (const tx of [18, 25, 32]) k(tx, 41, 4, 4, white);                            // bottom teeth
+    k(16, 60, 11, 8, skin); k(25, 64, 4, 4, white);                                   // little arm, claw
+    k(-24, 94, 15, 8, dark); k(2, 94, 15, 8, dark);                                   // feet
+  }
+  function plant(x, y) { px(x + 8, y + 22, 24, 14, css('--desk')); px(x + 4, y + 2, 32, 22, '#3f8f5a'); px(x + 12, y - 6, 16, 12, '#58b273'); }
+
+  const shadeHex = (hex, f) => { const n = parseInt(hex.slice(1), 16); const c = v => Math.min(255, Math.round(v * f)); return `rgb(${c((n >> 16) & 255)},${c((n >> 8) & 255)},${c(n & 255)})`; };
+  // A bench: one long desk with a monitor at every seat; occupied seats get a nameplate.
+  function drawBench(b, slots) {
+    const h = TILE * 1.1, w = b.xEnd - b.xStart, y = b.y;
+    px(b.xStart, y - h / 2 + 6, w, h, css('--desk'));
+    px(b.xStart, y - h / 2, w, h - 8, css('--desk-top'));
+    for (let k = 1; k < b.seats.length; k++) px(b.xStart + b.spacing * k - 1, y - h / 2, 2, h - 8, shadeHex(css('--desk-top'), .85));
+    const below = b.side === 'below';
+    b.seats.forEach((x, k) => {
+      const slot = slots.find(s => s.bench === b && s.seatX === x);
+      const on = slot && effState(slot.d) === 'working';
+      if (below) {
+        // the sitter is in front of the desk, so we see the screen itself
+        px(x - 16, y - 14, 32, 20, css('--screen'));
+        px(x - 13, y - 11, 26, 14, on ? css('--screen-on') : shadeHex(css('--screen'), 1.3));
+        px(x - 4, y + 6, 8, 4, css('--screen'));
+      } else {
+        if (on) px(x - 18, y - 22, 36, 6, css('--screen-on') + '66');
+        px(x - 16, y - 18, 32, 20, css('--screen'));
+        px(x - 14, y - 16, 28, 16, shadeHex(css('--screen'), slot ? 1.35 : 1.15));
+        px(x - 4, y + 2, 8, 4, css('--screen'));
+      }
+      // seat number on the desk's corner
+      const n = String((b.first || 1) + k), nx = x - b.spacing / 2 + 3, ny = below ? y + h / 2 - 14 : y - h / 2 + 2;
+      ctx.font = `700 9px ${css('--display')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const nw = Math.max(14, ctx.measureText(n).width + 8);
+      ctx.fillStyle = shadeHex(css('--desk'), .8); ctx.fillRect(nx, ny, nw, 12);
+      ctx.fillStyle = '#f3efe6'; ctx.fillText(n, nx + nw / 2, ny + 6.5);
+      if (!slot) return;
+      const label = slot.d.title || slot.d.label || slot.d.id.slice(0, 8);
+      ctx.font = `600 11px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = css('--bubble'); const tw = Math.min(b.spacing - 8, ctx.measureText(label).width + 10);
+      const ly = below ? y - h / 2 - 22 : y + h / 2 + 4;   // nameplate on the far side from the sitter
+      ctx.fillRect(x - tw / 2, ly, tw, 18);
+      ctx.fillStyle = css('--bubble-fg'); clipText(label, x, ly + 9, b.spacing - 16);
+    });
+  }
+  function drawDesk(x, y, label, on, big) {
+    const w = big ? TILE * 3.6 : TILE * 4.6, h = TILE * 1.1;
+    px(x - w / 2, y - h / 2 + 6, w, h, css('--desk'));
+    px(x - w / 2, y - h / 2, w, h - 8, css('--desk-top'));
+    // monitor on the desk, screen towards the person behind it: we see its back,
+    // plus the light it throws onto the desk when it is on
+    if (on) px(x - 18, y - 22, 36, 6, css('--screen-on') + '66');
+    px(x - 16, y - 18, 32, 20, css('--screen'));
+    px(x - 14, y - 16, 28, 16, shadeHex(css('--screen'), 1.35));
+    px(x - 4, y + 2, 8, 4, css('--screen'));
+    // nameplate
+    ctx.font = `600 ${big ? 13 : 11}px ${css('--body')}`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (!label) return;
+    ctx.fillStyle = css('--bubble'); const tw = Math.min(w - 8, ctx.measureText(label).width + 10);
+    ctx.fillRect(x - tw / 2, y + h / 2 + 4, tw, 18);
+    ctx.fillStyle = css('--bubble-fg'); clipText(label, x, y + h / 2 + 13, w - 16);
+  }
+  function clipText(t, x, y, maxW) { let s = t; while (s.length > 1 && ctx.measureText(s).width > maxW) s = s.slice(0, -2) + '…'; ctx.fillText(s, x, y); }
+
+  // ---- sprites: Pipoya 32x32 character sheets, 3 cols (step, idle, step) x 4 rows (down, left, right, up) ----
+  const FRAME = 32, SCALE = 2;
+  const ROW = { down: 0, left: 1, right: 2, up: 3 };
+  // Session sprites come from four atlases (Pipoya women, school, enemies,
+  // soldiers), each a column of 96x128 sheets; sheet 0 is you, the last the secretary.
+  const load = src => Object.assign(new Image(), { src });
+  const POOLS = [['chars/p-female.png', 91], ['chars/p-school.png', 134], ['chars/p-enemy.png', 35], ['chars/p-soldier.png', 28]];
+  const sheets = [{ im: load('chars/c00.png'), y: 0 }];
+  for (const [src, n] of POOLS) { const im = load(src); for (let k = 0; k < n; k++) sheets.push({ im, y: k * 128 }); }
+  const POOL_SIZE = sheets.length - 1;
+  const CODEX_SHEET = sheets.push({ im: load('chars/k00.png'), y: 0 }) - 1; // Codex, your secretary
+  const charOf = id => 1 + (hash(id) >>> 3) % POOL_SIZE;
+  function drawSprite(sheet, dir, col, x, feetY) {
+    const { im, y: y0 } = sheets[sheet];
+    if (!im || !im.complete || !im.naturalWidth) { px(x - 10, feetY - 44, 20, 44, 'rgba(0,0,0,.08)'); return; }
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(im, col * FRAME, y0 + ROW[dir] * FRAME, FRAME, FRAME, Math.round(x - FRAME), Math.round(feetY - FRAME * SCALE + 6), FRAME * SCALE, FRAME * SCALE);
+  }
+
+  function drawActor(a, L) {
+    const d = a.slot.d, st = effState(d), id = d.id;
+    const bob = a.walking ? Math.round(Math.sin(a.step * 2) * 1.5) : (st === 'working' ? Math.round(Math.sin(a.step * 6) * 1) : 0);
+    const x = Math.round(a.x), y = Math.round(a.y) + bob;
+    const faded = liveness(d) !== 'live';
+    ctx.globalAlpha = faded ? 0.45 : 1;
+    px(x - 14, y + 10, 28, 5, 'rgba(0,0,0,.18)');
+    const col = a.walking ? [0, 1, 2, 1][Math.floor(a.step) % 4] : 1;
+    // at the desk a working session faces its monitor (back to us); waiting or idle it turns round
+    // the front of the queue faces you; the rest face the front of the line
+    // only the dog standing on the front spot turns to you; anyone short of it faces along the line
+    const onSpot = a.target && Math.abs(a.x - a.target.x) < 2 && Math.abs(a.y - a.target.y) < 2;
+    const dir = a.walking ? (a.dir || 'down') : a.atBoss ? (a.queue === 0 && onSpot ? 'up' : 'left') : (a.slot.face || 'down');
+    drawSprite(charOf(id), dir, col, x, y + 12);
+    nameTag(x, y - 56, d.title || d.label || '', faded ? css('--idle') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
+    // health = context window still free
+    if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
+    ctx.globalAlpha = 1;
+    // status marker
+    if (st === 'working' && !a.walking) {
+      // typing: little keyboard sparks
+      px(x - 14 + (Math.floor(a.step * 3) % 3) * 10, y - 2, 4, 2, css('--screen-on'));
+    } else if (st === 'idle' && !a.walking) {
+      ctx.font = `700 12px ${css('--display')}`; ctx.fillStyle = css('--idle'); ctx.textAlign = 'left';
+      ctx.fillText('z', x + 18, y - 46 - Math.round((a.step * 3) % 6));
+    }
+    const speaking = (speak[id] || 0) > now() || (modalId === id);
+    if ((st === 'reporting' && !a.walking && a.atBoss && a.queue === 0) || speaking) {
+      if (!bubbleWanted || modalId === id) bubbleWanted = { id, x, y: y - 76, side: a.atBoss ? 'side' : 'above', text: splitDecide(d.report).decide ? '#decide\n' + splitDecide(d.report).decide : d.report || (st === 'reporting' ? '（沒有摘要）' : '（還沒有匯報過）') };
+    }
+    if (hover === id) { ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.strokeRect(x - 32, y - 56, 64, 72); }
+  }
+  // Gather-style tag above the head: dark pill, status dot, name.
+  function nameTag(x, bottomY, text, dot) {
+    ctx.font = `600 11px ${css('--body')}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    let t = text; while (t.length > 1 && ctx.measureText(t).width > 110) t = t.slice(0, -2) + '…';
+    const tw = ctx.measureText(t).width, w = Math.round(tw + 26), h = 18;
+    const bx = Math.round(x - w / 2), by = Math.round(bottomY - h - 4);
+    ctx.fillStyle = 'rgba(28,24,22,.88)';
+    ctx.beginPath(); ctx.roundRect(bx, by, w, h, 9); ctx.fill();
+    px(x - 3, by + h, 6, 3, 'rgba(28,24,22,.88)');
+    ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(bx + 11, by + h / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4efe6'; ctx.fillText(t, bx + 19, by + h / 2 + 0.5);
+  }
+
+  // RPG health bar: `left` is the share still left (0..1); green, then yellow under
+  // 50%, red and blinking under 20%. Optional label left of it, value right of it.
+  function hpBar(cx, y, w, left, label, value) {
+    const f = Math.max(0, Math.min(1, left)), h = 6;
+    const color = f < 0.2 ? css('--hp-low') : f < 0.5 ? css('--hp-mid') : css('--hp-hi');
+    const x = Math.round(cx - w / 2);
+    ctx.font = `700 10px ${css('--body')}`; ctx.textBaseline = 'middle';
+    if (label) { ctx.textAlign = 'right'; ctx.fillStyle = '#f4efe6'; ctx.fillText(label, x - 4, y + h / 2 + 0.5); }
+    if (value) { ctx.textAlign = 'left'; ctx.fillStyle = '#f4efe6'; ctx.fillText(value, x + w + 4, y + h / 2 + 0.5); }
+    px(x - 1, y - 1, w + 2, h + 2, 'rgba(28,24,22,.88)');
+    px(x, y, w, h, '#4a4440');
+    if (f < 0.2 && Math.floor(performance.now() / 400) % 2) return;   // blink
+    px(x, y, Math.max(1, Math.round(w * f)), h, color);
+    px(x, y, Math.max(1, Math.round(w * f)), 2, 'rgba(255,255,255,.35)');
+  }
+  // the account's limits, from whichever session reported them last
+  // Each kind from the freshest desk that reports it: right after a reset a
+  // session may leave a window out until its next request. A window whose
+  // reset time has passed counts as unused.
+  function accountLimits() {
+    const byKind = new Map();
+    for (const d of [...desks.values()].sort((x, y) => (y.limitsAt || 0) - (x.limitsAt || 0)))
+      for (const l of d.limits || []) if (!byKind.has(l.kind)) byKind.set(l.kind, l);
+    const t = Date.now();
+    return [...byKind.values()].map(l => l.resetsAt && Date.parse(l.resetsAt) <= t ? { ...l, percentUsed: 0 } : l);
+  }
+
+  function bubble(x, y, text, align) {
+    ctx.font = `500 12px ${css('--body')}`; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    const maxW = 260, all = wrap(text, maxW), lines = all.slice(0, 3);
+    if (all.length > 3) lines[2] = lines[2].slice(0, -1) + '…';
+    lines.push('點開看全文、回覆');
+    const w = Math.max(...lines.map(l => ctx.measureText(l).width)) + 16, h = lines.length * 16 + 12;
+    let bx, by;
+    if (align === 'side') {
+      const right = x + 40 + w <= canvas.width - 6;
+      bx = right ? x + 40 : x - 40 - w; by = Math.max(6, Math.min(canvas.height - h - 6, y + 30 - h / 2));
+      px(bx + 2, by + 2, w, h, 'rgba(0,0,0,.2)');
+      px(bx, by, w, h, css('--bubble'));
+      if (right) { px(bx - 4, y + 26, 4, 8, css('--bubble')); px(bx - 7, y + 28, 3, 4, css('--bubble')); }
+      else { px(bx + w, y + 26, 4, 8, css('--bubble')); px(bx + w + 4, y + 28, 3, 4, css('--bubble')); }
+    } else {
+      bx = Math.max(6, Math.min(canvas.width - w - 6, x - w / 2)); by = y - h - 8;
+      px(bx + 2, by + 2, w, h, 'rgba(0,0,0,.2)');
+      px(bx, by, w, h, css('--bubble'));
+      px(x - 4, by + h, 8, 4, css('--bubble')); px(x - 2, by + h + 4, 4, 3, css('--bubble'));
+    }
+    lines.forEach((l, i) => { ctx.fillStyle = i === lines.length - 1 ? css('--accent') : css('--bubble-fg'); ctx.fillText(l, bx + 8, by + 6 + i * 16); });
+    if (bubbleOwner) bubbles.set(bubbleOwner, { x: bx, y: by, w, h });
+  }
+  let bubbleOwner = null;
+  function wrap(text, maxW) {
+    const out = []; let line = '';
+    for (const ch of text.replace(/\s+/g, ' ')) {
+      const t = line + ch;
+      if (ctx.measureText(t).width > maxW) { out.push(line); line = ch; } else line = t;
+    }
+    if (line) out.push(line);
+    return out;
+  }
+
+  // a wall clock on the office's front wall: 24-hour HH:MM:SS, digits drawn as
+  // 3x5 pixel glyphs (a font would blur once the canvas is scaled on screen)
+  const GLYPHS = { '0': '111101101101111', '1': '010110010010111', '2': '111001111100111', '3': '111001111001111', '4': '101101111001001', '5': '111100111001111', '6': '111100111101111', '7': '111001001001001', '8': '111101111101111', '9': '111101111001111', ':': '01010' };
+  function drawClock(x, y, w, h) {
+    px(x - 2, y - 2, w + 4, h + 4, '#d9d0bf'); px(x, y, w, h, '#2b2e34');
+    px(x + 2, y + 2, w - 4, 2, 'rgba(255,255,255,.07)');
+    const t = new Date(), pad = n => String(n).padStart(2, '0');
+    const text = `${pad(t.getHours())}:${pad(t.getMinutes())}:${pad(t.getSeconds())}`;
+    const u = Math.max(2, Math.floor((h - 10) / 5));                       // one glyph pixel
+    const widths = [...text].map(c => c === ':' ? 1 : 3);
+    const total = widths.reduce((a, b) => a + b, 0) * u + (text.length - 1) * u;
+    let cx = Math.round(x + (w - total) / 2), cy = Math.round(y + (h - 5 * u) / 2);
+    [...text].forEach((c, i) => {
+      const cols = widths[i], bits = GLYPHS[c] || '';
+      for (let r = 0; r < 5; r++) for (let k = 0; k < cols; k++) if (bits[r * cols + k] === '1') px(cx + k * u, cy + r * u, u, u, '#f3efe6');
+      cx += (cols + 1) * u;
+    });
+  }
+  function draw(L) {
+    bubbleWanted = null;
+    drawFloor(L);
+    // everything sorted by its floor position, so whoever stands behind a desk is drawn under it
+    const items = [];
+    L.benches.forEach(b => items.push({ y: b.y, draw: () => drawBench(b, L.slots) }));
+    items.push({ y: L.boss.y, draw: () => drawDesk(L.boss.x, L.boss.y, '', true, true) });
+    const bossY = L.boss.y - TILE * 0.85;
+    items.push({ y: bossY + 12, draw: () => drawBoss({ x: L.boss.x, y: bossY }) });
+    codexAt = { x: TILE * 2.3, y: L.boss.y - TILE * 0.85 };
+    if (officeCfg?.codex === false) codexAt = { x: -999, y: -999 };   // config.json turned the Codex secretary off
+    else items.push({ y: codexAt.y + 12, draw: () => drawCodex(codexAt) });
+    for (const a of actors.values()) items.push({ y: a.y + 12, draw: () => drawActor(a, L) });
+    items.sort((p, q) => p.y - q.y).forEach(i => i.draw());
+    if (codexOpenUntil > Date.now()) bubbleWanted = { id: 'codex', x: codexAt.x, y: codexAt.y - 76, side: 'side', text: codexCard() };
+  }
+  function drawBoss(a) {
+    px(a.x - 14, a.y + 10, 28, 5, 'rgba(0,0,0,.18)');
+    drawSprite(0, 'down', 1, a.x, a.y + 12);
+    nameTag(a.x, a.y - 56, '你', css('--ok'));
+    // your health: what is left of the 5-hour and weekly limits
+    const lim = accountLimits() || [];
+    const rows = [['5h', lim.find(l => /five_hour/.test(l.kind))], ['週', lim.find(l => /seven_day/.test(l.kind) && !/opus|sonnet/i.test(l.kind))]].filter(r => r[1]);
+    if (rows.length) {
+      const top = a.y - 56 - 22 - 12 - (rows.length - 1) * 11 - 5;
+      ctx.fillStyle = 'rgba(28,24,22,.88)';
+      ctx.beginPath(); ctx.roundRect(Math.round(a.x - 50), top, 100, rows.length * 11 + 7, 6); ctx.fill();
+    }
+    rows.forEach(([label, l], i) => {
+      const left = 1 - (l.percentUsed || 0) / 100;
+      hpBar(a.x - 4, a.y - 56 - 22 - 12 - (rows.length - 1 - i) * 11, 48, left, label, Math.round(left * 100) + '%');
+    });
+  }
+
+  // Codex, the secretary standing beside you: its account limits come from the bridge
+  // (meta/codex, read from Codex's own rollout logs, so they move only when Codex is used).
+  let codex = null, codexAt = { x: 0, y: 0 }, codexOpenUntil = 0;
+  // The page-facing part of ~/.claude/office/config.json, published by the bridge
+  // (meta/config): Jira site (null hides the column), Codex on/off, the city for
+  // the sky, and the folders offered for a new session.
+  let officeCfg = null;
+  function applyConfig() {
+    if (officeCfg?.city) { SKY_AT.lat = officeCfg.city.lat; SKY_AT.lng = officeCfg.city.lng; }
+    document.getElementById('feed').hidden = !!officeCfg && !officeCfg.jiraSite;
+  }
+  // what clicking her shows: what is left of each window and when it resets
+  function codexCard() {
+    if (!codex) return '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。';
+    const t = Date.now(), when = ms => new Date(ms).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    const line = (label, w) => {
+      if (!w) return null;
+      const reset = w.resetsAt && w.resetsAt <= t;
+      return `- ${label}：剩 ${reset ? 100 : Math.round(100 - (w.usedPercent || 0))}%` + (w.resetsAt ? (reset ? '（已重置）' : `，${when(w.resetsAt)} 重置`) : '');
+    };
+    return ['**Codex 用量**', '', line('5h', codex.primary), line('週', codex.secondary), '', codex.at ? `數字來自 ${ago(codex.at)}的 Codex 呼叫` : ''].filter(l => l !== null).join('\n');
+  }
+  function codexHit(ev) {
+    const r = canvas.getBoundingClientRect(), mx = (ev.clientX - r.left) * canvas.width / r.width, my = (ev.clientY - r.top) * canvas.height / r.height;
+    return Math.abs(mx - codexAt.x) < 26 && my > codexAt.y - 64 && my < codexAt.y + 26;
+  }
+  function codexRows() {
+    if (!codex) return [];
+    const t = Date.now();
+    return [['5h', codex.primary], ['週', codex.secondary]].filter(r => r[1])
+      .map(([label, w]) => [label, w.resetsAt && w.resetsAt <= t ? 0 : (w.usedPercent || 0)]);
+  }
+  function drawCodex(a) {
+    px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
+    drawSprite(CODEX_SHEET, 'down', 1, a.x, a.y + 12);
+    const age = codex && codex.at ? Date.now() - codex.at : null;
+    const stale = age != null && age > 30 * 60 * 1000;
+    nameTag(a.x, a.y - 48, stale ? 'Codex · ' + ago(codex.at) : 'Codex', codex ? css('--ok') : css('--idle'));
+    const rows = codexRows();
+    if (!rows.length) return;
+    const top = a.y - 48 - 22 - 12 - (rows.length - 1) * 11 - 5;
+    ctx.fillStyle = 'rgba(28,24,22,.88)';
+    ctx.beginPath(); ctx.roundRect(Math.round(a.x - 50), top, 100, rows.length * 11 + 7, 6); ctx.fill();
+    ctx.globalAlpha = stale ? 0.6 : 1;
+    rows.forEach(([label, used], i) => {
+      const left = 1 - used / 100;
+      hpBar(a.x - 4, a.y - 48 - 22 - 12 - (rows.length - 1 - i) * 11, 48, left, label, Math.round(left * 100) + '%');
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  // ---- roster cards ------------------------------------------------------
+  // The list under the office is deliberately thin: one row per session.
+  // Everything else lives in the modal, opened from a row or from the canvas.
+  function renderRoster(L) {
+    const live = L.list.filter(d => liveness(d) === 'live');
+    const groups = { waiting: [], working: [], idle: [], gone: [] };
+    for (const d of L.list) {
+      const st = effState(d);
+      groups[liveness(d) !== 'live' ? 'gone' : (isWaiting(d) || d.blocked) ? 'waiting' : st === 'working' ? 'working' : 'idle'].push(d);
+    }
+    groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
+    const titles = { waiting: '等你處理', working: '工作中', idle: '閒置', gone: '離線' };
+    const parts = [];
+    for (const key of ['waiting', 'working', 'idle', 'gone']) {
+      if (key === 'gone' && !groups.gone.length) continue;
+      const h3 = document.createElement('h3'); h3.className = key;
+      h3.innerHTML = '<span></span><span class="n"></span>'; h3.firstChild.textContent = titles[key]; h3.lastChild.textContent = groups[key].length;
+      parts.push(h3);
+      for (const d of groups[key]) {
+        const el = document.createElement('button');
+        el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
+        el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
+        el.querySelector('.label').textContent = d.title || d.label || d.id;
+        el.querySelector('.meta').textContent = (d.seat ? d.seat + ' 號 · ' : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
+        el.title = d.blocked ? '卡住等你' : key === 'waiting' ? '來匯報' : titles[key];
+        el.addEventListener('click', () => openModal(d.id));
+        parts.push(el);
+      }
+    }
+    const h = document.createElement('h2'); h.textContent = L.list.length ? `${L.list.length} 個 session，${live.length} 個在線` : '還沒有 session';
+    rosterEl.replaceChildren(h, ...parts);
+    nOnline.textContent = live.length;
+    nWaiting.textContent = L.list.filter(d => isWaiting(d) && liveness(d) === 'live').length;
+    emptyEl.hidden = L.list.length > 0 && db !== null;
+    document.title = (nWaiting.textContent !== '0' ? `(${nWaiting.textContent}) ` : '') + 'Session Office';
+    if (modalId) fillModal();
+    renderJira();
+  }
+  // The right-hand column: the viewer's open Jira tickets, as the bridge last
+  // fetched them (meta/jira). A ticket whose key appears in a session's title
+  // is marked, and that badge opens the session's window.
+  let jira = null;
+  const jGroups = document.getElementById('j-groups'), jMeta = document.getElementById('j-meta'), jWarn = document.getElementById('j-warn');
+  // which status groups are unfolded: In-Progress and TODO by default, then whatever the viewer toggles
+  let jiraOpenState = null;
+  const jiraOpen = name => { if (!jiraOpenState) { try { jiraOpenState = JSON.parse(localStorage.getItem('jiraOpen2') || '{}'); } catch (e) { jiraOpenState = {}; } } return name in jiraOpenState ? !!jiraOpenState[name] : /in-progress/i.test(name); };
+  const jiraSetOpen = (name, open) => { jiraOpen(name); jiraOpenState[name] = open; try { localStorage.setItem('jiraOpen2', JSON.stringify(jiraOpenState)); } catch (e) {} };
+  // group order: In-Progress, Open, TODO, then Ready-to-Test, UAT-Verified, Reopen/Pending, anything else
+  const statusRank = name => { const n = parseInt(name, 10); if (/in-progress/i.test(name)) return 0; if (/^0*0-open/i.test(name) || /^open$/i.test(name)) return 1; if (/todo/i.test(name)) return 2; return isNaN(n) ? 9 : n >= 300 && n < 400 ? 3 : n >= 400 ? 4 : n >= 200 ? 5 : 6; };
+  function renderJira() {
+    if (!jira) return;
+    const issues = Array.isArray(jira.issues) ? jira.issues : [];
+    const age = now() - (jira.fetchedAt || 0);
+    jMeta.textContent = `${issues.length} 張 · ${ago(jira.fetchedAt)}`;
+    jWarn.hidden = age < 10 * 60 * 1000;
+    jWarn.textContent = '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。';
+    const byKey = new Map();
+    for (const d of desks.values()) {
+      if (liveness(d) !== 'live') continue;
+      const text = `${d.title || ''} ${d.label || ''} ${d.task || ''} ${d.branch || ''}`.toUpperCase();
+      for (const i of issues) if (text.includes(i.key.toUpperCase()) && !byKey.has(i.key)) byKey.set(i.key, d);
+    }
+    const groups = new Map();
+    for (const i of issues) { if (!groups.has(i.status)) groups.set(i.status, []); groups.get(i.status).push(i); }
+    const order = [...groups.keys()].sort((a, b) => statusRank(a) - statusRank(b) || a.localeCompare(b));
+    const out = [];
+    for (const name of order) {
+      const sec = document.createElement('details'); sec.open = jiraOpen(name);
+      const h = document.createElement('summary');
+      h.addEventListener('click', () => jiraSetOpen(name, !sec.open));  // the viewer's own click, not a re-render
+      h.innerHTML = `<span></span><span class="n"></span>`;
+      h.firstChild.textContent = name.replace(/^\d+-/, ''); h.lastChild.textContent = groups.get(name).length;
+      sec.append(h);
+      for (const i of groups.get(name)) {
+        const d = byKey.get(i.key);
+        const t = document.createElement('article'); t.className = 'ticket' + (d ? ' hot' : '');
+        t.innerHTML = `<div class="head"><a class="key" target="_blank" rel="noopener"></a><span class="type"></span><span class="meta"></span></div><div class="sum"></div><div class="foot"></div>`;
+        const a = t.querySelector('.key'); a.textContent = i.key; a.href = `${jira.site || officeCfg?.jiraSite || ''}/browse/${encodeURIComponent(i.key)}`;
+        const ty = t.querySelector('.type'); ty.textContent = i.type; ty.className = 'type ' + (/bug/i.test(i.type) ? 'bug' : /incident/i.test(i.type) ? 'incident' : '');
+        t.querySelector('.meta').textContent = ago(i.updated);
+        t.querySelector('.sum').textContent = i.summary; t.querySelector('.sum').title = i.summary;
+        const foot = t.querySelector('.foot');
+        if (i.parent) { const p = document.createElement('span'); p.className = 'parent'; p.textContent = '↳ ' + i.parent; foot.append(p); }
+        if (i.priority && !/medium/i.test(i.priority)) { const p = document.createElement('span'); p.textContent = i.priority; foot.append(p); }
+        if (d) { const b = document.createElement('button'); b.type = 'button'; b.className = 'dog'; b.textContent = '🐶 ' + (d.title || d.label || d.id); b.addEventListener('click', () => openModal(d.id)); foot.append(b); }
+        foot.hidden = foot.childElementCount === 0;
+        t.append(foot); sec.append(t);
+      }
+      out.push(sec);
+    }
+    if (!out.length) { const n = document.createElement('div'); n.className = 'none'; n.textContent = '沒有指派給你的未完成票。'; out.push(n); }
+    jGroups.replaceChildren(...out);
+  }
+
+  // ---- modal: the full report and the reply box ------------------------------
+  const modal = document.getElementById('modal'), mReply = document.getElementById('m-reply'), mSend = document.getElementById('m-send');
+  let modalId = null, lastFocus = null;
+  function openModal(id) {
+    modalId = id; lastFocus = document.activeElement;
+    try { mReply.value = drafts[id] || ''; } catch (e) {}
+    modal.hidden = false; histEl.open = false; fireReset(); fillModal(); renderShots();
+    setTimeout(() => mReply.focus(), 0);
+  }
+  function closeModal() {
+    if (modalId) drafts[modalId] = mReply.value;
+    modalId = null; modal.hidden = true;
+    if (lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  function renderReport(el, text) {
+    if (el.dataset.src === text) return;
+    el.dataset.src = text;
+    if (window.marked && window.DOMPurify) {
+      try {
+        el.classList.remove('plain');
+        el.innerHTML = DOMPurify.sanitize(marked.parse(text, { gfm: true, breaks: true }), { USE_PROFILES: { html: true } });
+        el.querySelectorAll('a').forEach(a => { a.target = '_blank'; a.rel = 'noopener'; });
+        return;
+      } catch (e) { console.warn('markdown render failed', e); }
+    }
+    el.classList.add('plain'); el.textContent = text;
+  }
+  // the canvas bubble shows a short plain-text preview of the markdown
+  const plainPreview = t => (t || '').replace(/```[\s\S]*?```/g, '（程式碼）').replace(/^#{1,6}\s+/gm, '').replace(/[*_`>]/g, '').replace(/^\s*[-+]\s+/gm, '• ').replace(/\n{2,}/g, '\n');
+  // A report with a "要你決定" heading has its decisions split out:
+  // the modal highlights them in their own block under the rest and the bubble shows only them.
+  function splitDecide(text) {
+    const t = text || '', m = t.match(/^#{1,4}\s*要你決定[^\n]*$/m);
+    if (!m) {
+      // no heading (a session that has not seen the format yet): a closing
+      // paragraph that asks something counts, with a lead-in line ending in "："
+      const blocks = t.trim().split(/\n\s*\n/);
+      if (blocks.length < 2 || !/[？?]/.test(blocks[blocks.length - 1]) || /^\s*(```|\|)/.test(blocks[blocks.length - 1])) return { decide: '', rest: t };
+      const n = blocks.length > 2 && /[：:]\s*$/.test(blocks[blocks.length - 2]) ? 2 : 1;
+      return { decide: blocks.slice(-n).join('\n\n').trim(), rest: blocks.slice(0, -n).join('\n\n').trim() };
+    }
+    const after = t.slice(m.index + m[0].length), end = after.search(/^#{1,4}\s/m);
+    const decide = (end < 0 ? after : after.slice(0, end)).trim();
+    const rest = (t.slice(0, m.index) + (end < 0 ? '' : after.slice(end))).trim();
+    return { decide, rest };
+  }
+  const decideCount = t => (t.match(/^(?:[-*+]|\d+[.)])\s+/gm) || []).length || 1;
+  function fillModal() {
+    const d = desks.get(modalId);
+    if (!d) { closeModal(); return; }
+    const st = effState(d), lv = liveness(d);
+    const pending = !!(d.instructionAt && !(d.instructionDoneAt >= d.instructionAt));
+    document.getElementById('m-title').textContent = d.title || d.label || d.id;
+    const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
+    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? '卡住等你' : STATE_TEXT[st]) : '離線';
+    const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
+    blockedEl.textContent = d.blocked === 'question'
+      ? (Array.isArray(d.ask) && d.ask.length ? '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。' : '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。')
+      : '這個 session 在 terminal 等你確認權限，頁面回覆進不去，請切過去回答。';
+    renderAsk(d);
+    document.getElementById('m-focus').hidden = !d.tty;
+    const k = n => n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
+    const ctxText = d.ctx && typeof d.ctx.percent === 'number' ? `context 剩 ${100 - d.ctx.percent}%` + (d.ctx.tokens != null ? `（已用 ${k(d.ctx.tokens)} / ${k(d.ctx.window)}）` : '') : '';
+    const costText = typeof d.cost === 'number' ? '花費 $' + d.cost.toFixed(2) : '';
+    document.getElementById('m-branch').textContent = [d.seat ? '座位 ' + d.seat : '', d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    document.getElementById('m-task').textContent = (d.task ? '任務：' + d.task : '還沒有任務') + (st === 'working' && d.activity ? '　·　' + d.activity : '');
+    const { decide, rest } = splitDecide(d.report);
+    const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
+    document.getElementById('m-decide').hidden = !decide || asking;
+    if (decide) renderReport(document.getElementById('m-decide-body'), decide);
+    document.getElementById('m-report').hidden = asking || (!!decide && !rest);
+    renderReport(document.getElementById('m-report'), (decide ? rest : d.report) || '（還沒有匯報過）');
+    const sent = document.getElementById('m-sent'); sent.hidden = !pending;
+    if (pending) sent.textContent = '已送出「' + (d.instruction || '').slice(0, 60) + '」，等 session 接手（' + ago(d.instructionAt) + '）';
+    document.getElementById('m-meta').textContent = (d.reportedAt ? '匯報 ' + ago(d.reportedAt) + '  ·  ' : '') + '最後更新 ' + ago(d.seenAt);
+    renderHistory(d);
+    mSend.disabled = !(lv === 'live' && canWrite);
+    document.getElementById('m-ack').hidden = !(isWaiting(d) && lv === 'live' && canWrite);
+    mReply.placeholder = (st === 'reporting' ? '回覆或下一步…' : '給它一個任務…') + '（Enter 送出，Shift+Enter 換行，截圖可直接貼上）';
+  }
+  // the earlier rounds from the desk's `history` (oldest first, the last one is the current
+  // report), newest first and folded; a desk from an older mod has no history and shows nothing
+  const histEl = document.getElementById('m-hist');
+  function renderHistory(d) {
+    const past = Array.isArray(d.history) ? d.history.slice(0, -1).reverse() : [];
+    histEl.hidden = !past.length;
+    const key = d.id + ':' + past.map(h => h.at).join(',');
+    if (histEl.dataset.key === key) return;   // re-rendered every few seconds; keep it open and in place
+    histEl.dataset.key = key;
+    histEl.querySelector('summary').textContent = `之前的回覆（${past.length}）`;
+    document.getElementById('m-hist-list').replaceChildren(...past.map(h => {
+      const item = document.createElement('div'); item.className = 'item';
+      const when = document.createElement('div'); when.className = 'when';
+      when.textContent = ago(h.at) + (h.task ? '　·　任務：' + h.task : '');
+      const rep = document.createElement('div'); rep.className = 'report';
+      renderReport(rep, h.report || '（沒有內容）');
+      item.append(when, rep); return item;
+    }));
+  }
+  document.getElementById('m-close').addEventListener('click', closeModal);
+  modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !modal.hidden) closeModal(); });
+  mReply.addEventListener('input', () => { if (modalId) drafts[modalId] = mReply.value; });
+  // Enter sends; Shift+Enter (or Cmd/Ctrl+Enter) still works as before for a newline / send
+  const submitOnEnter = (ta, formId) => ta.addEventListener('keydown', ev => {
+    if (ev.key !== 'Enter' || ev.isComposing || ev.keyCode === 229) return;  // let IME composition finish
+    if (ev.shiftKey) return;                                                 // newline
+    ev.preventDefault(); document.getElementById(formId).requestSubmit();
+  });
+  submitOnEnter(mReply, 'm-form');
+  document.getElementById('m-ack').addEventListener('click', async () => {
+    if (!modalId) return;
+    await ack(modalId);
+    closeModal();
+  });
+  document.getElementById('m-compact').addEventListener('click', async () => {
+    if (!modalId) return;
+    const ok = await send(modalId, '/compact');
+    if (ok) closeModal();
+  });
+  document.getElementById('m-clear').addEventListener('click', async () => {
+    if (!modalId) return;
+    const ok = await send(modalId, '/clear');
+    if (ok) closeModal();
+  });
+  // an open AskUserQuestion: its options as buttons; one single-choice question answers on click
+  const askEl = document.getElementById('m-ask');
+  let askKey = '', askPick = {};
+  function renderAsk(d) {
+    const qs = d.blocked === 'question' && Array.isArray(d.ask) ? d.ask : [];
+    askEl.hidden = !qs.length;
+    const key = d.id + JSON.stringify(qs);
+    if (key === askKey) return;
+    askKey = key; askPick = {};
+    const parts = qs.map(q => {
+      const box = document.createElement('div'); box.className = 'q';
+      const h = document.createElement('div'); h.className = 'qh'; h.innerHTML = '<span class="tag"></span><span></span>';
+      h.firstChild.textContent = q.header || '問題'; h.lastChild.textContent = q.question + (q.multiSelect ? '（可複選）' : '');
+      const opts = document.createElement('div'); opts.className = 'opts';
+      for (const o of q.options || []) {
+        const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.innerHTML = '<b></b><span></span>';
+        b.firstChild.textContent = o.label; b.lastChild.textContent = o.description || ''; if (!o.description) b.lastChild.remove();
+        b.addEventListener('click', () => {
+          if (q.multiSelect) { const cur = new Set(askPick[q.question] || []); cur.has(o.label) ? cur.delete(o.label) : cur.add(o.label); askPick[q.question] = [...cur]; b.classList.toggle('on'); }
+          else { askPick[q.question] = [o.label]; opts.querySelectorAll('.opt').forEach(x => x.classList.toggle('on', x === b)); if (qs.length === 1) answer(d.id, qs); }
+          go.disabled = !qs.every(x => (askPick[x.question] || []).length);
+        });
+        opts.append(b);
+      }
+      box.append(h, opts); return box;
+    });
+    const go = document.createElement('button'); go.type = 'button'; go.className = 'go'; go.textContent = '送出答案'; go.disabled = true;
+    go.addEventListener('click', () => answer(d.id, qs));
+    askEl.replaceChildren(...parts, ...(qs.length === 1 && !qs[0].multiSelect ? [] : [go]));
+  }
+  async function answer(id, qs) {
+    const out = {};
+    for (const q of qs) out[q.question] = (askPick[q.question] || []).join(', ');
+    const ok = await send(id, '/answer ' + JSON.stringify(out));
+    if (ok) closeModal();
+  }
+  // bring that session's iTerm tab to the front (the bridge does it; no ack, the dog stays where it is)
+  document.getElementById('m-focus').addEventListener('click', async () => {
+    if (!modalId || !db || !canWrite) return;
+    try { await db.doc('desks/' + modalId).update({ instruction: '/focus', instructionAt: now() }); } catch (e) { console.warn('focus failed', e); }
+  });
+  // 開除: two clicks, the second one sends /exit; the mod takes the desk offline and ends the session
+  const fireBtn = document.getElementById('m-fire'), fireYes = document.getElementById('m-fire-yes'), fireNo = document.getElementById('m-fire-no');
+  const fireReset = () => { fireBtn.hidden = false; fireYes.hidden = true; fireNo.hidden = true; };
+  fireBtn.addEventListener('click', () => { fireBtn.hidden = true; fireYes.hidden = false; fireNo.hidden = false; fireYes.focus(); });
+  fireNo.addEventListener('click', fireReset);
+  fireYes.addEventListener('click', async () => {
+    if (!modalId) return;
+    const ok = await send(modalId, '/exit');
+    fireReset();
+    if (ok) closeModal();
+  });
+  // ---- pasted / dropped / picked images ----------------------------------------
+  // A database document holds at most 256KB, so each image is stored in parts
+  // (attachments/<id>-p<n>); the bridge joins them into a file on the Mac and
+  // the session gets its path to Read.
+  const shotsEl = document.getElementById('m-shots'), mForm = document.getElementById('m-form');
+  const shots = {};   // desk id -> [{ b64, mime, url }]
+  const MAX_B64 = 3000000, PART = 200000;
+  function loadImage(file) {
+    return new Promise((res, rej) => { const u = URL.createObjectURL(file), img = new Image(); img.onload = () => res({ img, u }); img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('not an image')); }; img.src = u; });
+  }
+  async function shrink(file) {
+    const { img, u } = await loadImage(file);
+    URL.revokeObjectURL(u);
+    let scale = Math.min(1, 2000 / Math.max(img.naturalWidth, img.naturalHeight));
+    const c = document.createElement('canvas'), g = c.getContext('2d');
+    for (let i = 0; i < 8; i++) {
+      c.width = Math.max(1, Math.round(img.naturalWidth * scale)); c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      // screenshots stay sharp as PNG when they fit; otherwise JPEG, then smaller
+      for (const [mime, q] of [['image/png'], ['image/jpeg', 0.9], ['image/jpeg', 0.75]]) {
+        const url = c.toDataURL(mime, q), b64 = url.slice(url.indexOf(',') + 1);
+        if (b64.length <= MAX_B64) return { b64, mime, url };
+      }
+      scale *= 0.75;
+    }
+    throw new Error('image too large');
+  }
+  function renderShots() {
+    const list = (modalId && shots[modalId]) || [];
+    shotsEl.hidden = !list.length;
+    shotsEl.replaceChildren(...list.map((s, i) => {
+      const el = document.createElement('div'); el.className = 'shot';
+      const img = document.createElement('img'); img.src = s.url; img.alt = '附圖 ' + (i + 1);
+      const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.title = '移除';
+      x.addEventListener('click', () => { list.splice(i, 1); renderShots(); });
+      el.append(img, x); return el;
+    }));
+  }
+  async function addImages(files) {
+    if (!modalId) return;
+    const id = modalId, imgs = [...files].filter(f => f.type.startsWith('image/'));
+    if (!imgs.length) return false;
+    for (const f of imgs) {
+      try { (shots[id] ||= []).push(await shrink(f)); } catch (e) { console.warn('image skipped', e); }
+    }
+    renderShots();
+    return true;
+  }
+  mReply.addEventListener('paste', ev => {
+    const files = [...(ev.clipboardData?.items || [])].filter(it => it.kind === 'file').map(it => it.getAsFile()).filter(Boolean);
+    if (files.some(f => f.type.startsWith('image/'))) { ev.preventDefault(); addImages(files); }
+  });
+  mForm.addEventListener('dragover', ev => { if ([...ev.dataTransfer.types].includes('Files')) { ev.preventDefault(); mForm.classList.add('drop'); } });
+  mForm.addEventListener('dragleave', () => mForm.classList.remove('drop'));
+  mForm.addEventListener('drop', ev => { mForm.classList.remove('drop'); if (ev.dataTransfer.files.length) { ev.preventDefault(); addImages(ev.dataTransfer.files); } });
+
+  mForm.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (!modalId) return;
+    const ok = await send(modalId, mReply.value, shots[modalId] || []);
+    if (ok) { mReply.value = ''; delete shots[modalId]; renderShots(); closeModal(); }
+  });
+
+  async function ack(id) {
+    if (!db || !canWrite) return;
+    try { await db.doc('desks/' + id).update({ ackAt: now() }); } catch (e) { console.warn('ack failed', e); }
+  }
+  // What the viewer types becomes that session's next prompt: the mod polls
+  // the desk, submits `instruction` as the user's own words, and stamps
+  // instructionDoneAt so it runs once.
+  const drafts = {};
+  async function send(id, text, images = []) {
+    text = (text || '').trim();
+    if (!text && images.length) text = '請看附圖。';
+    if (!db || !canWrite || !text) return false;
+    mSend.disabled = true;
+    try {
+      const at = now(), ids = [];
+      for (const [i, im] of images.entries()) {
+        const docId = `${id}-${at}-${i}`, parts = Math.ceil(im.b64.length / PART);
+        for (let k = 0; k < parts; k++) await db.doc(`attachments/${docId}-p${k}`).set({ desk: id, mime: im.mime, b64: im.b64.slice(k * PART, (k + 1) * PART), part: k, parts, at });
+        ids.push(`${docId}#${parts}`);
+      }
+      await db.doc('desks/' + id).update({ instruction: text, images: ids, instructionAt: at, ackAt: at });
+      delete drafts[id]; rosterDirty = true;
+      return true;
+    } catch (e) { console.warn('send failed', e); return false; }
+    finally { mSend.disabled = false; }
+  }
+
+  // ---- opening a new session from the page ------------------------------------
+  const spawn = document.getElementById('spawn'), sForm = document.getElementById('s-form'), sSend = document.getElementById('s-send');
+  const sCwd = document.getElementById('s-cwd'), sName = document.getElementById('s-name'), sTask = document.getElementById('s-task');
+  submitOnEnter(sTask, 's-form');
+  function openSpawn() {
+    // the folders from config.json (newSessionDirs) first, then wherever sessions run now
+    const dirs = new Set(officeCfg?.newSessionDirs || []);
+    for (const d of desks.values()) if (d.cwd) dirs.add(d.cwd);
+    document.getElementById('dirs').replaceChildren(...[...dirs].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
+    if (!sCwd.value) sCwd.value = [...dirs][0] || '';
+    spawn.hidden = false; setTimeout(() => sCwd.focus(), 0);
+  }
+  function closeSpawn() { spawn.hidden = true; }
+  document.getElementById('spawn-open').addEventListener('click', openSpawn);
+  document.getElementById('s-close').addEventListener('click', closeSpawn);
+  spawn.addEventListener('click', ev => { if (ev.target === spawn) closeSpawn(); });
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !spawn.hidden) closeSpawn(); });
+  sForm.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    if (!db || !canWrite) return;
+    const cwd = sCwd.value.trim(), task = sTask.value.trim(), title = sName.value.trim();
+    if (!cwd) return;
+    sSend.disabled = true;
+    try {
+      await db.collection('requests').doc().set({ kind: 'spawn', cwd, task, title, status: 'pending', at: now() });
+      sTask.value = ''; sName.value = ''; closeSpawn();
+    } catch (e) { console.warn('spawn request failed', e); }
+    finally { sSend.disabled = false; }
+  });
+  // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
+  let bridgeSeenAt = 0;
+  const bannerEl = document.getElementById('banner');
+  function judgeBridge() {
+    if (!db) return;
+    const stale = now() - bridgeSeenAt > 30 * 1000;
+    bannerEl.hidden = !stale;
+    if (stale) bannerEl.textContent = bridgeSeenAt
+      ? `橋接視窗沒在跑（最後一次 ${ago(bridgeSeenAt)}），辦公室不會更新，指令也送不出去。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits`
+      : '還沒有橋接視窗。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits';
+  }
+  setInterval(judgeBridge, 5000);
+  const requestsEl = document.getElementById('requests');
+  function renderRequests(list) {
+    const recent = list.filter(r => now() - (r.at || 0) < 30 * 60 * 1000);
+    requestsEl.replaceChildren(...recent.map(r => {
+      const el = document.createElement('div');
+      const where = (r.title ? r.title + '　' : '') + (r.cwd || '');
+      if (r.status === 'pending') el.textContent = `等橋接開新 session：${where}（${ago(r.at)}）`;
+      else if (r.status === 'started') { el.innerHTML = '<span class="ok">已開新分頁</span>：'; el.append(where + '（' + ago(r.startedAt || r.at) + '）'); }
+      else { el.innerHTML = '<span class="bad">開不起來</span>：'; el.append(where + '　' + (r.error || '')); }
+      return el;
+    }));
+  }
+
+  // ---- pointer -------------------------------------------------------------
+  function actorAt(ev) {
+    const r = canvas.getBoundingClientRect(), sx = canvas.width / r.width, sy = canvas.height / r.height;
+    const mx = (ev.clientX - r.left) * sx, my = (ev.clientY - r.top) * sy;
+    // overlapping dogs: a standing one beats one walking past, then the nearest
+    let best = null, bestScore = Infinity;
+    for (const a of actors.values()) {
+      if (!(Math.abs(mx - a.x) < 30 && my > a.y - 76 && my < a.y + 16)) continue;
+      const score = (a.walking ? 1000 : 0) + Math.hypot(mx - a.x, my - (a.y - 30));
+      if (score < bestScore) { best = a; bestScore = score; }
+    }
+    return best;
+  }
+  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev)); });
+  canvas.addEventListener('pointerleave', () => { hover = null; });
+  // Clicking a worker (or its bubble) opens the full report with the reply box.
+  const speak = {};
+  canvas.addEventListener('click', ev => {
+    if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; return; }
+    const a = actorAt(ev) || bubbleAt(ev); if (!a) return;
+    openModal(a.slot.d.id);
+  });
+  function bubbleAt() { return null; }
+  // The bubble is an HTML element laid over the canvas so it can show markdown.
+  let bubbleWanted = null;
+  const hb = document.getElementById('hbubble'), hbClip = hb.querySelector('.clip');
+  const hbMore = hb.querySelector('.more');
+  hb.addEventListener('click', () => { if (hb.dataset.id === 'codex') codexOpenUntil = 0; else if (hb.dataset.id) openModal(hb.dataset.id); });
+  // At phone width the canvas is too small for a bubble: each dog waiting for you
+  // gets a small icon instead (❗ with the number of decisions, 💬 a report,
+  // 🔒 a permission prompt in the terminal), and tapping it opens the report.
+  // Codex's card stays a bubble.
+  const narrow = matchMedia('(max-width: 860px)');
+  const hiconsEl = document.getElementById('hicons'), hicons = new Map();
+  function iconOf(d) {
+    if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: '在 terminal 等你確認權限' };
+    if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: '在等你回答' };
+    const { decide } = splitDecide(d.report);
+    return decide ? { cls: 'decide', text: '❗' + decideCount(decide), title: '要你決定' } : { cls: '', text: '💬', title: '來匯報' };
+  }
+  function placeIcons() {
+    const want = new Set();
+    if (narrow.matches) {
+      const k = canvas.clientWidth / canvas.width, ox = canvas.offsetLeft, oy = canvas.offsetTop;
+      for (const a of actors.values()) {
+        const d = a.slot.d;
+        if (liveness(d) !== 'live' || !(isWaiting(d) || d.blocked)) continue;
+        want.add(d.id);
+        let el = hicons.get(d.id);
+        if (!el) {
+          el = document.createElement('button'); el.type = 'button';
+          el.addEventListener('click', () => openModal(d.id));
+          hicons.set(d.id, el); hiconsEl.append(el);
+        }
+        const ic = iconOf(d);
+        if (el.textContent !== ic.text) el.textContent = ic.text;
+        el.className = 'hicon ' + ic.cls; el.title = ic.title;
+        el.style.left = (ox + a.x * k) + 'px'; // above the name tag and HP bar; neighbours in the queue stand closer than an icon is wide, so every other one sits a step higher
+        el.style.top = (oy + (a.y - 90) * k - (a.queue > 0 && a.queue % 2 ? 22 : 0)) + 'px';
+      }
+    }
+    for (const [id, el] of hicons) if (!want.has(id)) { el.remove(); hicons.delete(id); }
+  }
+  function placeBubble() {
+    placeIcons();
+    if (narrow.matches && bubbleWanted && bubbleWanted.id !== 'codex') bubbleWanted = null;
+    if (!bubbleWanted) { hb.hidden = true; hb.dataset.id = ''; return; }
+    const { id, x, y, side, text } = bubbleWanted;
+    hb.dataset.id = id;
+    hbMore.hidden = id === 'codex';
+    if (text.startsWith('#decide\n')) {
+      const body = text.slice(8);
+      renderReport(hbClip, '<div class="dh">要你決定（' + decideCount(body) + ' 件）</div>\n\n' + body);
+    } else renderReport(hbClip, text);
+    hb.hidden = false;
+    const k = canvas.clientWidth / canvas.width, ox = canvas.offsetLeft, oy = canvas.offsetTop;
+    const W = canvas.clientWidth, H = canvas.clientHeight, bw = hb.offsetWidth, bh = hb.offsetHeight;
+    let left, top, cls;
+    if (side === 'side') {
+      const right = x * k + 44 + bw <= W - 6;
+      left = right ? x * k + 44 : x * k - 44 - bw; top = (y + 30) * k - bh / 2; cls = right ? 'right' : 'left';
+    } else {
+      left = x * k - bw / 2; top = y * k - bh - 10; cls = 'above';
+    }
+    left = Math.max(6, Math.min(W - bw - 6, left)); top = Math.max(6, Math.min(H - bh - 6, top));
+    hb.className = 'hbubble report ' + cls + (id === 'codex' ? ' whole' : '');
+    hb.style.left = (ox + left) + 'px'; hb.style.top = (oy + top) + 'px';
+  }
+
+  // ---- loop ----------------------------------------------------------------
+  let last = performance.now(), L = layout(), rosterDirty = true;
+  function frame(t) {
+    const dt = Math.min(0.1, (t - last) / 1000) * (location.hash === '#slow' ? 0.08 : 1); last = t;
+    L = layout(); syncActors(L); tick(dt); draw(L); placeBubble();
+    if (rosterDirty) { renderRoster(L); rosterDirty = false; }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  setInterval(() => { rosterDirty = true; }, 5000);
+
+  // ---- data ----------------------------------------------------------------
+  renderRoster(L);
+  const connectTimer = setTimeout(() => { if (!db) emptyEl.textContent = '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。'; }, 10000);
+  (async () => {
+    const [d, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    if (user) { const c = await user.can('data.write'); if (c === false) canWrite = false; }
+    if (!d) { clearTimeout(connectTimer); emptyEl.textContent = '需要登入 claude.ai 才能看到即時狀態。'; return; }
+    db = d; clearTimeout(connectTimer);
+    emptyEl.innerHTML = '還沒有 session 進來。裝好 <code>office</code> mod 的 session 啟動後會自己走進來坐下。';
+    d.doc('meta/jira').onSnapshot(snap => { jira = snap.exists ? snap.data() : null; if (!snap.exists) jMeta.textContent = '還沒同步'; renderJira(); }, e => console.warn('jira doc', e));
+    d.doc('meta/codex').onSnapshot(snap => { codex = snap.exists ? snap.data() : null; }, e => console.warn('codex doc', e));
+    d.doc('meta/config').onSnapshot(snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); }, e => console.warn('config doc', e));
+    d.doc('meta/bridge').onSnapshot(snap => { bridgeSeenAt = snap.exists ? (snap.data().seenAt || 0) : 0; judgeBridge(); }, e => console.warn('bridge heartbeat', e));
+    d.collection('requests').orderBy('at', 'desc').limit(10).onSnapshot(snap => {
+      renderRequests(snap.docs.filter(x => x.exists).map(x => ({ id: x.id, ...x.data() })));
+    }, e => console.warn('requests subscription', e));
+    d.collection('desks').onSnapshot(snap => {
+      desks = new Map(snap.docs.filter(s => s.exists).map(s => [s.id, { id: s.id, ...s.data() }]));
+      rosterDirty = true;
+    }, e => { console.warn('desks subscription', e); emptyEl.hidden = false; emptyEl.textContent = '即時更新中斷（' + (e && e.code || 'unknown') + '），請重新整理。'; });
+  })();
+})();
+</script>

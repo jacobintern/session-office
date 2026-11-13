@@ -1,0 +1,3 @@
+# office
+
+Reports this Claude Code session to the Session Office artifact (its link is `officeUrl` in `~/.claude/office/config.json`), a pixel office where every running session sits at its own desk. On each turn start, tool call and turn end the mod writes one document per session into the artifact's `desks` collection through the ArtifactData tool: repo folder, git branch, the task the turn was asked, the current activity, and the first line of the last answer. A session whose turn just finished walks up to the viewer's desk on the page and shows its report until the viewer clicks it. Setup: allow the `ArtifactData` tool in your permissions so the writes do not prompt, then start sessions with this plugin loaded; `/office` prints the link and this session's desk card.

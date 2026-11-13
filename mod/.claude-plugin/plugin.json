@@ -1,0 +1,5 @@
+{
+  "name": "office",
+  "version": "0.2.0",
+  "description": "Reports this session's desk card (repo, branch, task, last answer) to the Session Office artifact so every session shows up as a worker in the pixel office."
+}

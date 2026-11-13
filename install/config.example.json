@@ -1,0 +1,8 @@
+{
+  "officeUrl": "https://claude.ai/artifact/<your-artifact-id>",
+  "bridgeCwd": "~",
+  "jira": null,
+  "codex": true,
+  "city": { "lat": 25.033, "lng": 121.565 },
+  "newSessionDirs": ["~/code"]
+}
