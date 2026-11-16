@@ -62,15 +62,6 @@
   @media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "feed" "side"; } .side { position: static; } }
   .feed > h2 { font-size: .9rem; font-weight: 600; margin: 0; color: var(--muted); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .feed > h2 .meta { margin-left: auto; }
-  .feed-toggle { padding: 2px 8px; line-height: 1.2; }
-  /* Jira folded away: only its header row stays; on a wide screen the column
-     shrinks to a strip and the office takes the room */
-  .feed-collapsed .feed > :not(h2), .feed-collapsed #j-meta { display: none; }
-  @media (min-width: 1481px) {
-    .wrap.feed-collapsed { grid-template-columns: 260px minmax(0, 1fr) 40px; }
-    .feed-collapsed .feed > h2 { flex-direction: column; align-items: center; gap: 10px; }
-    .feed-collapsed #j-title { writing-mode: vertical-rl; order: 1; }
-  }
   .feed .warn { font-size: .8rem; color: var(--accent); }
   .feed details { display: flex; flex-direction: column; gap: 6px; }
   .feed details > *:not(summary) { margin-top: 6px; }
@@ -282,7 +273,7 @@
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
-    <h2><span id="j-title">Jira 我的票</span> <span class="meta" id="j-meta">還沒同步</span><button type="button" class="lang-btn feed-toggle" id="feed-toggle" aria-expanded="true" aria-controls="j-groups">»</button></h2>
+    <h2><span id="j-title">Jira 我的票</span> <span class="meta" id="j-meta">還沒同步</span></h2>
     <div class="warn" id="j-warn" hidden></div>
     <div id="j-groups"><div class="none">等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。</div></div>
   </aside>
@@ -332,7 +323,7 @@
       ack: '收到，回座位', focus: '切到它的 terminal 分頁', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
-      jiraTitle: 'Jira 我的票', jiraCollapse: '收起 Jira', jiraExpand: '展開 Jira', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
+      jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
       sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
       working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
@@ -364,7 +355,7 @@
       ack: 'Got it, back to desk', focus: 'Switch to its terminal tab', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
-      jiraTitle: 'My Jira tickets', jiraCollapse: 'Collapse Jira', jiraExpand: 'Expand Jira', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
+      jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
       sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
       working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
@@ -418,21 +409,6 @@
     set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
-  // Jira column folds away per viewer (remembered in this browser only)
-  const wrapEl = document.querySelector('.wrap'), feedToggle = document.getElementById('feed-toggle');
-  function foldJira(folded) {
-    wrapEl.classList.toggle('feed-collapsed', folded);
-    feedToggle.setAttribute('aria-expanded', String(!folded));
-    feedToggle.textContent = folded ? '«' : '»';
-    feedToggle.title = tt(folded ? 'jiraExpand' : 'jiraCollapse');
-  }
-  let jiraFolded = false;
-  try { jiraFolded = localStorage.getItem('jiraFolded') === '1'; } catch (e) {}
-  foldJira(jiraFolded);
-  feedToggle.addEventListener('click', () => {
-    jiraFolded = !jiraFolded; foldJira(jiraFolded);
-    try { localStorage.setItem('jiraFolded', jiraFolded ? '1' : '0'); } catch (e) {}
-  });
   document.getElementById('lang-toggle').addEventListener('click', () => { try { localStorage.setItem('lang', LANG === 'zh' ? 'en' : 'zh'); } catch (e) {} location.reload(); });
 
   const ago = t => {
