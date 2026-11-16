@@ -62,6 +62,15 @@
   @media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "feed" "side"; } .side { position: static; } }
   .feed > h2 { font-size: .9rem; font-weight: 600; margin: 0; color: var(--muted); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .feed > h2 .meta { margin-left: auto; }
+  .feed-toggle { padding: 2px 8px; line-height: 1.2; }
+  /* Jira folded away: only its header row stays; on a wide screen the column
+     shrinks to a strip and the office takes the room */
+  .feed-collapsed .feed > :not(h2), .feed-collapsed #j-meta { display: none; }
+  @media (min-width: 1481px) {
+    .wrap.feed-collapsed { grid-template-columns: 260px minmax(0, 1fr) 40px; }
+    .feed-collapsed .feed > h2 { flex-direction: column; align-items: center; gap: 10px; }
+    .feed-collapsed #j-title { writing-mode: vertical-rl; order: 1; }
+  }
   .feed .warn { font-size: .8rem; color: var(--accent); }
   .feed details { display: flex; flex-direction: column; gap: 6px; }
   .feed details > *:not(summary) { margin-top: 6px; }
@@ -91,6 +100,11 @@
   .sub { color: var(--muted); font-size: .9rem; margin: 0; }
   .stat { margin-left: auto; display: flex; gap: 14px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .stat b { color: var(--fg); font-weight: 600; }
+  .bridge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .bridge i { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
+  .bridge[data-state="ok"] i { background: var(--ok); }
+  .bridge[data-state="down"] i { background: var(--accent); }
+  .bridge[data-state="down"] { color: var(--accent); font-weight: 600; }
   .spawn-btn { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 12px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
   .lang-btn { font: inherit; font-size: .8rem; font-weight: 600; padding: 5px 10px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); cursor: pointer; }
   .lang-btn:hover { color: var(--fg); border-color: var(--fg); }
@@ -213,7 +227,7 @@
   <header>
     <h1>Session Office</h1>
     <p class="sub">每個 Claude Code session 一張桌子。做完一輪的同事會走到你桌前匯報；點他或泡泡看全文，回覆或按「收到」他就回座位。</p>
-    <div class="stat"><span>在線 <b id="n-online">0</b></span><span>待匯報 <b id="n-waiting">0</b></span><button type="button" class="lang-btn" id="lang-toggle">EN</button><button type="button" class="spawn-btn" id="spawn-open">＋ 新開 session</button></div>
+    <div class="stat"><span class="bridge" id="bridge-state" data-state="wait"><i aria-hidden="true"></i><span id="bridge-text">橋接 連線中…</span></span><span>在線 <b id="n-online">0</b></span><span>待匯報 <b id="n-waiting">0</b></span><button type="button" class="lang-btn" id="lang-toggle">EN</button><button type="button" class="spawn-btn" id="spawn-open">＋ 新開 session</button></div>
   </header>
 
   <div class="banner" id="banner" hidden></div>
@@ -268,7 +282,7 @@
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
-    <h2>Jira 我的票 <span class="meta" id="j-meta">還沒同步</span></h2>
+    <h2><span id="j-title">Jira 我的票</span> <span class="meta" id="j-meta">還沒同步</span><button type="button" class="lang-btn feed-toggle" id="feed-toggle" aria-expanded="true" aria-controls="j-groups">»</button></h2>
     <div class="warn" id="j-warn" hidden></div>
     <div id="j-groups"><div class="none">等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。</div></div>
   </aside>
@@ -318,7 +332,7 @@
       ack: '收到，回座位', focus: '切到它的 terminal 分頁', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
-      jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
+      jiraTitle: 'Jira 我的票', jiraCollapse: '收起 Jira', jiraExpand: '展開 Jira', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
       sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
       working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
@@ -332,8 +346,9 @@
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
       sent: '已送出「{text}」，等 session 接手（{ago}）', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
       histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
-      bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
-      bridgeNone: '還沒有橋接視窗。開一個分頁跑：CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。watchdog 每分鐘會自動重開一個；要手動開就在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions，原因可以用 install/install.sh --check 查。',
+      bridgeNone: '還沒有橋接視窗。跑 install/install.sh 讓 watchdog 自動開，或在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions。',
+      bridgeOk: '橋接 {ago}', bridgeOff: '橋接斷線', bridgeWait: '橋接 連線中…', bridgeTip: '橋接視窗最後一次同步：{ago}',
       reqPending: '等橋接開新 session：{where}（{ago}）', reqStarted: '已開新分頁', reqFailed: '開不起來',
       iconPerm: '在 terminal 等你確認權限', iconAsk: '在等你回答', iconReport: '來匯報',
       dbFail: '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。', needLogin: '需要登入 claude.ai 才能看到即時狀態。',
@@ -349,7 +364,7 @@
       ack: 'Got it, back to desk', focus: 'Switch to its terminal tab', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
-      jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
+      jiraTitle: 'My Jira tickets', jiraCollapse: 'Collapse Jira', jiraExpand: 'Expand Jira', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
       sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
       working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
@@ -363,8 +378,9 @@
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
       sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
       histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
-      bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. In a new tab run: CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
-      bridgeNone: 'No bridge yet. In a new tab run: CLAUDE_OFFICE_BRIDGE=1 claude --permission-mode acceptEdits',
+      bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. The watchdog reopens one every minute; to start one yourself, run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab, and install/install.sh --check shows why it stopped.',
+      bridgeNone: 'No bridge yet. Run install/install.sh so the watchdog opens one, or run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab.',
+      bridgeOk: 'Bridge {ago}', bridgeOff: 'Bridge down', bridgeWait: 'Bridge connecting…', bridgeTip: 'Last bridge sync: {ago}',
       reqPending: 'Waiting for the bridge to open a session: {where} ({ago})', reqStarted: 'Opened a new tab', reqFailed: 'Could not open',
       iconPerm: 'Waiting for a permission prompt in the terminal', iconAsk: 'Waiting for your answer', iconReport: 'Reporting',
       dbFail: 'Cannot reach the database. Reload the page, or check that you are signed in to claude.ai.', needLogin: 'Sign in to claude.ai to see live status.',
@@ -390,6 +406,7 @@
     const set = (sel, key, prop = 'textContent') => { const el = document.querySelector(sel); if (el) el[prop] = tt(key); };
     const label = (sel, key) => { const el = document.querySelector(sel)?.closest('label'); if (el && el.firstChild.nodeType === 3) el.firstChild.nodeValue = tt(key); };
     set('.sub', 'sub'); set('#help', 'help', 'innerHTML'); set('#spawn-open', 'spawnBtn');
+    document.getElementById('bridge-text').textContent = tt('bridgeWait');
     document.querySelector('#n-online').previousSibling.nodeValue = tt('online') + ' '; document.querySelector('#n-waiting').previousSibling.nodeValue = tt('waitingN') + ' ';
     const lb = document.getElementById('lang-toggle'); lb.textContent = tt('langBtn'); lb.title = tt('langTitle');
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
@@ -398,9 +415,24 @@
     set('#m-ack', 'ack'); set('#m-focus', 'focus'); set('#m-compact', 'compact'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
-    document.querySelector('#feed > h2').firstChild.nodeValue = tt('jiraTitle') + ' '; set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
+    set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
+  // Jira column folds away per viewer (remembered in this browser only)
+  const wrapEl = document.querySelector('.wrap'), feedToggle = document.getElementById('feed-toggle');
+  function foldJira(folded) {
+    wrapEl.classList.toggle('feed-collapsed', folded);
+    feedToggle.setAttribute('aria-expanded', String(!folded));
+    feedToggle.textContent = folded ? '«' : '»';
+    feedToggle.title = tt(folded ? 'jiraExpand' : 'jiraCollapse');
+  }
+  let jiraFolded = false;
+  try { jiraFolded = localStorage.getItem('jiraFolded') === '1'; } catch (e) {}
+  foldJira(jiraFolded);
+  feedToggle.addEventListener('click', () => {
+    jiraFolded = !jiraFolded; foldJira(jiraFolded);
+    try { localStorage.setItem('jiraFolded', jiraFolded ? '1' : '0'); } catch (e) {}
+  });
   document.getElementById('lang-toggle').addEventListener('click', () => { try { localStorage.setItem('lang', LANG === 'zh' ? 'en' : 'zh'); } catch (e) {} location.reload(); });
 
   const ago = t => {
@@ -1462,9 +1494,14 @@
   // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
   let bridgeSeenAt = 0;
   const bannerEl = document.getElementById('banner');
+  const bridgeEl = document.getElementById('bridge-state'), bridgeText = document.getElementById('bridge-text');
   function judgeBridge() {
     if (!db) return;
     const stale = now() - bridgeSeenAt > 30 * 1000;
+    // the header light says the same as the banner, all the time
+    bridgeEl.dataset.state = stale ? 'down' : 'ok';
+    bridgeText.textContent = stale ? tt('bridgeOff') : tt('bridgeOk', { ago: ago(bridgeSeenAt) });
+    bridgeEl.title = bridgeSeenAt ? tt('bridgeTip', { ago: ago(bridgeSeenAt) }) : tt('bridgeNone');
     bannerEl.hidden = !stale;
     if (stale) bannerEl.textContent = bridgeSeenAt
       ? tt('bridgeDown', { ago: ago(bridgeSeenAt) })
