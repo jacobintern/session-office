@@ -30,29 +30,71 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 - **page/** — the artifact page itself.
 - **install/** — the watchdog that keeps the bridge running, and its LaunchAgent.
 
-## Requirements
+## Before you start
 
-macOS, [iTerm2](https://iterm2.com), Claude Code with Artifacts enabled.
-Optional: Jira Cloud (an API token), Codex CLI (shows its usage limits).
+| | needed | check |
+|---|---|---|
+| macOS + [iTerm2](https://iterm2.com) | yes | the bridge runs in an iTerm2 tab, kept alive by launchd |
+| Claude Code with mods (tested on 2.1.311) | yes | `claude --version` |
+| A claude.ai account that can publish Artifacts | yes | you can ask Claude to publish a page |
+| Access to this repository | yes | it is private: ask the owner to add you as a collaborator, and make sure `git clone git@github.com:jacobintern/session-office.git` works |
+| Pipoya's sprite pack + node | yes, once | see *Sprites* |
+| Jira Cloud API token | no | for the Jira column |
+| Codex CLI | no | for the Codex secretary's usage limits |
+
+`install/install.sh --check` checks all of this (and the bridge) and prints the
+fix for anything that fails.
 
 ## Install
 
-1. Install the mod, at the prompt of a terminal session:
+1. Get the repository and install the mod:
 
+   ```sh
+   git clone git@github.com:jacobintern/session-office.git && cd session-office
+   claude plugin marketplace add jacobintern/session-office
+   claude plugin install office@session-office
    ```
-   /plugin install office --marketplace jacobintern/session-office
+
+2. Build the sprites (see *Sprites*):
+
+   ```sh
+   node install/build-sprites.mjs ~/Downloads/"PIPOYA FREE RPG Character Sprites 32x32.zip"
    ```
 
-2. Publish the page: in a Claude Code session, ask Claude to publish
-   `page/session-office.html` as an artifact with the `db` and `user`
-   capabilities, together with the files in `page/chars/` (see *Sprites*). Copy the artifact's URL.
+3. Publish your own copy of the page. Everyone needs their own: the page's
+   database holds your sessions. In a Claude Code session started in this
+   folder, paste:
 
-3. Run the installer, then put the URL in the config:
+   > Publish `page/session-office.html` as a new artifact with the `db` and
+   > `user` capabilities, and publish every file in `page/chars/` alongside it
+   > at `chars/<file name>`. Give me the artifact's URL.
+
+4. Run the installer, then put the URL in the config:
 
    ```sh
    ./install/install.sh          # --no-launchd to skip the LaunchAgent, --uninstall to remove it
    $EDITOR ~/.claude/office/config.json
    ```
+
+5. Start the bridge. Within a minute the watchdog opens an iTerm2 tab running
+   the bridge. The first time, macOS and Claude Code ask three things; the
+   bridge stays down until all three are answered:
+   - macOS: allow the watchdog to control iTerm2 (Automation);
+   - Claude Code: accept `--dangerously-skip-permissions`;
+   - Claude Code: trust the bridge's folder (`bridgeCwd`).
+
+6. Check: `./install/install.sh --check` in a shell, or `/office doctor` in any
+   session. Then open a new `claude` session: it shows up at a desk on the page.
+
+## Commands
+
+| | |
+|---|---|
+| `/office` | the page's link and this session's desk |
+| `/office doctor` | checks the config, this session's desk card and the bridge |
+| `/office name <text>` | the desk's nameplate (empty clears it) |
+| `/office status` | the bridge's last round |
+| `/office bridge` / `/office bridge off` | make this session the bridge, or stop |
 
 ## Configuration — `~/.claude/office/config.json`
 
@@ -74,13 +116,8 @@ Only `jira.site`, `codex`, `city` and `newSessionDirs` reach the page (as
 Characters come from Pipoya's free pack, **PIPOYA FREE RPG Character Sprites
 32x32** (https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32). Its
 license allows use and editing but not redistribution, so the images are not
-in this repository. Download the pack, then build the page's sprites from it:
-
-```sh
-node install/build-sprites.mjs ~/Downloads/"PIPOYA FREE RPG Character Sprites 32x32.zip"
-```
-
-This writes `page/chars/` (you, the Codex secretary, and four character
+in this repository. Download the pack (free, from the link above), then build
+the page's sprites from it with `install/build-sprites.mjs` (Install, step 2). This writes `page/chars/` (you, the Codex secretary, and four character
 pools); publish those files together with the page.
 
 ## Report format

@@ -3,12 +3,14 @@
 #   ~/.claude/office/            desk cards, inbox, config.json (from the example)
 #   bridge-watchdog.sh           keeps one bridge session running in iTerm2
 #   a LaunchAgent                runs the watchdog at login and every minute
-# Usage: install.sh [--no-launchd] | --uninstall
+# Usage: install.sh [--no-launchd] | --uninstall | --check
 set -e
 here=${0:A:h}
 office="$HOME/.claude/office"
 label="dev.session-office.bridge"
 plist="$HOME/Library/LaunchAgents/$label.plist"
+
+[ "$1" = "--check" ] && exec /bin/zsh "$here/check.sh"
 
 if [ "$1" = "--uninstall" ]; then
   launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
@@ -33,7 +35,8 @@ fi
 cp "$here/bridge-watchdog.sh" "$office/bridge-watchdog.sh"
 chmod +x "$office/bridge-watchdog.sh"
 
-[ "$1" = "--no-launchd" ] && { echo "Skipped the LaunchAgent (--no-launchd)."; exit 0; }
+check() { echo; echo "Checking the setup (run install.sh --check again any time):"; /bin/zsh "$here/check.sh" || true; }
+[ "$1" = "--no-launchd" ] && { echo "Skipped the LaunchAgent (--no-launchd)."; check; exit 0; }
 mkdir -p "${plist:h}"
 cat > "$plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -53,3 +56,4 @@ PLIST
 launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist"
 echo "LaunchAgent $label loaded; the watchdog opens a bridge tab within a minute."
+check

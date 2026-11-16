@@ -686,7 +686,58 @@ async function bridgeTick($: EngineInterface) {
     report($, `bridge tick failed: ${String(error)}`)
   } finally {
     busy = false
+    await writeBridgeStatus($)
   }
+}
+
+// ~/.claude/office/bridge.json: when the bridge last ran and how that went, for
+// `/office doctor` in any session and `install.sh --check` in a shell.
+type BridgeStatus = { at: number; ok: boolean; note: string; sessionId: string; pid: number | null }
+let bridgePid: number | null | undefined
+async function writeBridgeStatus($: EngineInterface) {
+  try {
+    if (bridgePid === undefined) bridgePid = await ownPid($)
+    const status: BridgeStatus = { at: lastTick.at, ok: lastTick.note.startsWith('第 '), note: lastTick.note, sessionId: await $.session.id(), pid: bridgePid }
+    await $.fs.write(`${home}/.claude/office/bridge.json`, JSON.stringify(status))
+  } catch (error) {
+    report($, `bridge.json could not be written: ${String(error)}`)
+  }
+}
+
+// `/office doctor`: what this session can see of the setup, one line per check.
+async function doctor($: EngineInterface): Promise<string> {
+  const lines: string[] = []
+  const ok = (good: boolean, text: string, fix?: string) => lines.push(`${good ? '✅' : '❌'} ${text}${!good && fix ? `\n   → ${fix}` : ''}`)
+  const ago = (ms: number) => ms < 90_000 ? `${Math.round(ms / 1000)} 秒前` : `${Math.round(ms / 60_000)} 分鐘前`
+  const cfgPath = `${home}/.claude/office/config.json`
+  ok(true, 'office mod 已載入')
+  let parsed = true
+  try { JSON.parse(await $.fs.read(cfgPath)) } catch { parsed = false }
+  ok(parsed, 'config.json 讀得到、格式正確', `跑 install/install.sh 產生 ${cfgPath}，或檢查 JSON 格式`)
+  if (parsed) {
+    await loadConfig($)
+    ok(/^https:\/\/claude\.ai\/(code\/)?artifact\/[\w-]+$/.test(OFFICE_URL), 'officeUrl 已設定', '把發佈好的頁面網址填進 config.json 的 officeUrl')
+    if (cfg.jira) {
+      const tokenFile = (cfg.jira.tokenFile ?? '~/.jira_api_token').replace(/^~(?=\/|$)/, home)
+      ok(await $.fs.exists(tokenFile), `Jira token 檔存在（${tokenFile.replace(home, '~')}）`, 'Jira 不用就把 jira 設成 null；要用就把 API token 存進這個檔，權限 600')
+    }
+  }
+  if (isBridge) {
+    ok(true, '這個 session 是橋接')
+    ok(toolReady, 'ArtifactData 工具已載入', '橋接要用 --dangerously-skip-permissions 啟動，或在 default 模式允許 ArtifactData')
+  } else if (me) {
+    const fresh = await $.fs.exists(deskPath(me.id))
+    ok(fresh, `這個 session 的桌卡已寫出（${deskPath(me.id).replace(home, '~')}）`, '確認 ~/.claude/office/desks 存在且可寫入')
+  }
+  let status: BridgeStatus | null = null
+  try { status = JSON.parse(await $.fs.read(`${home}/.claude/office/bridge.json`)) as BridgeStatus } catch { /* never ran */ }
+  if (!status) ok(false, '橋接還沒跑過', '跑 install/install.sh 裝 LaunchAgent，或開一個分頁：CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions')
+  else {
+    const age = Date.now() - status.at
+    ok(age < 60_000, `橋接最近一輪：${ago(age)}`, '橋接沒在跑：看 ~/.claude/office/bridge-watchdog.log，第一次啟動要在 iTerm 點掉權限與信任資料夾的確認')
+    ok(status.ok, `橋接狀態：${status.note}`)
+  }
+  return lines.join('\n')
 }
 
 // ---- hooks ---------------------------------------------------------------------
@@ -703,7 +754,7 @@ export const register: Register = on => {
     const sessionId = await $.session.id()
     isBridge = (await $.env.get('CLAUDE_OFFICE_BRIDGE')) === '1' || (await $.store.get('bridgeSessionId')) === sessionId
     if (!e.isInteractive && (await $.env.get('CLAUDE_OFFICE_HEADLESS')) !== '1') return started
-    await $.command.register({ name: 'office', description: 'Session Office: link, this desk, `name <text>`, `bridge`' })
+    await $.command.register({ name: 'office', description: 'Session Office: link, this desk, `name <text>`, `doctor`, `bridge`' })
 
     if (!isBridge) {
       me = {
@@ -782,6 +833,7 @@ export const register: Register = on => {
       patch($, { title })
       return { text: title ? `桌牌改成「${title}」。` : '桌牌清掉了，改回顯示第一句任務。' }
     }
+    if (sub === 'doctor') return { text: await doctor($) }
     if (sub === 'status') {
       return {
         text: [
@@ -811,7 +863,7 @@ export const register: Register = on => {
       text: [
         `Session Office：${OFFICE_URL || '（~/.claude/office/config.json 還沒設定 officeUrl）'}`,
         isBridge ? '角色：橋接（不佔桌子）' : `這個 session 的桌卡：${me ? `${me.title || me.label} · ${me.branch ?? '(no branch)'} · ${me.state}` : '尚未建立'}`,
-        '指令：/office name <桌牌>、/office bridge、/office bridge off、/office status',
+        '指令：/office name <桌牌>、/office doctor、/office bridge、/office bridge off、/office status',
       ].join('\n'),
     }
   })
