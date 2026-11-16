@@ -46,12 +46,14 @@
     color-scheme: dark;
   }
   body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+  /* the office is as wide as the screen's height allows (it is 30 x 18.75 tiles, 1.6:1), so it is seen whole without scrolling */
+  :root { --office-w: max(480px, calc((100vh - 120px) * 1.6)); }
   .wrap {
     max-width: none; margin: 0 auto;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 48px;
-    display: grid; grid-template-columns: 260px minmax(0, 1100px) minmax(280px, 1fr); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
+    display: grid; grid-template-columns: 260px minmax(0, var(--office-w)) minmax(280px, 1fr); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
   }
   .wrap > header { grid-area: head; }
   .banner { grid-column: 1 / -1; background: var(--wait); color: var(--bg); font-weight: 600; padding: 10px 14px; border-radius: 6px; font-size: .9rem; }
@@ -101,7 +103,7 @@
   .field code { font-family: var(--mono); }
   .requests { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
   .requests .ok { color: var(--ok); } .requests .bad { color: var(--accent); }
-  .office { position: relative; border: 2px solid var(--line); background: var(--wall); border-radius: 6px; overflow: hidden; max-width: 1100px; }
+  .office { position: relative; border: 2px solid var(--line); background: var(--wall); border-radius: 6px; overflow: hidden; max-width: var(--office-w); }
   canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: default; }
   canvas.hit { cursor: pointer; }
   .hbubble { position: absolute; max-width: 340px; font-size: 12px; line-height: 1.45; padding: 8px 10px 6px; border-radius: 6px; box-shadow: 0 2px 0 rgba(0,0,0,.18); cursor: pointer; z-index: 3; pointer-events: auto; }
