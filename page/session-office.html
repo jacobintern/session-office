@@ -458,9 +458,10 @@
     for (const d of list) { if (d.seat) seatNo.set(d.id, d.seat); else { while (used.has(free)) free++; used.add(free); seatNo.set(d.id, free); } }
     const benches = [];
     let capacity = 0;
-    // pods for every seat in use plus one spare pod (two at least); the rest of the floor stays open
-    const top = Math.max(0, ...seatNo.values());
-    while (capacity < Math.max(12, (Math.ceil(top / 6) + 1) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
+    // pods up to the highest seat in use, plus a spare pod only when they are full
+    // (a free seat in them is where the next session sits); two at least
+    const top = Math.max(0, ...seatNo.values()), pods = Math.ceil(top / 6), spare = list.length >= pods * 6 ? 1 : 0;
+    while (capacity < Math.max(12, (pods + spare) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
     const ROWS = Math.max(FIT_ROWS, benches[benches.length - 1].y / TILE + 1.6);
     const W = COLS * TILE, H = Math.round(ROWS * TILE);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
@@ -848,7 +849,10 @@
   for (const [src, n] of POOLS) { const im = load(src); for (let k = 0; k < n; k++) sheets.push({ im, y: k * 128 }); }
   const POOL_SIZE = sheets.length - 1;
   const CODEX_SHEET = sheets.push({ im: load('chars/k00.png'), y: 0 }) - 1; // Codex, your secretary
-  const charOf = id => 1 + (hash(id) >>> 3) % POOL_SIZE;
+  // Enemy sheets 14-29 are orbs whose back view is a plain ball: seated in the lower
+  // row (back to us) they would read as an empty seat, so such a draw is drawn again
+  const ORB_FIRST = 1 + 91 + 134 + 14, ORB_LAST = ORB_FIRST + 15;
+  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; k >= ORB_FIRST && k <= ORB_LAST; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
   function drawSprite(sheet, dir, col, x, feetY) {
     const { im, y: y0 } = sheets[sheet];
     if (!im || !im.complete || !im.naturalWidth) { px(x - 10, feetY - 44, 20, 44, 'rgba(0,0,0,.08)'); return; }
