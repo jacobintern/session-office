@@ -46,14 +46,12 @@
     color-scheme: dark;
   }
   body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
-  /* the office is as wide as the screen's height allows (it is 30 x 18.75 tiles, 1.6:1), so it is seen whole without scrolling */
-  :root { --office-w: max(480px, calc((100vh - 120px) * 1.6)); }
   .wrap {
     max-width: none; margin: 0 auto;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 48px;
-    display: grid; grid-template-columns: 260px minmax(0, var(--office-w)) minmax(280px, 1fr); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
+    display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(280px, 380px); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
   }
   .wrap > header { grid-area: head; }
   .banner { grid-column: 1 / -1; background: var(--wait); color: var(--bg); font-weight: 600; padding: 10px 14px; border-radius: 6px; font-size: .9rem; }
@@ -103,7 +101,7 @@
   .field code { font-family: var(--mono); }
   .requests { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--muted); }
   .requests .ok { color: var(--ok); } .requests .bad { color: var(--accent); }
-  .office { position: relative; border: 2px solid var(--line); background: var(--wall); border-radius: 6px; overflow: hidden; max-width: var(--office-w); }
+  .office { position: relative; border: 2px solid var(--line); background: var(--wall); border-radius: 6px; overflow: hidden; }
   canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; cursor: default; }
   canvas.hit { cursor: pointer; }
   .hbubble { position: absolute; max-width: 340px; font-size: 12px; line-height: 1.45; padding: 8px 10px 6px; border-radius: 6px; box-shadow: 0 2px 0 rgba(0,0,0,.18); cursor: pointer; z-index: 3; pointer-events: auto; }
@@ -278,7 +276,8 @@
 
 <script>
 (() => {
-  const TILE = 40, COLS = 30, WALL_H = 5.4, MIN_ROWS = 18.75; // the frame stays 30 x 18.75 tiles; the glass wall is 5.4 tiles tall
+  const TILE = 40, WALL_H = 5.4, MIN_COLS = 30, MIN_ROWS = 18.75, VIEW_SCALE = 0.92; // at least 30 x 18.75 tiles; the glass wall is 5.4 tiles tall
+  let COLS = MIN_COLS, FIT_ROWS = MIN_ROWS;   // set by fitOffice()
   // Your office: a small room top-left behind the glass; the dogs sit at two long benches of six.
   const OFFICE = { w: 12, h: 9, doorX: 10.3 }; // tiles; door is a gap in the bottom partition
   const SEATS_PER_BENCH = 6;
@@ -423,17 +422,32 @@
   // Row r of furniture. 0: bench right of your office; 1: full-width bench;
   // 2-5: two pods of three desks back to back (top row sits above facing down,
   // bottom row sits below facing up); 6+: extra full-width benches if ever needed.
+  // Pods of six desks (three back to back with three) fill the open floor right of
+  // your office: as many columns as fit across, then rows downwards. A pod block (name
+  // tags above the top row down to the bottom row's feet) is 5 tiles tall; at the
+  // smallest office (18.75 rows) two rows and the three gaps around them share the
+  // height evenly. Characters walk between pods along the gaps and the corridor
+  // between the first two rows (see syncActors).
+  const POD_W = 9.6, POD_H = 5.0, POD_GAP_X = 1.6, POD_GAP_Y = (MIN_ROWS - WALL_H - 2 * POD_H) / 3;
+  const podCols = () => Math.max(1, Math.floor((COLS - OFFICE.w - 1.2 + POD_GAP_X) / (POD_W + POD_GAP_X)));
   function benchGeometry(r) {
     const row = (xStart, xEnd, y, seats, side) => ({ r, xStart, xEnd, y, side, spacing: (xEnd - xStart) / seats, seats: Array.from({ length: seats }, (_, k) => xStart + (xEnd - xStart) / seats * (k + 0.5)) });
-    // Both pods sit in the open floor right of your office, one above the other.
-    // Measured from the glass wall: a pod block (name tags above the top dogs down to
-    // the bottom dogs' feet) is 5 tiles tall, so with the room 13.35 tiles below the
-    // wall the two pods and the three gaps around them share the space evenly (about 1.1 each).
-    // Sideways the pod sits midway between the office wall and the right edge.
-    const T = TILE, podW = 9.6, blockH = 5.0, gapY = (MIN_ROWS - WALL_H - 2 * blockH) / 3;
-    const xStart = (OFFICE.w + (COLS - OFFICE.w - podW) / 2) * T, xEnd = xStart + podW * T;
-    const pod = Math.floor(r / 2), top = (WALL_H + gapY + 2.75 + pod * (blockH + gapY)) * T, bottom = top + 1.1 * T;
+    const T = TILE, n = podCols(), pod = Math.floor(r / 2), col = pod % n, prow = Math.floor(pod / n);
+    const span = n * POD_W + (n - 1) * POD_GAP_X, left = OFFICE.w + (COLS - OFFICE.w - span) / 2;
+    const xStart = (left + col * (POD_W + POD_GAP_X)) * T, xEnd = xStart + POD_W * T;
+    const top = (WALL_H + POD_GAP_Y + 2.75 + prow * (POD_H + POD_GAP_Y)) * T, bottom = top + 1.1 * T;
     return row(xStart, xEnd, r % 2 === 0 ? top : bottom, 3, r % 2 === 0 ? 'above' : 'below');
+  }
+  // The office grows with the screen instead of zooming in: at about VIEW_SCALE css px per
+  // canvas px (a tile of ~37 px, the size the characters are drawn for) it takes as
+  // many tiles as the main column is wide and the window is tall, never fewer than
+  // 30 x 18.75, and the extra floor gets more pods. Narrower than 30 tiles it scales down.
+  function fitOffice() {
+    const box = canvas.parentElement, w = box.clientWidth;
+    if (!w) return;
+    COLS = Math.max(MIN_COLS, Math.floor(w / (TILE * VIEW_SCALE)));
+    const k = w / (COLS * TILE), top = box.getBoundingClientRect().top + scrollY;
+    FIT_ROWS = COLS > MIN_COLS ? Math.max(MIN_ROWS, Math.floor((innerHeight - top - 20) / (TILE * k) * 4) / 4) : MIN_ROWS;
   }
   function layout() {
     const list = [...desks.values()].filter(d => liveness(d) !== 'gone').sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
@@ -444,8 +458,10 @@
     for (const d of list) { if (d.seat) seatNo.set(d.id, d.seat); else { while (used.has(free)) free++; used.add(free); seatNo.set(d.id, free); } }
     const benches = [];
     let capacity = 0;
-    while (capacity < Math.max(12, ...seatNo.values())) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
-    const ROWS = Math.max(MIN_ROWS, benches[benches.length - 1].y / TILE + 1.6);
+    // pods for every seat in use plus one spare pod (two at least); the rest of the floor stays open
+    const top = Math.max(0, ...seatNo.values());
+    while (capacity < Math.max(12, (Math.ceil(top / 6) + 1) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
+    const ROWS = Math.max(FIT_ROWS, benches[benches.length - 1].y / TILE + 1.6);
     const W = COLS * TILE, H = Math.round(ROWS * TILE);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     const seatList = benches.flatMap(b => b.seats.map(x => ({ bench: b, x })));
@@ -457,7 +473,9 @@
     const boss = { x: OFFICE.w * TILE / 2, y: (WALL_H + 3.4) * TILE }; // low enough that the HP panels clear the glass
     const visitorY = boss.y + TILE * 1.3;
     const aisleY = office.bottom + TILE * 0.45;
-    return { list, slots, benches, office, boss, visitorY, aisleY, W, H, ROWS };
+    // the corridor between the first two pod rows, and where it meets the aisle below your office
+    const corrY = (WALL_H + 2 * POD_GAP_Y + POD_H - POD_GAP_Y / 2) * TILE, junctionX = (OFFICE.w + 0.6) * TILE;
+    return { list, slots, benches, office, boss, visitorY, aisleY, corrY, junctionX, W, H, ROWS };
   }
 
   // ---- actors (positions + walking) -------------------------------------
@@ -489,6 +507,8 @@
         a.target = target;
         const b = s.bench, endX = s.seatX > (b.xStart + b.xEnd) / 2 ? b.xEnd + TILE * 0.5 : b.xStart - TILE * 0.5;
         const here = { x: a.x, y: a.y }, nowIn = insideOffice(here), wasQueued = a.atBoss;
+        // from a bench end: along its gap to the corridor, across to your office's corner, down to the aisle
+        const toAisle = [{ x: endX, y: L.corrY }, { x: L.junctionX, y: L.corrY }, { x: L.junctionX, y: L.aisleY }];
         if (qi >= 0 && wasQueued) {
           // already in the queue: step forward along it (through the door when moving inside)
           const goIn = target.y < L.office.bottom;
@@ -499,11 +519,11 @@
           // from the desk: along the bench to its end, down to the aisle, then to the door and in,
           // or (outside the door) straight along the aisle to the end of the line
           a.path = target.y < L.office.bottom
-            ? [{ x: endX, y: a.y }, { x: endX, y: L.aisleY }, { x: door, y: L.aisleY }, { x: door, y: target.y }, target]
-            : [{ x: endX, y: a.y }, { x: endX, y: L.aisleY }, target];
+            ? [{ x: endX, y: a.y }, ...toAisle, { x: door, y: L.aisleY }, { x: door, y: target.y }, target]
+            : [{ x: endX, y: a.y }, ...toAisle, target];
         } else {
           // back to the desk: step down off the queue row, out the door below the line, along the aisle, up the bench end
-          a.path = [...(nowIn ? [{ x: a.x, y: Math.max(a.y, laneY) }, { x: door, y: Math.max(a.y, laneY) }] : []), { x: door, y: L.aisleY }, { x: endX, y: L.aisleY }, { x: endX, y: target.y }, target];
+          a.path = [...(nowIn ? [{ x: a.x, y: Math.max(a.y, laneY) }, { x: door, y: Math.max(a.y, laneY) }] : []), { x: door, y: L.aisleY }, ...[...toAisle].reverse(), { x: endX, y: target.y }, target];
         }
         while (a.path.length > 1 && Math.abs(a.path[0].x - a.x) < 2 && Math.abs(a.path[0].y - a.y) < 2) a.path.shift();
         // a dog retargeted mid-walk would cut a diagonal and flip between facings; walk in L-shapes instead
@@ -1550,6 +1570,7 @@
   }
 
   // ---- loop ----------------------------------------------------------------
+  fitOffice(); addEventListener('resize', fitOffice); new ResizeObserver(fitOffice).observe(canvas.parentElement);
   let last = performance.now(), L = layout(), rosterDirty = true;
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000) * (location.hash === '#slow' ? 0.08 : 1); last = t;
