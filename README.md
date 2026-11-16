@@ -90,11 +90,14 @@ fix for anything that fails.
 
 | | |
 |---|---|
-| `/office` | the page's link and this session's desk |
+| `/office` | the page's link, this session's desk, and whether the setup checks pass |
 | `/office doctor` | checks the config, this session's desk card and the bridge |
 | `/office name <text>` | the desk's nameplate (empty clears it) |
 | `/office status` | the bridge's last round |
 | `/office bridge` / `/office bridge off` | make this session the bridge, or stop |
+
+Every session runs the same checks 15 seconds after it starts and shows a
+one-line notice only when one fails.
 
 ## Configuration — `~/.claude/office/config.json`
 

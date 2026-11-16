@@ -704,10 +704,12 @@ async function writeBridgeStatus($: EngineInterface) {
   }
 }
 
-// `/office doctor`: what this session can see of the setup, one line per check.
-async function doctor($: EngineInterface): Promise<string> {
-  const lines: string[] = []
-  const ok = (good: boolean, text: string, fix?: string) => lines.push(`${good ? '✅' : '❌'} ${text}${!good && fix ? `\n   → ${fix}` : ''}`)
+// What this session can see of the setup: `/office doctor` lists every check,
+// `/office` sums them up, and a session that starts with one failing says so.
+type Check = { good: boolean; text: string; fix?: string }
+async function runChecks($: EngineInterface): Promise<Check[]> {
+  const checks: Check[] = []
+  const ok = (good: boolean, text: string, fix?: string) => { checks.push({ good, text, fix }) }
   const ago = (ms: number) => ms < 90_000 ? `${Math.round(ms / 1000)} 秒前` : `${Math.round(ms / 60_000)} 分鐘前`
   const cfgPath = `${home}/.claude/office/config.json`
   ok(true, 'office mod 已載入')
@@ -737,7 +739,23 @@ async function doctor($: EngineInterface): Promise<string> {
     ok(age < 60_000, `橋接最近一輪：${ago(age)}`, '橋接沒在跑：看 ~/.claude/office/bridge-watchdog.log，第一次啟動要在 iTerm 點掉權限與信任資料夾的確認')
     ok(status.ok, `橋接狀態：${status.note}`)
   }
-  return lines.join('\n')
+  return checks
+}
+
+async function doctor($: EngineInterface): Promise<string> {
+  return (await runChecks($)).map(c => `${c.good ? '✅' : '❌'} ${c.text}${!c.good && c.fix ? `\n   → ${c.fix}` : ''}`).join('\n')
+}
+
+async function checkSummary($: EngineInterface): Promise<string> {
+  const failed = (await runChecks($)).filter(c => !c.good)
+  return failed.length ? `設定檢查：❌ ${failed.length} 項有問題（/office doctor 看細節）` : '設定檢查：✅ 全部正常'
+}
+
+// Quiet when all is well, so it can run in every session.
+async function startupCheck($: EngineInterface) {
+  const failed = (await runChecks($)).filter(c => !c.good)
+  const first = failed[0]
+  if (first) $.ui.toast(`Session Office：${first.text}${failed.length > 1 ? `，另有 ${failed.length - 1} 項` : ''}。打 /office doctor 看細節`, { timeoutMs: 15_000 })
 }
 
 // ---- hooks ---------------------------------------------------------------------
@@ -794,6 +812,7 @@ export const register: Register = on => {
       } catch { /* no desk yet */ }
       await refreshUsage($)
       await saveDesk($)
+      $.clock.after(15_000, () => { void startupCheck($) })
     }
 
     let tick = 0
@@ -863,6 +882,7 @@ export const register: Register = on => {
       text: [
         `Session Office：${OFFICE_URL || '（~/.claude/office/config.json 還沒設定 officeUrl）'}`,
         isBridge ? '角色：橋接（不佔桌子）' : `這個 session 的桌卡：${me ? `${me.title || me.label} · ${me.branch ?? '(no branch)'} · ${me.state}` : '尚未建立'}`,
+        await checkSummary($),
         '指令：/office name <桌牌>、/office doctor、/office bridge、/office bridge off、/office status',
       ].join('\n'),
     }
