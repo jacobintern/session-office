@@ -173,6 +173,16 @@
   .hist[open] summary { margin-bottom: 8px; }
   .hist .item { display: grid; gap: 6px; margin-bottom: 12px; }
   .hist .when { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .tpairs { display: grid; gap: 10px; min-width: 0; }
+  .tpair { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; min-width: 0; }
+  .tpair .src { grid-row: span 3; color: var(--muted); font-size: .9rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+  .tpair .dst { font-size: .95rem; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+  .tpair .dst.wait { color: var(--muted); font-style: italic; }
+  .tpair .note { font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
+  .tpair .copy, .tq .copy { justify-self: start; font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 8px; cursor: pointer; }
+  .tq { display: grid; gap: 6px; }
+  #t-form textarea { flex-basis: 100%; }
+  @media (max-width: 700px) { .tpair { grid-template-columns: 1fr; } .tpair .src { grid-row: auto; } }
   .ask { display: grid; gap: 14px; }
   .ask .q { display: grid; gap: 8px; }
   .ask .qh { font-weight: 600; }
@@ -270,6 +280,19 @@
       </form>
     </div>
   </div>
+
+  <div class="modal" id="tutor" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="t-title">
+      <header><span class="label" id="t-title">英文小老師</span><span class="meta" id="t-hint">中文段落翻成英文，其他翻成繁體中文</span><button type="button" class="close" id="t-close" aria-label="關閉">×</button></header>
+      <div class="body">
+        <div class="line" id="t-empty">貼上要翻的文字按「逐段翻譯」，會一段原文、一段譯文對照列出來。對翻譯有疑問，或想知道某句英文怎麼說，打問題按「問老師」。</div>
+        <div class="tpairs" id="t-pairs"></div>
+        <div class="tpairs" id="t-chat"></div>
+        <div class="sent" id="t-state" hidden></div>
+      </div>
+      <form class="reply" id="t-form"><textarea id="t-text" rows="4" maxlength="20000" placeholder="要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）"></textarea><button type="submit" id="t-go">逐段翻譯</button><button type="button" class="ghost" id="t-ask">問老師</button><button type="button" class="ghost" id="t-stop" hidden>停止</button><button type="button" class="ghost" id="t-copy" hidden>複製全部譯文</button></form>
+    </div>
+  </div>
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
@@ -285,6 +308,7 @@
   let COLS = MIN_COLS, FIT_ROWS = MIN_ROWS;   // set by fitOffice()
   // Your office: a small room top-left behind the glass; the dogs sit at two long benches of six.
   const OFFICE = { w: 12, h: 9, doorX: 10.3 }; // tiles; door is a gap in the bottom partition
+  const TUTOR_DESK_ROW = WALL_H + OFFICE.h + 4.5; // the English tutor's desk, on the floor below your office
   const SEATS_PER_BENCH = 6;
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
@@ -329,6 +353,13 @@
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
       codexNone: '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。', codexTitle: '**Codex 用量**',
       codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫',
+      tutor: '英文小老師', tutorHint: '中文段落翻成英文，其他翻成繁體中文',
+      tutorEmpty: '貼上要翻的文字按「逐段翻譯」，會一段原文、一段譯文對照列出來。對翻譯有疑問，或想知道某句英文怎麼說，打問題按「問老師」。',
+      tutorPh: '要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）', tutorGo: '逐段翻譯', tutorAsk: '問老師', tutorStop: '停止',
+      tutorCopy: '複製', tutorCopyAll: '複製全部譯文', tutorCopied: '已複製', tutorNote: '小提醒：', tutorYouAsked: '你問：',
+      tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
+      tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
+      tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -361,6 +392,13 @@
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
       codexNone: '**Codex**\n\nNo usage yet (after your next Codex call the bridge picks it up within a minute).', codexTitle: '**Codex usage**',
       codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}',
+      tutor: 'English tutor', tutorHint: 'Chinese paragraphs into English, everything else into Traditional Chinese',
+      tutorEmpty: 'Paste text and press “Translate” to get it back paragraph by paragraph, original beside translation. Ask about a translation, or how to say something in English, with “Ask”.',
+      tutorPh: 'Text to translate, or a question (Enter for a new line, ⌘/Ctrl+Enter to translate)', tutorGo: 'Translate', tutorAsk: 'Ask', tutorStop: 'Stop',
+      tutorCopy: 'Copy', tutorCopyAll: 'Copy all translations', tutorCopied: 'Copied', tutorNote: 'Tip: ', tutorYouAsked: 'You asked: ',
+      tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
+      tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
+      tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -406,6 +444,8 @@
     set('#m-ack', 'ack'); set('#m-focus', 'focus'); set('#m-compact', 'compact'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
+    set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
+    set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
     set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
@@ -470,7 +510,7 @@
     // (a free seat in them is where the next session sits); two at least
     const top = Math.max(0, ...seatNo.values()), pods = Math.ceil(top / 6), spare = list.length >= pods * 6 ? 1 : 0;
     while (capacity < Math.max(12, (pods + spare) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
-    const ROWS = Math.max(FIT_ROWS, benches[benches.length - 1].y / TILE + 1.6);
+    const ROWS = Math.max(FIT_ROWS, benches[benches.length - 1].y / TILE + 1.6, TUTOR_DESK_ROW + 1.6);
     const W = COLS * TILE, H = Math.round(ROWS * TILE);
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     const seatList = benches.flatMap(b => b.seats.map(x => ({ bench: b, x })));
@@ -857,10 +897,11 @@
   for (const [src, n] of POOLS) { const im = load(src); for (let k = 0; k < n; k++) sheets.push({ im, y: k * 128 }); }
   const POOL_SIZE = sheets.length - 1;
   const CODEX_SHEET = sheets.push({ im: load('chars/k00.png'), y: 0 }) - 1; // Codex, your secretary
+  const TUTOR_SHEET = 1 + 91 + 128; // the blonde teacher in the school pack: your English tutor, never a session
   // Enemy sheets 14-29 are orbs whose back view is a plain ball: seated in the lower
   // row (back to us) they would read as an empty seat, so such a draw is drawn again
   const ORB_FIRST = 1 + 91 + 134 + 14, ORB_LAST = ORB_FIRST + 15;
-  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; k >= ORB_FIRST && k <= ORB_LAST; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
+  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; (k >= ORB_FIRST && k <= ORB_LAST) || k === TUTOR_SHEET; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
   function drawSprite(sheet, dir, col, x, feetY) {
     const { im, y: y0 } = sheets[sheet];
     if (!im || !im.complete || !im.naturalWidth) { px(x - 10, feetY - 44, 20, 44, 'rgba(0,0,0,.08)'); return; }
@@ -1004,6 +1045,14 @@
     codexAt = { x: TILE * 2.3, y: L.boss.y - TILE * 0.85 };
     if (officeCfg?.codex === false) codexAt = { x: -999, y: -999 };   // config.json turned the Codex secretary off
     else items.push({ y: codexAt.y + 12, draw: () => drawCodex(codexAt) });
+    // the tutor has a desk of her own on the floor below your office, clear of the report bubbles
+    tutorDesk = { x: TILE * 4.3, y: TUTOR_DESK_ROW * TILE };
+    tutorAt = { x: tutorDesk.x, y: tutorDesk.y - TILE * 0.85 };
+    if (officeCfg?.tutor === false) tutorAt = { x: -999, y: -999 };   // config.json turned the tutor off
+    else {
+      items.push({ y: tutorDesk.y, draw: () => drawDesk(tutorDesk.x, tutorDesk.y, '', tutorBusy, false) });
+      items.push({ y: tutorAt.y + 12, draw: () => drawTutor(tutorAt) });
+    }
     for (const a of actors.values()) items.push({ y: a.y + 12, draw: () => drawActor(a, L) });
     items.sort((p, q) => p.y - q.y).forEach(i => i.draw());
     if (codexOpenUntil > Date.now()) bubbleWanted = { id: 'codex', x: codexAt.x, y: codexAt.y - 76, side: 'side', text: codexCard() };
@@ -1029,6 +1078,8 @@
   // Codex, the secretary standing beside you: its account limits come from the bridge
   // (meta/codex, read from Codex's own rollout logs, so they move only when Codex is used).
   let codex = null, codexAt = { x: 0, y: 0 }, codexOpenUntil = 0;
+  // The English tutor sits at her own desk below your office (her popup is further down).
+  let tutorAt = { x: -999, y: -999 }, tutorDesk = { x: -999, y: -999 }, tutorBusy = false;
   // The page-facing part of ~/.claude/office/config.json, published by the bridge
   // (meta/config): Jira site (null hides the column), Codex on/off, the city for
   // the sky, and the folders offered for a new session.
@@ -1048,9 +1099,15 @@
     };
     return [tt('codexTitle'), '', line('5h', codex.primary), line(tt('week'), codex.secondary), '', codex.at ? tt('codexFrom', { ago: ago(codex.at) }) : ''].filter(l => l !== null).join('\n');
   }
-  function codexHit(ev) {
+  function npcHit(ev, at) {
     const r = canvas.getBoundingClientRect(), mx = (ev.clientX - r.left) * canvas.width / r.width, my = (ev.clientY - r.top) * canvas.height / r.height;
-    return Math.abs(mx - codexAt.x) < 26 && my > codexAt.y - 64 && my < codexAt.y + 26;
+    return Math.abs(mx - at.x) < 26 && my > at.y - 64 && my < at.y + 26;
+  }
+  const codexHit = ev => npcHit(ev, codexAt), tutorHit = ev => npcHit(ev, tutorAt) || npcHit(ev, { x: tutorDesk.x, y: tutorDesk.y + 20 });
+  function drawTutor(a) {
+    px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
+    drawSprite(TUTOR_SHEET, 'down', 1, a.x, a.y + 12);
+    nameTag(a.x, a.y - 48, tt('tutor'), tutorBusy ? css('--wait') : css('--ok'));
   }
   function codexRows() {
     if (!codex) return [];
@@ -1069,12 +1126,10 @@
     const top = a.y - 48 - 22 - 12 - (rows.length - 1) * 11 - 5;
     ctx.fillStyle = 'rgba(28,24,22,.88)';
     ctx.beginPath(); ctx.roundRect(Math.round(a.x - 50), top, 100, rows.length * 11 + 7, 6); ctx.fill();
-    ctx.globalAlpha = stale ? 0.6 : 1;
     rows.forEach(([label, used], i) => {
       const left = 1 - used / 100;
       hpBar(a.x - 4, a.y - 48 - 22 - 12 - (rows.length - 1 - i) * 11, 48, left, label, Math.round(left * 100) + '%');
     });
-    ctx.globalAlpha = 1;
   }
 
   // ---- roster cards ------------------------------------------------------
@@ -1474,6 +1529,118 @@
     } catch (e) { console.warn('spawn request failed', e); }
     finally { sSend.disabled = false; }
   });
+  // ---- the English tutor: paragraph-by-paragraph translation, and questions about it ----
+  // Asked of Claude straight from this page (the sample capability, on the viewer's
+  // own usage), so it needs neither the bridge nor a session.
+  const tutor = document.getElementById('tutor'), tForm = document.getElementById('t-form'), tText = document.getElementById('t-text');
+  const tPairs = document.getElementById('t-pairs'), tChat = document.getElementById('t-chat'), tState = document.getElementById('t-state'), tEmpty = document.getElementById('t-empty');
+  const tGo = document.getElementById('t-go'), tAsk = document.getElementById('t-ask'), tStop = document.getElementById('t-stop'), tCopy = document.getElementById('t-copy');
+  let tutorCtl = null, tutorPairs = [], tutorTurns = [];
+  const TUTOR_ROLE = 'You are the English tutor of a software engineer in Taiwan.';
+  function openTutor() { tutor.hidden = false; setTimeout(() => tText.focus(), 0); }
+  function closeTutor() { tutor.hidden = true; }
+  document.getElementById('t-close').addEventListener('click', closeTutor);
+  closeOnBackdrop(tutor, closeTutor);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !tutor.hidden) closeTutor(); });
+  tText.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey) && !ev.isComposing) { ev.preventDefault(); tForm.requestSubmit(); }
+  });
+  const getSample = () => window.claude ? claude.use('sample') : Promise.resolve(null);
+  const tutorSay = msg => { tState.hidden = !msg; tState.textContent = msg || ''; };
+  function tutorError(e) {
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e?.code)) return tt('tutorDenied');
+    if (e?.code === 'rate_limited') return tt('tutorRate');
+    return tt('tutorFail', { code: e?.code || 'error' });
+  }
+  // one call at a time, with a Stop button; failures are told, never retried
+  async function tutorRun(job) {
+    const sample = await getSample();
+    if (!sample) { tutorSay(tt('tutorOff')); return; }
+    tutorBusy = true; tutorCtl = new AbortController();
+    tGo.disabled = tAsk.disabled = true; tStop.hidden = false; tutorSay(tt('tutorThinking'));
+    try { await job(sample, tutorCtl.signal); }
+    catch (e) { if (e?.code !== 'cancelled') tutorSay(tutorError(e)); else tutorSay(''); }
+    finally { tutorBusy = false; tutorCtl = null; tGo.disabled = tAsk.disabled = false; tStop.hidden = true; }
+  }
+  tStop.addEventListener('click', () => tutorCtl?.abort());
+  function copyText(text, btn, label, fallbackEl) {
+    const done = () => { btn.textContent = tt('tutorCopied'); setTimeout(() => { btn.textContent = tt(label); }, 1500); };
+    navigator.clipboard.writeText(text).then(done, () => { if (fallbackEl) getSelection().selectAllChildren(fallbackEl); });
+  }
+  tCopy.addEventListener('click', () => copyText(tutorPairs.map(p => p.dst).filter(Boolean).join('\n\n'), tCopy, 'tutorCopyAll', tPairs));
+  // A blank line ends a paragraph; text without blank lines goes line by line.
+  function paragraphs(text) {
+    const t = text.replace(/\r\n?/g, '\n').trim();
+    return (/\n\s*\n/.test(t) ? t.split(/\n\s*\n/) : t.split('\n')).map(p => p.trim()).filter(Boolean);
+  }
+  function renderPairs() {
+    tEmpty.hidden = tutorPairs.length > 0 || tutorTurns.length > 0;
+    tPairs.replaceChildren(...tutorPairs.map(p => {
+      const row = document.createElement('div'); row.className = 'tpair';
+      const src = document.createElement('div'); src.className = 'src'; src.textContent = p.src;
+      const dst = document.createElement('div'); dst.className = 'dst';
+      const note = document.createElement('div'); note.className = 'note';
+      const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'copy'; copy.textContent = tt('tutorCopy');
+      copy.addEventListener('click', () => copyText(p.dst, copy, 'tutorCopy', dst));
+      row.append(src, dst, note, copy); p.el = { dst, note, copy };
+      fillPair(p); return row;
+    }));
+  }
+  function fillPair(p) {
+    p.el.dst.textContent = p.dst || tt('tutorRow'); p.el.dst.classList.toggle('wait', !p.dst);
+    p.el.note.textContent = p.note ? tt('tutorNote') + p.note : ''; p.el.note.hidden = !p.note; p.el.copy.hidden = !p.dst;
+    tCopy.hidden = !tutorPairs.some(q => q.dst);
+  }
+  tForm.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const paras = paragraphs(tText.value);
+    if (!paras.length || tutorBusy) return;
+    tutorPairs = paras.map(src => ({ src, dst: '', note: '' })); tutorTurns = []; tChat.replaceChildren();
+    renderPairs(); tText.value = '';
+    const prompt = [
+      TUTOR_ROLE + ' Translate each numbered paragraph below.',
+      '- A paragraph written mainly in Chinese: translate it into natural English, the way an engineer would write it to colleagues.',
+      '- Any other paragraph: translate it into Traditional Chinese as used in Taiwan, with the terms Taiwanese engineers use.',
+      '- Leave code, commands, file names, identifiers and URLs as they are, and keep Markdown and line breaks.',
+      '- "note": at most one short sentence in Traditional Chinese about a word choice or idiom worth learning from this paragraph, or "" when nothing stands out.',
+      'Reply with one JSON object per line, in paragraph order, and nothing else: {"i": <paragraph number>, "t": "<translation>", "note": "<note or empty>"}',
+      '', ...paras.map((p, i) => `--- paragraph ${i} ---\n${p}`),
+    ].join('\n');
+    // each finished line is one paragraph, shown as soon as it arrives
+    let pending = '';
+    const take = line => {
+      let o; try { o = JSON.parse(line.trim().replace(/,$/, '')); } catch (e) { return; }
+      const p = tutorPairs[o?.i];
+      if (p && typeof o.t === 'string') { p.dst = o.t; p.note = typeof o.note === 'string' ? o.note.trim() : ''; fillPair(p); }
+    };
+    tutorRun(async (sample, signal) => {
+      const r = await sample(prompt, { signal, onText: ({ delta }) => {
+        tutorSay('');
+        const lines = (pending + delta).split('\n'); pending = lines.pop(); lines.forEach(take);
+      } });
+      take(pending);
+      tutorSay(r.truncated ? tt('tutorTrunc') : tutorPairs.some(p => !p.dst) ? tt('tutorMissing') : '');
+    });
+  });
+  tAsk.addEventListener('click', () => {
+    const q = tText.value.trim();
+    if (!q || tutorBusy) return;
+    const shown = tutorPairs.filter(p => p.dst).map((p, i) => `Original ${i + 1}:\n${p.src}\nTranslation ${i + 1}:\n${p.dst}`).join('\n\n');
+    const rules = TUTOR_ROLE + ' Answer in Traditional Chinese as used in Taiwan, briefly, in Markdown; give English words and example sentences in English.'
+      + (shown ? '\n\nThe translation you made and they are asking about:\n\n' + shown : ' They may ask how to say something in English, what an English phrase means, or which wording sounds more natural.');
+    tutorTurns.push({ role: 'user', content: q });
+    const item = document.createElement('div'); item.className = 'tq';
+    const asked = document.createElement('div'); asked.className = 'line'; asked.textContent = tt('tutorYouAsked') + q;
+    const ans = document.createElement('div'); ans.className = 'report';
+    item.append(asked, ans); tChat.append(item); renderPairs(); tText.value = '';
+    item.scrollIntoView({ block: 'nearest' });
+    tutorRun(async (sample, signal) => {
+      const { text } = await sample([{ role: 'user', content: rules }, ...tutorTurns.slice(-12)], {
+        signal, cache: false, onText: ({ text }) => { tutorSay(''); renderReport(ans, text); },
+      });
+      tutorTurns.push({ role: 'assistant', content: text });
+    });
+  });
   // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
   let bridgeSeenAt = 0;
   const bannerEl = document.getElementById('banner');
@@ -1517,12 +1684,13 @@
     }
     return best;
   }
-  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev)); });
+  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || tutorHit(ev)); });
   canvas.addEventListener('pointerleave', () => { hover = null; });
   // Clicking a worker (or its bubble) opens the full report with the reply box.
   const speak = {};
   canvas.addEventListener('click', ev => {
     if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; return; }
+    if (tutorHit(ev)) { openTutor(); return; }
     const a = actorAt(ev) || bubbleAt(ev); if (!a) return;
     openModal(a.slot.d.id);
   });

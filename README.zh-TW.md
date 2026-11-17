@@ -52,8 +52,8 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 
 3. 發佈你自己的頁面。每個人都要有自己的一份，因為頁面的資料庫存的是你的 session。在這個資料夾開一個 Claude Code session，貼上：
 
-   > Publish `page/session-office.html` as a new artifact with the `db` and
-   > `user` capabilities, and publish every file in `page/chars/` alongside it
+   > Publish `page/session-office.html` as a new artifact with the `db`,
+   > `user` and `sample` capabilities, and publish every file in `page/chars/` alongside it
    > at `chars/<file name>`. Give me the artifact's URL.
 
 4. 執行安裝程式，再把網址填進設定檔：
@@ -90,15 +90,20 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 | `bridgeCwd` | bridge session 執行的資料夾 |
 | `jira` | `null`，或 `{ "site", "email", "jql"?, "tokenFile"? }`。token 從 `tokenFile`（預設 `~/.jira_api_token`）讀取，透過 stdin 交給 curl，不會出現在指令參數裡；沒設 `jira` 時 Jira 欄位會隱藏 |
 | `codex` | 設成 `false` 會隱藏 Codex 秘書 |
+| `tutor` | 設成 `false` 會隱藏英文小老師 |
 | `city` | `{ "lat", "lng" }`，用來計算窗外的日出日落 |
 | `newSessionDirs` | 從頁面開新 session 時可選的資料夾 |
 | `language` | `"zh-TW"`（預設）或 `"en"`：session 列出待決事項時用的標題（`## 要你決定` / `## Decisions for you`）。頁面本身跟隨瀏覽器語言，右上角可以切換中 / EN |
 
-只有 `jira.site`、`codex`、`city`、`newSessionDirs` 會送到頁面（存在 `meta/config`）；Jira 的 email 和 token 只留在你的電腦上。
+只有 `jira.site`、`codex`、`tutor`、`city`、`newSessionDirs` 會送到頁面（存在 `meta/config`）；Jira 的 email 和 token 只留在你的電腦上。
 
 ## 人物圖
 
 角色來自 Pipoya 的免費素材包 **PIPOYA FREE RPG Character Sprites 32x32**（https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32）。它的授權允許使用和修改，但不允許轉散布，所以圖片不放在這個 repository 裡。請從上面的連結下載素材包（免費），再用 `install/build-sprites.mjs` 產生頁面用的人物圖（〈安裝〉第 2 步）。產出會寫到 `page/chars/`（你、Codex 秘書和四組角色），要跟頁面一起發佈。
+
+## 英文小老師
+
+坐在你辦公室外左下、有自己桌子的老師會把你貼上的文字逐段翻譯，原文和譯文對照列出：中文翻成英文，其他翻成繁體中文。對翻譯有疑問、或想知道某句話英文怎麼說，按「問老師」。她是從頁面直接問 Claude（`sample` 權限，用你自己的 claude.ai 用量），所以不需要橋接視窗；第一次用時 claude.ai 會問你要不要允許。
 
 ## 匯報格式
 

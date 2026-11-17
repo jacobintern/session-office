@@ -68,8 +68,8 @@ fix for anything that fails.
    database holds your sessions. In a Claude Code session started in this
    folder, paste:
 
-   > Publish `page/session-office.html` as a new artifact with the `db` and
-   > `user` capabilities, and publish every file in `page/chars/` alongside it
+   > Publish `page/session-office.html` as a new artifact with the `db`,
+   > `user` and `sample` capabilities, and publish every file in `page/chars/` alongside it
    > at `chars/<file name>`. Give me the artifact's URL.
 
 4. Run the installer, then put the URL in the config:
@@ -110,11 +110,12 @@ one-line notice only when one fails.
 | `bridgeCwd` | the folder the bridge session runs in |
 | `jira` | `null`, or `{ "site", "email", "jql"?, "tokenFile"? }` — the token is read from `tokenFile` (default `~/.jira_api_token`) and passed to curl on stdin, never on argv; without `jira` the column is hidden |
 | `codex` | `false` hides the Codex secretary |
+| `tutor` | `false` hides the English tutor |
 | `city` | `{ "lat", "lng" }` for sunrise and sunset outside the window |
 | `newSessionDirs` | folders offered when opening a new session from the page |
 | `language` | `"zh-TW"` (default) or `"en"`: the heading sessions use for decisions (`## 要你決定` / `## Decisions for you`). The page itself follows the browser's language, with a 中 / EN switch in the header |
 
-Only `jira.site`, `codex`, `city` and `newSessionDirs` reach the page (as
+Only `jira.site`, `codex`, `tutor`, `city` and `newSessionDirs` reach the page (as
 `meta/config`); the Jira email and token stay on your machine.
 
 ## Sprites
@@ -125,6 +126,15 @@ license allows use and editing but not redistribution, so the images are not
 in this repository. Download the pack (free, from the link above), then build
 the page's sprites from it with `install/build-sprites.mjs` (Install, step 2). This writes `page/chars/` (you, the Codex secretary, and four character
 pools); publish those files together with the page.
+
+## English tutor
+
+The teacher at her own desk below your office translates what you paste,
+paragraph by paragraph, original beside translation: Chinese into English, and
+anything else into Traditional Chinese. Ask her about a translation, or how to
+say something, with “Ask”. She asks Claude from the page itself (the `sample`
+capability, on your own claude.ai usage), so she works without the bridge; the
+first time, claude.ai asks you to allow it.
 
 ## Report format
 

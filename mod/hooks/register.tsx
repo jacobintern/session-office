@@ -5,11 +5,12 @@ import type { Register, EngineInterface } from 'claude-code'
 // the artifact's database and brings instructions typed on the page back as
 // files. Workers never call a tool, so they run under auto mode untouched.
 // Everything about the person running it lives in ~/.claude/office/config.json:
-// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, city?: { lat, lng }, newSessionDirs?, language? }
+// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, tutor?, city?: { lat, lng }, newSessionDirs?, language? }
 type OfficeConfig = {
   officeUrl?: string
   jira?: { site: string; email: string; jql?: string; tokenFile?: string } | null
   codex?: boolean
+  tutor?: boolean
   city?: { lat: number; lng: number }
   newSessionDirs?: string[]
   language?: 'zh-TW' | 'en'
@@ -396,7 +397,7 @@ async function putMeta($: EngineInterface, docId: string, data: Record<string, u
 async function heartbeat($: EngineInterface) {
   await putMeta($, 'bridge', { seenAt: Date.now(), sessionId: await $.session.id() })
   // what the page needs from the config (never the Jira email or token)
-  const pub = JSON.stringify({ jiraSite: cfg.jira?.site ?? null, codex: cfg.codex !== false, city: cfg.city ?? null, newSessionDirs: (cfg.newSessionDirs ?? []).map(d => d.replace(/^~(?=\/|$)/, home)) })
+  const pub = JSON.stringify({ jiraSite: cfg.jira?.site ?? null, codex: cfg.codex !== false, tutor: cfg.tutor !== false, city: cfg.city ?? null, newSessionDirs: (cfg.newSessionDirs ?? []).map(d => d.replace(/^~(?=\/|$)/, home)) })
   if (pub !== configPublished && (await putMeta($, 'config', JSON.parse(pub)))) configPublished = pub
 }
 let configPublished = ''
