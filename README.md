@@ -1,5 +1,7 @@
 # Session Office
 
+[中文說明](README.zh-TW.md)
+
 A pixel-art office for your Claude Code sessions. Every running session sits at
 a desk; when it finishes a turn it walks over to your desk to report. From the
 page you can reply, acknowledge, `/clear`, `/compact`, focus its terminal tab,
@@ -26,7 +28,8 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   desk cards into the page's database and brings instructions from the page
   back as files. It runs with `--dangerously-skip-permissions` (the
   artifact-data consent cannot be pre-approved otherwise), so **never type work
-  into the bridge tab**.
+  into the bridge tab**. The light in the page's header shows when it last
+  synced, and turns red when it is down.
 - **page/** — the artifact page itself.
 - **install/** — the watchdog that keeps the bridge running, and its LaunchAgent.
 
