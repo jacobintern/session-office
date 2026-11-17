@@ -1271,7 +1271,14 @@
     }));
   }
   document.getElementById('m-close').addEventListener('click', closeModal);
-  modal.addEventListener('click', ev => { if (ev.target === modal) closeModal(); });
+  // Close on a click on the backdrop only when the press started there too: a text
+  // selection dragged out of the box ends with a click on the backdrop as well.
+  function closeOnBackdrop(el, close) {
+    let pressedBackdrop = false;
+    el.addEventListener('pointerdown', ev => { pressedBackdrop = ev.target === el; });
+    el.addEventListener('click', ev => { if (ev.target === el && pressedBackdrop) close(); });
+  }
+  closeOnBackdrop(modal, closeModal);
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !modal.hidden) closeModal(); });
   mReply.addEventListener('input', () => { if (modalId) drafts[modalId] = mReply.value; });
   // Enter sends; Shift+Enter (or Cmd/Ctrl+Enter) still works as before for a newline / send
@@ -1453,7 +1460,7 @@
   function closeSpawn() { spawn.hidden = true; }
   document.getElementById('spawn-open').addEventListener('click', openSpawn);
   document.getElementById('s-close').addEventListener('click', closeSpawn);
-  spawn.addEventListener('click', ev => { if (ev.target === spawn) closeSpawn(); });
+  closeOnBackdrop(spawn, closeSpawn);
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !spawn.hidden) closeSpawn(); });
   sForm.addEventListener('submit', async ev => {
     ev.preventDefault();
