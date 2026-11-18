@@ -195,9 +195,13 @@ async function checkBackground($: EngineInterface, turnAt: number) {
   const kinds: string[] = []
   try { for (const a of await $.agent.list()) if (a.status === 'running' || a.status === 'pending') kinds.push('subagent') } catch { /* none */ }
   try {
-    const { at, event } = JSON.parse(await $.fs.read(`${hookDir()}/bg-${await $.session.id()}.json`)) as { at?: number; event?: { background_tasks?: Array<{ type?: string; status?: string }> } }
+    const { at, event } = JSON.parse(await $.fs.read(`${hookDir()}/bg-${await $.session.id()}.json`)) as { at?: number; event?: { background_tasks?: Array<{ type?: string; status?: string; description?: string }> } }
     if (typeof at === 'number' && at >= turnAt - 10_000 && Array.isArray(event?.background_tasks)) {
-      const fromHook = event.background_tasks.filter(t => !t.status || /running|pending/i.test(t.status)).map(t => t.type || 'task')
+      // publishing an artifact auto-arms a watch that stays for the whole session: not work being waited on
+      const fromHook = event.background_tasks
+        .filter(t => !t.status || /running|pending/i.test(t.status))
+        .filter(t => !(t.type === 'monitor' && /^live updates for artifact\b/i.test(t.description ?? '')))
+        .map(t => t.type || 'task')
       // the hook lists subagents too: prefer its list when it has one
       if (fromHook.length) kinds.splice(0, kinds.length, ...fromHook)
     }
