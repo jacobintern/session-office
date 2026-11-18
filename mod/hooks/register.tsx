@@ -72,6 +72,8 @@ const deskDir = () => `${home}/.claude/office/desks`
 const inboxDir = () => `${home}/.claude/office/inbox`
 const deskPath = (id: string) => `${deskDir()}/${id}.json`
 const inboxPath = (id: string) => `${inboxDir()}/${id}.json`
+// written and read by install/office-hook.sh, the settings hooks
+const hookDir = () => `${home}/.claude/office/hook`
 
 // What a /clear leaves on the desk: the conversation's task, title and report go.
 const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null }
@@ -131,6 +133,37 @@ async function saveDesk($: EngineInterface) {
   } catch (error) {
     report($, `desk file could not be written: ${String(error)}`)
   }
+}
+
+function rename($: EngineInterface, title: string) {
+  patch($, { title })
+  if (title) void handTitle($, title)
+}
+// the session title follows the nameplate on the next prompt: the settings hook
+// picks this file up then (a hook can set the title only while a prompt enters)
+async function handTitle($: EngineInterface, title: string) {
+  if (!me) return
+  try { await $.fs.write(`${hookDir()}/title-${me.id}`, JSON.stringify(title)) } catch { /* no hook dir: install.sh not rerun */ }
+}
+
+// The terminal shows a permission dialog: the session stops until someone answers
+// it there, so it walks to the office and says so. The settings hook leaves the
+// request in a file; the tool.call hook clears the state once the call settles.
+let permSeenAt = 0, permSettledAt = 0
+async function checkPermission($: EngineInterface) {
+  if (!me) return
+  const path = `${hookDir()}/perm-${me.id}.json`
+  try {
+    if (!(await $.fs.exists(path))) return
+    const { at, event: e } = JSON.parse(await $.fs.read(path)) as { at?: number; event?: { agent_id?: string; tool_name?: string; tool_input?: Record<string, unknown> } }
+    if (typeof at !== 'number' || at <= permSeenAt) return
+    permSeenAt = at
+    if (at <= permSettledAt || !e || e.agent_id) return
+    const what = describe({ tool: e.tool_name ?? '', ...(e.tool_input ?? {}) })
+    const command = e.tool_input?.command
+    const detail = typeof command === 'string' ? '\n\n```\n' + command.slice(0, 600) + '\n```' : ''
+    patch($, { state: 'reporting', activity: '等你確認權限', blocked: 'permission', reportedAt: Date.now(), report: `### 在 terminal 等你確認權限\n\n${what}${detail}\n\n_切到它的 terminal 分頁按允許或拒絕。_` })
+  } catch { /* half-written; next round */ }
 }
 
 function patch($: EngineInterface, p: Partial<Desk>, options: { throttle?: boolean } = {}) {
@@ -813,6 +846,16 @@ export const register: Register = on => {
       } catch { /* no desk yet */ }
       await refreshUsage($)
       await saveDesk($)
+      if (me.title) await handTitle($, me.title)
+      // lets you say "rename yourself to …" in the chat or from the page
+      try {
+        await $.tool.register({
+          name: 'rename',
+          description: "Sets this session's nameplate in Session Office. Use only when the user asks to rename this session or its desk. An empty title clears the nameplate.",
+          inputSchema: { type: 'object', properties: { title: { type: 'string', description: 'The new name, at most 60 characters.' } }, required: ['title'] },
+          isDeferred: false,
+        })
+      } catch (error) { report($, `rename tool not registered: ${String(error)}`) }
       $.clock.after(15_000, () => { void startupCheck($) })
     }
 
@@ -826,9 +869,17 @@ export const register: Register = on => {
         await refreshUsage($)
         await saveDesk($)
       }
+      await checkPermission($)
       await takeInstruction($)
     })
     return started
+  })
+
+  on('tool.call', { tool: 'mcp__office__rename' }, async ($, e) => {
+    if (!me) return { deny: 'This session has no desk in Session Office.' }
+    const title = String((e as unknown as { title?: unknown }).title ?? '').trim().slice(0, 60)
+    rename($, title)
+    return { result: title ? `Nameplate set to "${title}".` : 'Nameplate cleared; it shows the first task again.' }
   })
 
   // /clear typed in the window: wipe the desk the same way (the page's /clear
@@ -850,7 +901,7 @@ export const register: Register = on => {
     const [sub, ...rest] = e.args.trim().split(/\s+/)
     if (sub === 'name' && me) {
       const title = rest.join(' ').trim()
-      patch($, { title })
+      rename($, title)
       return { text: title ? `桌牌改成「${title}」。` : '桌牌清掉了，改回顯示第一句任務。' }
     }
     if (sub === 'doctor') return { text: await doctor($) }
@@ -921,20 +972,9 @@ export const register: Register = on => {
     }
     patch($, { state: 'working', activity: describe(e as { tool: string } & Record<string, unknown>) }, { throttle: true })
     const result = await next(e)
+    permSettledAt = Date.now()
     if (me?.blocked === 'permission') patch($, { state: 'working', activity: '權限已處理，繼續', blocked: null })
     return result
-  })
-  // The terminal is about to show a permission dialog: the session stops until
-  // someone answers it there, so it walks to the office and says so. The
-  // tool.call hook above clears it once the call settles either way.
-  on('classic.PermissionRequest', async ($, e, next) => {
-    if (me && !(e as { agent_id?: string }).agent_id) {
-      const what = describe({ tool: e.tool_name, ...((e.tool_input ?? {}) as Record<string, unknown>) })
-      const input = (e.tool_input ?? {}) as { command?: unknown }
-      const detail = typeof input.command === 'string' ? '\n\n```\n' + input.command.slice(0, 600) + '\n```' : ''
-      patch($, { state: 'reporting', activity: '等你確認權限', blocked: 'permission', reportedAt: Date.now(), report: `### 在 terminal 等你確認權限\n\n${what}${detail}\n\n_切到它的 terminal 分頁按允許或拒絕。_` })
-    }
-    return next(e)
   })
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined && me) {

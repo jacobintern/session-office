@@ -31,7 +31,11 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   into the bridge tab**. The light in the page's header shows when it last
   synced, and turns red when it is down.
 - **page/** — the artifact page itself.
-- **install/** — the watchdog that keeps the bridge running, and its LaunchAgent.
+- **install/** — the watchdog that keeps the bridge running, its LaunchAgent, and
+  `office-hook.sh`: two hooks the installer adds to `~/.claude/settings.json`
+  (a backup is kept next to it). They set the session title to the desk's
+  nameplate and tell the page when a session waits on a permission dialog;
+  a mod's own hooks on those events can be cut off by other plugins.
 
 ## Before you start
 
@@ -95,7 +99,7 @@ fix for anything that fails.
 |---|---|
 | `/office` | the page's link, this session's desk, and whether the setup checks pass |
 | `/office doctor` | checks the config, this session's desk card and the bridge |
-| `/office name <text>` | the desk's nameplate (empty clears it) |
+| `/office name <text>` | the desk's nameplate (empty clears it); the session title follows on your next prompt. You can also type it in the page's reply box, or ask the session to rename itself |
 | `/office status` | the bridge's last round |
 | `/office bridge` / `/office bridge off` | make this session the bridge, or stop |
 
