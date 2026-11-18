@@ -281,7 +281,7 @@
         <details class="hist" id="m-hist" hidden><summary></summary><div id="m-hist-list"></div></details>
       </div>
       <div class="shots" id="m-shots" hidden></div>
-      <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button></form>
+      <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button></form>
       <div class="reply-hint" id="m-reply-hint"></div>
       <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
     </div>
@@ -367,7 +367,7 @@
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
       decide: '要你決定', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
-      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消',
+      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
@@ -388,7 +388,7 @@
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
       askOpts: '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。', askOld: '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。',
-      permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
+      dialogWait: '{cmd} 在它的 terminal 開了一個對話框，網頁回答不了：請切到它的分頁回答。回答之前，頁面送的指令會排隊。', permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
       sent: '已送出「{text}」，等 session 接手（{ago}）', sentRetried: '「{text}」第一次沒進到對話，已重送（{ago}）', sentLost: '「{text}」沒送到：{why}。請再傳一次，或到它的 terminal 輸入。', lostHint: '上一則指令沒送到，點開看原因', lostTag: '沒送到', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
       histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
@@ -407,7 +407,7 @@
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
       decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
-      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel',
+      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
@@ -428,7 +428,7 @@
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
       askOpts: 'It is waiting for your answer: pick an option, or type an answer below (the terminal works too; the first answer counts).', askOld: 'It is asking you something in the terminal (an older mod; the question is not shown here). Switch over to answer.',
-      permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
+      dialogWait: '{cmd} opened a dialog in its terminal that the page cannot answer: switch to its tab. Page instructions queue until it is answered.', permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
       sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', sentRetried: '“{text}” did not reach the conversation; sent again ({ago})', sentLost: '“{text}” was not delivered: {why}. Send it again, or type it in its terminal.', lostHint: 'The last instruction was not delivered; open it to see why', lostTag: 'Not delivered', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
       histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
@@ -449,7 +449,7 @@
     [/^指令沒送到$/, 'instruction not delivered'],
     [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
     [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
-    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'],
+    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'], [/^卡在 terminal 的對話框$/, 'Stuck in a terminal dialog'], [/^對話框已處理$/, 'Dialog answered'], [/^已暫停$/, 'Paused'], [/^沒有在跑的工作，不用暫停$/, 'Nothing running, nothing to pause'],
     [/^被辦公室開除，下線$/, 'Let go by the office'], [/^接回別的對話$/, 'Resumed another conversation'], [/^Bash：/, 'Bash: '], [/^子代理：/, 'Subagent: '],
     [/^### 需要你決定$/m, '### Needs your decision'], [/^### 在 terminal 等你確認權限$/m, '### Waiting for permission in the terminal'],
     [/_切到它的 terminal 分頁按允許或拒絕。_/, '_Switch to its terminal tab to allow or deny._'],
@@ -469,7 +469,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -1370,6 +1370,7 @@
     return { decide, rest };
   }
   const decideCount = t => (t.match(/^(?:[-*+]|\d+[.)])\s+/gm) || []).length || 1;
+  const pausingAt = {};   // desk id → when 暫停 was pressed, until the desk stops working
   function fillModal() {
     const d = desks.get(modalId);
     if (!d) { closeModal(); return; }
@@ -1391,7 +1392,7 @@
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
     blockedEl.textContent = d.blocked === 'question'
       ? (Array.isArray(d.ask) && d.ask.length ? tt('askOpts') : tt('askOld'))
-      : tt('permWait');
+      : d.blocked === 'dialog' ? tt('dialogWait', { cmd: d.dialog || '' }) : tt('permWait');
     renderAsk(d);
     // 允許 / 拒絕: answered by the settings hook, which waits for the page while the terminal dialog stays up
     const permEl = document.getElementById('m-perm'), permOpen = d.blocked === 'permission' && d.perm && lv === 'live';
@@ -1416,7 +1417,9 @@
     if (decide) renderReport(document.getElementById('m-decide-body'), decide);
     document.getElementById('m-report').hidden = asking || (!!decide && !rest);
     renderReport(document.getElementById('m-report'), (decide ? rest : trMod(d.report)) || tt('noReport'));
-    const sent = document.getElementById('m-sent'); sent.hidden = !pending && !lost; sent.classList.toggle('lost', lost);
+    // the mod's own commands (pause, rename) finish within a tick: no "sent, waiting" line for them
+    const quiet = /^\/office\s/.test(d.instruction || '');
+    const sent = document.getElementById('m-sent'); sent.hidden = lost ? false : !pending || quiet; sent.classList.toggle('lost', lost);
     const sentText = (d.instruction || '').slice(0, 60);
     if (lost) sent.textContent = tt('sentLost', { text: sentText, why: trMod(dv.reason || '') });
     else if (pending) sent.textContent = tt(dv && dv.state === 'retried' ? 'sentRetried' : 'sent', { text: sentText, ago: ago(d.instructionAt) });
@@ -1424,6 +1427,12 @@
     renderHistory(d);
     mSend.disabled = !(lv === 'live' && canWrite);
     document.getElementById('m-ack').hidden = !(isWaiting(d) && lv === 'live' && canWrite);
+    // 暫停 only while a round is running; the mod ends it without the terminal's interruption lock
+    const pauseBtn = document.getElementById('m-pause');
+    if (d.state !== 'working') delete pausingAt[d.id];
+    pauseBtn.hidden = !(d.state === 'working' && !d.bg?.n && lv === 'live' && canWrite);   // waiting on background work: no round to stop
+    pauseBtn.disabled = !!pausingAt[d.id];
+    pauseBtn.textContent = tt(pausingAt[d.id] ? 'pausing' : 'pause'); pauseBtn.title = tt('pauseHint');
     mReply.placeholder = st === 'reporting' ? tt('replyPh') : tt('taskPh');
   }
   // the earlier rounds from the desk's `history` (oldest first, the last one is the current
@@ -1467,6 +1476,13 @@
     if (!modalId) return;
     await ack(modalId);
     closeModal();
+  });
+  document.getElementById('m-pause').addEventListener('click', async () => {
+    if (!modalId) return;
+    const id = modalId;
+    pausingAt[id] = now(); fillModal();
+    if (!(await instruct(id, '/office pause'))) delete pausingAt[id];
+    fillModal(); mReply.focus();
   });
   document.getElementById('m-compact').addEventListener('click', async () => {
     if (!modalId) return;

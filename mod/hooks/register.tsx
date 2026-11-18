@@ -48,7 +48,7 @@ type Desk = {
   /** The terminal the session runs in (`/dev/ttys012`), so 開除 can close its iTerm tab. */
   tty: string | null
   /** Set while the session waits on something only the person at the terminal can answer. */
-  blocked: 'permission' | 'question' | null
+  blocked: 'permission' | 'question' | 'dialog' | null
   /** Background work (subagents, shells, workflows) still running after the last turn: the colleague keeps working at its desk. */
   bg?: { n: number; kinds: string[] } | null
   /** The main loop's model and effort as of its last request: the page shows them. */
@@ -58,6 +58,8 @@ type Desk = {
   delivery?: { at: number; state: 'sent' | 'retried' | 'delivered' | 'failed'; reason?: string } | null
   /** The pending permission request (its settings hook's start, and the session id it runs under), so the page can answer it. */
   perm?: { at: number; sid: string } | null
+  /** The slash command from the page whose terminal dialog nobody has answered (`/model`, …). */
+  dialog?: string | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -307,11 +309,19 @@ async function takeInstruction($: EngineInterface) {
       // sent from the page reached no hook and the nameplate never changed
       if (name === 'office') {
         if (rest[0] === 'name') rename($, rest.slice(1).join(' ').trim().slice(0, 60))
+        else if (rest[0] === 'pause') await pause($)
         return
       }
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
       else patch($, { activity: `執行 /${name}` })
-      await $.command.run({ command: name, args: rest.join(' ') })
+      if (name === 'model') pageModelSwitchAt = Date.now()
+      // a command that opens a dialog in the terminal resolves only when the dialog is answered there
+      const stuck = $.clock.after(DIALOG_WAIT_MS, () => { if (me && !me.blocked) patch($, { state: 'reporting', activity: '卡在 terminal 的對話框', blocked: 'dialog', dialog: `/${name}`, reportedAt: Date.now() }) })
+      try { await $.command.run({ command: name, args: rest.join(' ') }) }
+      finally {
+        stuck.cancel()
+        if (me?.blocked === 'dialog') patch($, { state: 'idle', activity: '對話框已處理', blocked: null, dialog: null })
+      }
       if (name === 'model') await noteModel($)
       return
     }
@@ -319,6 +329,26 @@ async function takeInstruction($: EngineInterface) {
     await deliver($, { at, text: instruction, tries: 0, sentAt: 0 })
   } catch (error) {
     report($, `instruction from the office could not be run: ${String(error)}`)
+  }
+}
+
+// /model from the page: the engine asks "Switch model?" in the terminal when the
+// prompt cache is warm; nobody is there to answer, so the switch the page asked
+// for is allowed through the PreModelSwitch hook instead.
+let pageModelSwitchAt = 0
+const DIALOG_WAIT_MS = 10_000
+
+// "暫停" on the page: ends the running turn the way Esc does, but without the
+// interruption marker, so the next page instruction still gets in.
+let runningTurn: string | null = null
+let pausing = false
+
+async function pause($: EngineInterface) {
+  if (!runningTurn) { patch($, { state: 'idle', activity: '沒有在跑的工作，不用暫停' }); return }
+  pausing = true
+  try { await $.turn.abort({ turnId: runningTurn }) } catch (error) {
+    pausing = false
+    report($, `pause from the office failed: ${String(error)}`)
   }
 }
 
@@ -1041,7 +1071,16 @@ export const register: Register = on => {
     }
   })
 
+  on('classic.PreModelSwitch', async ($, e, next) => {
+    if (e.source === 'command' && Date.now() - pageModelSwitchAt < 30_000) {
+      pageModelSwitchAt = 0
+      return { permissionDecision: 'allow', permissionDecisionReason: 'office: the model picked on the page' }
+    }
+    return next(e)
+  })
+
   on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) runningTurn = e.turnId
     if (e.agentId === undefined && me) {
       const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null }
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
@@ -1095,9 +1134,10 @@ export const register: Register = on => {
     return result
   })
   on('turn.complete', async ($, e, next) => {
+    if (e.agentId === undefined) runningTurn = null
     if (e.agentId === undefined && me) {
       await refreshUsage($)
-      if (e.reason === 'aborted') patch($, { state: 'idle', activity: '被中斷', blocked: null, ask: null })
+      if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })
       else {
         const report = (e.answer ?? '').trim().slice(0, 4000) || `_（這輪沒有文字回覆：${e.reason === 'error' ? 'API 錯誤' : e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`
         const at = Date.now()
@@ -1106,6 +1146,7 @@ export const register: Register = on => {
         // the Stop settings hook writes what is still running a moment later
         $.clock.after(1500, () => { void checkBackground($, at) })
       }
+      pausing = false
     }
     return next(e)
   })
