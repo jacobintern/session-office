@@ -663,8 +663,9 @@
     skyline(gx, glassTop, gw, glassH, L.W / 2);
     ctx.restore();
     px(gx, glassTop + glassH * 0.6, gw, glassH * 0.4, 'rgba(255,255,255,.08)');
-    // mullions about 3 tiles apart, spread evenly so both ends of the glass get one
-    const panes = Math.max(1, Math.round(gw / (TILE * 3)));
+    // mullions about 3 tiles apart, spread evenly so both ends of the glass get one; an odd
+    // number of panes, so 101 at the middle stands in a pane, not behind a mullion
+    const near = gw / (TILE * 3), panes = Math.max(1, 2 * Math.round((near - 1) / 2) + 1);
     for (let i = 0; i <= panes; i++) px(Math.round(gx + gw * i / panes) - 2, glassTop, 4, glassH, wall);
     px(0, glassTop + glassH, L.W, 2, capCol);                 // sill
     px(0, wallH - faceH, L.W, faceH, faceCol);                // the wall's front face below the window
