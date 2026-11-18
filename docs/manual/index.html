@@ -155,6 +155,7 @@ html { scroll-behavior: smooth; }
     <thead><tr><th>狀態</th><th>在辦公室裡</th><th>名單分組</th></tr></thead>
     <tbody>
       <tr><td>工作中</td><td>坐在位子上，螢幕亮著</td><td><span class="dot" style="background:var(--ok)"></span>工作中</td></tr>
+      <tr><td>等背景工作</td><td>一樣坐在位子上，名牌前多一個 ⏳；它在等自己開的背景工作（subagent、背景指令）跑完</td><td><span class="dot" style="background:var(--ok)"></span>工作中，後面標 ⏳ 和幾件</td></tr>
       <tr><td>來匯報</td><td>走進你的辦公室排隊，前三位在你桌前，其餘在門外</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
       <tr><td>卡住等你</td><td>一樣來排隊，匯報視窗標「卡住等你」</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
       <tr><td>閒置</td><td>坐在位子上，頭上冒 z</td><td><span class="dot" style="background:var(--muted)"></span>閒置</td></tr>
@@ -173,7 +174,7 @@ html { scroll-behavior: smooth; }
 <section id="report">
   <h2><span class="no">04</span>處理匯報</h2>
   <p>點名單上的一列、點同事或點泡泡，都會打開同一個匯報視窗。讀完、回一句或按「收到」，它就回座位。</p>
-  <figure class="shot" data-shot="report"><div class="frame"><div class="imgbox"><img src="img/report.jpg" width="2204" height="1047" alt="匯報視窗"></div></div>
+  <figure class="shot" data-shot="report"><div class="frame"><div class="imgbox"><img src="img/report.jpg" width="2204" height="1160" alt="匯報視窗"></div></div>
     <figcaption><span>示範資料。</span><span>點圖放大</span></figcaption></figure>
   <ol class="legend" data-for="report"></ol>
   <h3>常用說法</h3>
@@ -192,7 +193,7 @@ html { scroll-behavior: smooth; }
     <li><b>已重送</b>：第一次沒進到對話，辦公室自動再送一次。</li>
     <li><b>沒送到</b>（紅字）：重送後還是沒進去，例如你在 terminal 按了中斷，排隊中的指令會被清掉。請再傳一次，或到它的 terminal 輸入。</li>
   </ul>
-  <div class="note">網頁上的匯報只是最新一輪的副本；完整對話一直在那個 session 的 terminal 分頁裡。</div>
+  <div class="note">網頁上的匯報只是最新一輪的副本，前幾輪可以從「之前的回覆」展開；完整對話一直在那個 session 的 terminal 分頁裡。</div>
 </section>
 
 <section id="blocked">
@@ -227,7 +228,7 @@ html { scroll-behavior: smooth; }
       <tr><td>＋ 新開 session</td><td>頁首右上</td><td>填目錄、桌牌、第一個任務（後兩個可空），幾秒後新同事進來坐下</td></tr>
       <tr><td>壓縮對話</td><td>匯報視窗</td><td>送 <code>/compact</code>；context 快滿時用，血條會回升</td></tr>
       <tr><td>清空對話</td><td>匯報視窗</td><td>送 <code>/clear</code>；開始全新對話，桌牌和匯報一起清掉</td></tr>
-      <tr><td>換模型</td><td>匯報視窗下方的「模型：…」選單</td><td>選單第一行是目前的模型；可選 Fable、Opus、Sonnet、Haiku，選了會顯示「換成 … 中」，換好就變回「模型：…」</td></tr>
+      <tr><td>換模型</td><td>匯報視窗下方的「模型：…」選單（〈處理匯報〉截圖的第 14 號）</td><td>選單第一行是目前的模型；可選 Fable、Opus、Sonnet、Haiku，選了會顯示「換成 … 中」，換好就變回「模型：…」</td></tr>
       <tr><td>交接給 Codex</td><td>用量快沒了時，匯報視窗會出現提示</td><td>5 小時用量剩 15% 以下時按「請它交接」，它寫好交接檔後按「開 Codex 接手」，橋接會在新的 iTerm 分頁開 Codex 接著做</td></tr>
       <tr><td>開除</td><td>匯報視窗右下</td><td>要再按一次「確定開除」；結束 session 並關掉分頁</td></tr>
       <tr><td>改名</td><td>匯報視窗標題旁的 ✎</td><td>打新名字按 Enter；也可以在 terminal 打 <code>/office name 新名字</code> 或 <code>/rename 新名字</code>，或直接叫 session 改名。桌牌、名單和 session 標題一起換</td></tr>
@@ -249,10 +250,10 @@ html { scroll-behavior: smooth; }
 <section id="more">
   <h2><span class="no">09</span>其他功能</h2>
   <div class="cards">
-    <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。太久沒用 Codex 時，名牌會標資料是多久前的。</p></div>
-    <div class="card"><h4>Jira 我的票</h4><p>橋接每 2 分鐘抓一次。票號出現在某個 session 的桌牌或任務裡，票就會標綠框並附上那位同事，點了打開它。</p></div>
+    <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。太久沒用 Codex 時，名牌會標資料是多久前的。不用 Codex 的話，在 <code>config.json</code> 設 <code>"codex": false</code> 就會拿掉秘書。</p></div>
+    <div class="card"><h4>Jira 我的票</h4><p>選用的：<code>config.json</code> 沒設 <code>jira</code> 時整欄不顯示。橋接每 2 分鐘抓一次。票號出現在某個 session 的桌牌、任務或分支名稱裡，票就會標綠框並附上那位同事，點了打開它。</p></div>
     <div class="card"><h4>中 / EN</h4><p>頁首切換介面語言，記在這台瀏覽器；各 session 自己寫的回覆不會翻譯。</p></div>
-    <div class="card"><h4>窗外景色</h4><p>跟著台北當地時間日出、白天、黃昏、黑夜。網址加 <code>#t1830</code> 可以預覽 18:30 的樣子。</p></div>
+    <div class="card"><h4>窗外景色</h4><p>依所在城市的日出日落變成白天、黃昏、黑夜，預設是台北；在 <code>config.json</code> 設 <code>"city": { "lat": …, "lng": … }</code> 可以換城市。網址加 <code>#t1830</code> 可以預覽 18:30 的樣子。</p></div>
   </div>
 </section>
 
@@ -302,7 +303,7 @@ const PINS = {
     [19.6, 41.4, 'Codex 秘書', '頭上是 Codex 用量；太久沒更新名牌會標多久前'],
     [24.4, 58, '來匯報的同事', '在你桌前排隊，前三位在桌前，其餘在門外'],
     [44.8, 41.4, '要你決定', '排第一位的同事有要你決定的事，泡泡只列那幾件'],
-    [56.6, 21, '窗外', '跟著台北時間日出、黃昏、黑夜'],
+    [56.6, 21, '窗外', '跟著所在城市的日出、黃昏、黑夜，預設台北'],
     [74.4, 12, 'Jira 我的票', '指派給你、還沒完成的票，依狀態分組'],
     [60.6, 44, '工作中的同事', '坐在自己的位子上，頭上是名牌和 context 血條'],
     [18.4, 70.4, '時鐘', '目前時間'],
@@ -310,18 +311,21 @@ const PINS = {
     [58.6, 78.4, '空桌', '永遠多擺一組，給下一位新同事'],
   ],
   report: [
-    [76.1, 3.3, '改名 ✎', '標題變成輸入框，Enter 存檔；session 標題也會跟著換'],
-    [79.9, 3.3, '複製傳訊名稱', '別的 session 傳訊息給它時用的名字'],
-    [89.3, 3.6, '狀態', '來匯報、工作中或卡住等你'],
-    [-0.3, 15.7, '資訊列', '座位、模型、effort、專案、分支、context 剩多少、花費'],
-    [-0.3, 21.5, '任務', '它這一輪在做什麼'],
-    [-0.3, 28.5, '匯報內容', '這一輪的回覆，支援表格和程式碼'],
-    [-0.3, 53, '要你決定', '獨立成橘色框，每件一句問題＋選項＋建議'],
-    [-0.3, 78.8, '回覆框', 'Enter 送出、Shift+Enter 換行，可以直接貼截圖'],
-    [92.8, 80.5, '送出', '它接到後回座位開工'],
-    [1.7, 90, '收到，回座位', '不用回覆、看過就好時按'],
-    [13.4, 90, '壓縮／清空對話', '送 /compact 或 /clear'],
-    [82.4, 90, '開除', '結束 session，要再按一次確認'],
+    [76.1, 3, '改名 ✎', '標題變成輸入框，Enter 存檔；session 標題也會跟著換'],
+    [79.9, 3, '複製傳訊名稱', '別的 session 傳訊息給它時用的名字'],
+    [89.3, 3.2, '狀態', '來匯報、工作中、等背景工作或卡住等你'],
+    [-0.3, 14.2, '資訊列', '座位、模型、effort、專案、分支、context 剩多少、花費'],
+    [-0.3, 19.4, '任務', '它這一輪在做什麼'],
+    [-0.3, 25.7, '匯報內容', '這一輪的回覆，支援表格和程式碼'],
+    [-0.3, 47.9, '要你決定', '獨立成橘色框，每件一句問題＋選項＋建議'],
+    [-0.3, 67.2, '之前的回覆', '點開看前幾輪的任務和回覆，最新的在上面'],
+    [-0.3, 76.3, '回覆框', 'Enter 送出、Shift+Enter 換行，可以直接貼截圖'],
+    [92.8, 77.8, '送出', '它接到後回座位開工'],
+    [36.5, 88.6, '常用說法', '這幾句直接打就會觸發，見下方表格'],
+    [1.7, 97.6, '收到，回座位', '不用回覆、看過就好時按'],
+    [13.4, 97.6, '壓縮／清空對話', '送 /compact 或 /clear'],
+    [46.2, 97.6, '模型', '目前的模型；選別的就換過去'],
+    [82.4, 97.6, '開除', '結束 session，要再按一次確認'],
   ],
   tutor: [
     [73.4, 5.2, '翻譯方向', '中文翻英文，其他翻繁體中文'],
