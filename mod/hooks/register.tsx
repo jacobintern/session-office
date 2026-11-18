@@ -157,16 +157,27 @@ async function handTitle($: EngineInterface, title: string) {
 // it there, so it walks to the office and says so. The settings hook leaves the
 // request in a file; the tool.call hook clears the state once the call settles.
 let permSeenAt = 0, permSettledAt = 0
+const PERM_WAIT_MS = 11 * 60_000 // the settings hook gives up on the page after 10 minutes
 async function checkPermission($: EngineInterface) {
   if (!me) return
-  const path = `${hookDir()}/perm-${await $.session.id()}.json`
+  const sid = await $.session.id()
+  const path = `${hookDir()}/perm-${sid}.json`
   try {
+    // A request is over once the call settled (the settled file outlives a mod reload,
+    // which resets permSeenAt / permSettledAt) or the hook stopped waiting (10 minutes).
+    let settled = permSettledAt
+    try { settled = Math.max(settled, Number(await $.fs.read(`${hookDir()}/settled-${sid}`)) || 0) } catch { /* none yet */ }
+    const over = (at: number) => at <= settled || Date.now() - at > PERM_WAIT_MS
+    if (me.blocked === 'permission' && (!me.perm || over(me.perm.at))) {
+      // stale: put back the last real report instead of the permission notice
+      const last = me.history?.at(-1)
+      patch($, { state: last ? 'reporting' : 'idle', activity: last ? '等你回覆' : '閒置', blocked: null, perm: null, report: last?.report ?? '', reportedAt: last?.at ?? null })
+    }
     if (!(await $.fs.exists(path))) return
     const { at, event: e } = JSON.parse(await $.fs.read(path)) as { at?: number; event?: { agent_id?: string; tool_name?: string; tool_input?: Record<string, unknown> } }
     if (typeof at !== 'number' || at <= permSeenAt) return
     permSeenAt = at
-    const sid = await $.session.id()
-    if (at <= permSettledAt || !e || e.agent_id) return
+    if (over(at) || !e || e.agent_id) return
     const what = describe({ tool: e.tool_name ?? '', ...(e.tool_input ?? {}) })
     const command = e.tool_input?.command
     const detail = typeof command === 'string' ? '\n\n```\n' + command.slice(0, 600) + '\n```' : ''
