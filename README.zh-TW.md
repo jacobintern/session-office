@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-給 Claude Code session 用的像素辦公室。每個在跑的 session 是辦公室裡的一位同事，坐在自己的桌子前；做完一輪就走到你桌前匯報。在頁面上可以回覆、按收到、`/clear`、`/compact`、切到它的終端機分頁、開除它，或開一個新 session。
+給 Claude Code session 用的像素辦公室。每個在跑的 session 是辦公室裡的一位同事，坐在自己的桌子前；做完一輪就走到你桌前匯報。在頁面上可以回覆、按收到、`/clear`、`/compact`、幫它改名、開除它，或開一個新 session。
 
 ## 運作方式
 
@@ -18,7 +18,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 - **mod/**：Claude Code 的 mod。每個 session 把自己的桌卡寫成本機檔案；工作中的 session 不會呼叫任何工具，所以你用什麼權限模式都不受影響。
 - **bridge**：用 `CLAUDE_OFFICE_BRIDGE=1` 啟動的一個 session，負責把桌卡同步進頁面的資料庫，再把頁面上下的指令寫回檔案給各 session。它以 `--dangerously-skip-permissions` 執行（寫入 artifact 資料的同意沒有其他方式能預先允許），所以**不要在 bridge 分頁裡交辦任何工作**。頁面右上角的燈號顯示它最後一次同步的時間，斷線時會轉紅。
 - **page/**：artifact 頁面本身。
-- **install/**：讓 bridge 保持運作的 watchdog、它的 LaunchAgent，以及 `office-hook.sh`：安裝程式會把兩個 hook 加進 `~/.claude/settings.json`（旁邊留一份備份）。一個讓 session 標題跟著桌牌，一個在 session 等權限確認時通知頁面；mod 自己的這兩種 hook 可能被其他外掛擋掉。
+- **install/**：讓 bridge 保持運作的 watchdog、它的 LaunchAgent，以及 `office-hook.sh`：安裝程式會把一個 hook 加進 `~/.claude/settings.json`（旁邊留一份備份），在 session 等權限確認時通知頁面；mod 自己的這種 hook 可能被其他外掛擋掉。
 
 ## 行前準備
 
@@ -76,7 +76,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 |---|---|
 | `/office` | 頁面網址、這個 session 的桌卡，以及設定檢查是否全部通過 |
 | `/office doctor` | 檢查設定、這個 session 的桌卡和 bridge |
-| `/office name <文字>` | 設定桌牌（留空就清掉），session 標題會在你下一次送 prompt 時跟著換。也可以在頁面的回覆框打，或直接叫 session 自己改名 |
+| `/office name <文字>` | 設定桌牌（留空就清掉），session 標題會跟著換（它會執行 `/rename`；你自己打 `/rename` 桌牌也會跟著換）。也可以在頁面的回覆框打，或直接叫 session 自己改名 |
 | `/office status` | bridge 最近一輪的狀況 |
 | `/office bridge` / `/office bridge off` | 讓這個 session 當 bridge，或取消 |
 

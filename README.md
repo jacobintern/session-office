@@ -4,7 +4,7 @@
 
 A pixel-art office for your Claude Code sessions. Every running session sits at
 a desk; when it finishes a turn it walks over to your desk to report. From the
-page you can reply, acknowledge, `/clear`, `/compact`, focus its terminal tab,
+page you can reply, acknowledge, `/clear`, `/compact`, rename it,
 end it, or open a new session.
 
 每個 Claude Code session 是辦公室裡的一位同事。做完一輪就走到你桌前匯報；
@@ -32,10 +32,10 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   synced, and turns red when it is down.
 - **page/** — the artifact page itself.
 - **install/** — the watchdog that keeps the bridge running, its LaunchAgent, and
-  `office-hook.sh`: two hooks the installer adds to `~/.claude/settings.json`
-  (a backup is kept next to it). They set the session title to the desk's
-  nameplate and tell the page when a session waits on a permission dialog;
-  a mod's own hooks on those events can be cut off by other plugins.
+  `office-hook.sh`: a hook the installer adds to `~/.claude/settings.json`
+  (a backup is kept next to it) that tells the page when a session waits on a
+  permission dialog; a mod's own hook on that event can be cut off by other
+  plugins.
 
 ## Before you start
 
@@ -99,7 +99,7 @@ fix for anything that fails.
 |---|---|
 | `/office` | the page's link, this session's desk, and whether the setup checks pass |
 | `/office doctor` | checks the config, this session's desk card and the bridge |
-| `/office name <text>` | the desk's nameplate (empty clears it); the session title follows on your next prompt. You can also type it in the page's reply box, or ask the session to rename itself |
+| `/office name <text>` | the desk's nameplate (empty clears it); the session title follows (it runs `/rename`, and `/rename` in turn sets the nameplate). You can also type it in the page's reply box, or ask the session to rename itself |
 | `/office status` | the bridge's last round |
 | `/office bridge` / `/office bridge off` | make this session the bridge, or stop |
 

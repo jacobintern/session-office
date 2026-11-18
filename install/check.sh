@@ -39,9 +39,9 @@ else
 fi
 
 if grep -q 'office-hook.sh' "$HOME/.claude/settings.json" 2>/dev/null && [ -x "$office/office-hook.sh" ]; then
-  pass "settings hooks (session title, permission dialogs)"
+  pass "settings hook (permission dialogs on the page)"
 else
-  warn "settings hooks not installed" "run install/install.sh again; without them the session title does not follow the nameplate and permission dialogs do not show on the page"
+  warn "settings hook not installed" "run install/install.sh again; without it permission dialogs do not show on the page"
 fi
 
 echo "== Config"

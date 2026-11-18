@@ -139,12 +139,13 @@ function rename($: EngineInterface, title: string) {
   patch($, { title })
   if (title) void handTitle($, title)
 }
-// the session title follows the nameplate on the next prompt: the settings hook
-// picks this file up then (a hook can set the title only while a prompt enters)
+// the session title follows the nameplate through the built-in /rename, which is
+// what other sessions message it by; run from the clock, as a command cannot be
+// run inside a hook the turn waits on (the rename tool's), and queued till idle
 async function handTitle($: EngineInterface, title: string) {
-  if (!me) return
-  // the hook knows the session by its current id, which /clear changes while the desk keeps its own
-  try { await $.fs.write(`${hookDir()}/title-${await $.session.id()}`, JSON.stringify(title)) } catch { /* no hook dir: install.sh not rerun */ }
+  $.clock.after(10, () => {
+    $.command.run({ command: 'rename', args: title }).catch(error => report($, `/rename did not run: ${String(error)}`))
+  })
 }
 
 // The terminal shows a permission dialog: the session stops until someone answers
@@ -252,6 +253,12 @@ async function takeInstruction($: EngineInterface) {
       const [name = '', ...rest] = instruction.slice(1).split(/\s+/)
       if (!name) return
       if (name === 'exit' || name === 'quit') { await leaveOffice($); return }
+      // our own command: $.command.run skips the plugin that calls it, so /office
+      // sent from the page reached no hook and the nameplate never changed
+      if (name === 'office') {
+        if (rest[0] === 'name') rename($, rest.slice(1).join(' ').trim().slice(0, 60))
+        return
+      }
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
       else patch($, { activity: `執行 /${name}` })
       await $.command.run({ command: name, args: rest.join(' ') })
@@ -544,25 +551,6 @@ const processAlive = async ($: EngineInterface, pid: number) => (await $.process
 // drop the desk, so 開除 works on a stuck or outdated session too.
 const EXIT_GRACE_MS = 15_000
 
-const FOCUS_TAB_SCRIPT = `on run argv
-  set wanted to item 1 of argv
-  tell application "iTerm2"
-    repeat with w in windows
-      repeat with t in tabs of w
-        repeat with s in sessions of t
-          if tty of s is wanted then
-            tell t to select
-            tell w to select
-            activate
-            return "focused"
-          end if
-        end repeat
-      end repeat
-    end repeat
-  end tell
-  return "not found"
-end run`
-
 // Closes the iTerm2 tab (session) running on that tty, once its process is gone.
 const CLOSE_TAB_SCRIPT = `on run argv
   set wanted to item 1 of argv
@@ -699,14 +687,6 @@ async function bridgeTick($: EngineInterface) {
       const instruction = typeof doc.data.instruction === 'string' ? doc.data.instruction : ''
       const at = typeof doc.data.instructionAt === 'number' ? doc.data.instructionAt : 0
       const done = typeof doc.data.instructionDoneAt === 'number' ? doc.data.instructionDoneAt : 0
-      if (instruction === '/focus' && at > done && inboxWritten[id] !== at) {
-        // handled here, not by the session: bring its terminal tab to the front
-        inboxWritten[id] = at
-        const tty = files.get(id)?.tty
-        if (typeof tty === 'string') await $.process.run(['osascript', '-e', FOCUS_TAB_SCRIPT, tty], { timeoutMs: 15_000 }).catch(error => report($, `focus ${tty}: ${String(error)}`))
-        await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: COLLECTION, doc_id: id, data: { instructionDoneAt: at }, ...(doc.version !== undefined ? { if_version: doc.version } : {}) })
-        continue
-      }
       if (instruction && at > done && inboxWritten[id] !== at) {
         const images = Array.isArray(doc.data.images) ? doc.data.images.filter((x): x is string => typeof x === 'string') : []
         const paths = images.length ? await saveImages($, images) : []
@@ -889,6 +869,13 @@ export const register: Register = on => {
     if (me) patch($, { ...CLEARED, activity: '對話清空，等新任務' })
     const result = await next(e)
     if (me) { await refreshUsage($); await saveDesk($) }
+    return result
+  })
+  // /rename typed in the window: the nameplate follows the session title
+  on('command.run', { command: 'rename' }, async ($, e, next) => {
+    const result = await next(e)
+    const named = e.args.trim() || (/renamed to:\s*(.+)$/m.exec(String((result as { text?: unknown }).text ?? ''))?.[1] ?? '').trim()
+    if (me && named && named !== me.title) patch($, { title: named.slice(0, 60) })
     return result
   })
   // /compact refills the health bar: read the new fill once it is done

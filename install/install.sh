@@ -3,8 +3,8 @@
 #   ~/.claude/office/            desk cards, inbox, config.json (from the example)
 #   bridge-watchdog.sh           keeps one bridge session running in iTerm2
 #   a LaunchAgent                runs the watchdog at login and every minute
-#   office-hook.sh               two settings hooks in ~/.claude/settings.json (session
-#                                title from the nameplate, permission dialogs)
+#   office-hook.sh               a settings hook in ~/.claude/settings.json that
+#                                shows permission dialogs on the page
 # Usage: install.sh [--no-launchd] | --uninstall | --check
 set -e
 here=${0:A:h}
@@ -25,7 +25,8 @@ s.hooks = s.hooks || {}
 const ours = h => typeof h.command === 'string' && h.command.includes('office-hook.sh')
 for (const ev of ['UserPromptSubmit', 'PermissionRequest']) {
   s.hooks[ev] = (s.hooks[ev] || []).map(g => ({ ...g, hooks: (g.hooks || []).filter(h => !ours(h)) })).filter(g => g.hooks.length)
-  if (mode === 'add') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" ${ev === 'UserPromptSubmit' ? 'prompt' : 'permission'}`, timeout: 5 }] })
+  // UserPromptSubmit only to remove the title hook of an older version
+  if (mode === 'add' && ev === 'PermissionRequest') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" permission`, timeout: 5 }] })
   if (!s.hooks[ev].length) delete s.hooks[ev]
 }
 if (fs.existsSync(file)) fs.copyFileSync(file, file + '.bak-session-office')
