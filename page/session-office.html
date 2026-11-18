@@ -142,6 +142,7 @@
   .pill { flex: none; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; color: var(--bg); }
   .pill.working { background: var(--ok); } .pill.reporting { background: var(--wait); } .pill.idle, .pill.gone { background: var(--idle); }
   .dup.bgwait { color: var(--ok); border-color: var(--ok); }
+  .dup.lost { color: #fff; background: #c0392b; border-color: #c0392b; }
   .dup { flex: none; font-size: .68rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 999px; padding: 0 6px; }
   .copyname { flex: none; font: inherit; font-size: .75rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
   .title-edit { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; font-weight: 600; color: var(--fg); background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; }
@@ -208,6 +209,7 @@
   .hicons { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   .hicon { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; font: 700 11px/1 var(--body); padding: 3px 5px; border: 0; border-radius: 999px; background: var(--bubble); color: var(--bubble-fg); box-shadow: 0 1px 0 rgba(0,0,0,.25); cursor: pointer; white-space: nowrap; }
   .hicon.decide { box-shadow: inset 0 0 0 2px var(--wait); }
+  .hicon.lost { background: #c0392b; color: #fff; }
   .lowuse { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .88rem; color: var(--wait); border: 1px dashed var(--wait); border-radius: 6px; padding: 8px 12px; }
   .reply-hint { font-size: .78rem; color: var(--muted); padding: 0 18px 8px; }
   .model-pick { font: inherit; font-size: .85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
@@ -386,7 +388,7 @@
       askOpts: '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。', askOld: '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。',
       permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
-      sent: '已送出「{text}」，等 session 接手（{ago}）', sentRetried: '「{text}」第一次沒進到對話，已重送（{ago}）', sentLost: '「{text}」沒送到：{why}。請再傳一次，或到它的 terminal 輸入。', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
+      sent: '已送出「{text}」，等 session 接手（{ago}）', sentRetried: '「{text}」第一次沒進到對話，已重送（{ago}）', sentLost: '「{text}」沒送到：{why}。請再傳一次，或到它的 terminal 輸入。', lostHint: '上一則指令沒送到，點開看原因', lostTag: '沒送到', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
       histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
       bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。watchdog 每分鐘會自動重開一個；要手動開就在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions，原因可以用 install/install.sh --check 查。',
       bridgeNone: '還沒有橋接視窗。跑 install/install.sh 讓 watchdog 自動開，或在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions。',
@@ -426,7 +428,7 @@
       askOpts: 'It is waiting for your answer: pick an option, or type an answer below (the terminal works too; the first answer counts).', askOld: 'It is asking you something in the terminal (an older mod; the question is not shown here). Switch over to answer.',
       permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
-      sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', sentRetried: '“{text}” did not reach the conversation; sent again ({ago})', sentLost: '“{text}” was not delivered: {why}. Send it again, or type it in its terminal.', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
+      sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', sentRetried: '“{text}” did not reach the conversation; sent again ({ago})', sentLost: '“{text}” was not delivered: {why}. Send it again, or type it in its terminal.', lostHint: 'The last instruction was not delivered; open it to see why', lostTag: 'Not delivered', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
       histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
       bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. The watchdog reopens one every minute; to start one yourself, run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab, and install/install.sh --check shows why it stopped.',
       bridgeNone: 'No bridge yet. Run install/install.sh so the watchdog opens one, or run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab.',
@@ -441,6 +443,8 @@
   // the office mod writes its activity lines and a few fixed reports in Chinese
   const MOD_EN = [
     [/^沒有進到對話（可能在終端機中斷時被清掉）$/, 'it never reached the conversation (an interrupt in the terminal may have cleared it)'],
+    [/^你在終端機中斷後，要先在它的 terminal 輸入一次，才收得到辦公室的指令$/, 'after an interrupt in the terminal it only takes office instructions once something is typed in its terminal'],
+    [/^指令沒送到$/, 'instruction not delivered'],
     [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
     [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
     [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'],
@@ -483,7 +487,12 @@
   };
   const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
   const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
-  const effState = d => liveness(d) !== 'live' ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' ? 'working' : 'idle');
+  // a reply sent from the page but not yet started by the session still counts as work, so it doesn't look sent back to its seat
+  const deliveryOf = d => d.delivery && d.delivery.at === d.instructionAt ? d.delivery : null;
+  const isPending = d => { const dv = deliveryOf(d); return !!(d.instructionAt && (!(d.instructionDoneAt >= d.instructionAt) || (dv && (dv.state === 'sent' || dv.state === 'retried')))); };
+  const isLost = d => deliveryOf(d)?.state === 'failed';
+  const LOST_RED = '#c0392b';
+  const effState = d => liveness(d) !== 'live' ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
   const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
   // ---- layout -------------------------------------------------------------
@@ -996,6 +1005,14 @@
     // health = context window still free
     if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
     ctx.globalAlpha = 1;
+    // the last instruction never reached the conversation: a red tag, since the desk itself looks normal (at phone width it's a tappable icon instead)
+    if (isLost(d) && !faded && !narrow.matches) {
+      const label = tt('lostTag'), by = y - 108 - Math.round(Math.abs(Math.sin(a.step * 2)) * 3);
+      ctx.font = `700 11px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const w = Math.round(ctx.measureText(label).width + 12);
+      ctx.fillStyle = LOST_RED; ctx.beginPath(); ctx.roundRect(Math.round(x - w / 2), by - 9, w, 18, 9); ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.fillText(label, x, by + 0.5);
+    }
     // status marker
     if (st === 'working' && !a.walking) {
       // typing: little keyboard sparks
@@ -1229,6 +1246,7 @@
         el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
+        if (key !== 'gone' && isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); b.title = tt('lostHint'); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
@@ -1355,8 +1373,7 @@
     if (!d) { closeModal(); return; }
     const st = effState(d), lv = liveness(d);
     // taken from the inbox is not yet delivered: the desk says when its turn started, was resent, or never came
-    const dv = d.delivery && d.delivery.at === d.instructionAt ? d.delivery : null;
-    const pending = !!(d.instructionAt && (!(d.instructionDoneAt >= d.instructionAt) || (dv && (dv.state === 'sent' || dv.state === 'retried'))));
+    const dv = deliveryOf(d), pending = isPending(d);
     const lost = !!(dv && dv.state === 'failed');
     // a rename from the page shows at once; the desk catches up within a sync or two
     const pendingName = renamed && renamed.id === d.id && now() - renamed.at < 15000 && d.title !== renamed.name ? renamed.name : null;
@@ -1894,11 +1911,12 @@
   hb.addEventListener('click', () => { if (hb.dataset.id === 'codex') codexOpenUntil = 0; else if (hb.dataset.id) openModal(hb.dataset.id); });
   // At phone width the canvas is too small for a bubble: each dog waiting for you
   // gets a small icon instead (❗ with the number of decisions, 💬 a report,
-  // 🔒 a permission prompt in the terminal), and tapping it opens the report.
+  // 🔒 a permission prompt in the terminal, a red tag an instruction that never arrived), and tapping it opens the report.
   // Codex's card stays a bubble.
   const narrow = matchMedia('(max-width: 860px)');
   const hiconsEl = document.getElementById('hicons'), hicons = new Map();
   function iconOf(d) {
+    if (!isWaiting(d) && !d.blocked && isLost(d)) return { cls: 'lost', text: tt('lostTag'), title: tt('lostHint') };
     if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: tt('iconPerm') };
     if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: tt('iconAsk') };
     const { decide } = splitDecide(d.report);
@@ -1910,7 +1928,7 @@
       const k = canvas.clientWidth / canvas.width, ox = canvas.offsetLeft, oy = canvas.offsetTop;
       for (const a of actors.values()) {
         const d = a.slot.d;
-        if (liveness(d) !== 'live' || !(isWaiting(d) || d.blocked)) continue;
+        if (liveness(d) !== 'live' || !(isWaiting(d) || d.blocked || isLost(d))) continue;
         want.add(d.id);
         let el = hicons.get(d.id);
         if (!el) {

@@ -339,9 +339,21 @@ async function deliver($: EngineInterface, p: { at: number; text: string; tries:
   } catch (error) { reason = String(error) }
   if (reason) report($, `instruction from the office did not enter: ${reason}`)
   if (reason && pendingInstruction?.at === p.at) {
-    if (pendingInstruction.tries < 2) $.clock.after(3000, () => { if (pendingInstruction?.at === p.at) void deliver($, pendingInstruction) })
-    else { pendingInstruction = null; patch($, { delivery: { at: p.at, state: 'failed', reason: firstLine(reason, 120) } }) }
+    // after an interrupt the engine refuses outside prompts until someone types in the terminal, so a resend can't help
+    const stopped = /session was stopped/i.test(reason)
+    if (pendingInstruction.tries < 2 && !stopped) $.clock.after(3000, () => { if (pendingInstruction?.at === p.at) void deliver($, pendingInstruction) })
+    else lost($, p.at, stopped ? STOPPED_REASON : firstLine(reason, 120))
   }
+}
+
+const STOPPED_REASON = '你在終端機中斷後，要先在它的 terminal 輸入一次，才收得到辦公室的指令'
+
+function lost($: EngineInterface, at: number, reason: string) {
+  pendingInstruction = null
+  const p: Partial<Desk> = { delivery: { at, state: 'failed', reason } }
+  // taking the instruction marked the desk working; with nothing running it should not look busy
+  if (me?.state === 'working' && me.activity === '收到辦公室的指令') Object.assign(p, { state: 'idle', activity: '指令沒送到' })
+  patch($, p)
 }
 
 // Every tick: a sent instruction whose turn never started while the session sat
@@ -351,8 +363,7 @@ async function checkDelivery($: EngineInterface) {
   if (!p || !me || Date.now() - p.sentAt < DELIVERY_WAIT_MS) return
   if (me.state === 'working' && !me.bg) return        // still queued behind a running turn
   if (p.tries < 2) { await deliver($, p); return }
-  pendingInstruction = null
-  patch($, { delivery: { at: p.at, state: 'failed', reason: '沒有進到對話（可能在終端機中斷時被清掉）' } })
+  lost($, p.at, '沒有進到對話（可能在終端機中斷時被清掉）')
 }
 
 function describe(e: { tool: string } & Record<string, unknown>) {
@@ -1036,7 +1047,7 @@ export const register: Register = on => {
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
         p.delivery = { at: pendingInstruction.at, state: 'delivered' }
         pendingInstruction = null
-      }
+      } else if (me.delivery?.state === 'failed') p.delivery = null    // typed in the terminal instead: the lost mark has served its purpose
       const task = isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
       if (task) p.task = task
       if (task && !me.title) p.title = firstLine(e.text, 24)
