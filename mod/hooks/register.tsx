@@ -54,6 +54,8 @@ type Desk = {
   /** The main loop's model and effort as of its last request: the page shows them. */
   model?: string | null
   effort?: string | null
+  /** Whether the last page instruction (`at` = its `instructionAt`) reached the conversation: `sent` until its turn starts. */
+  delivery?: { at: number; state: 'sent' | 'retried' | 'delivered' | 'failed'; reason?: string } | null
   /** The pending permission request (its settings hook's start, and the session id it runs under), so the page can answer it. */
   perm?: { at: number; sid: string } | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
@@ -314,10 +316,43 @@ async function takeInstruction($: EngineInterface) {
       return
     }
     patch($, { state: 'working', activity: '收到辦公室的指令', task: firstLine(instruction, 80) })
-    await $.prompt.submit({ text: instruction, asUser: true })
+    await deliver($, { at, text: instruction, tries: 0, sentAt: 0 })
   } catch (error) {
     report($, `instruction from the office could not be run: ${String(error)}`)
   }
+}
+
+// A page instruction handed to the session is not yet in the conversation: the
+// engine can refuse it (`drop`), and a prompt queued behind a running turn is
+// thrown away when the person interrupts that turn. It counts as delivered once
+// a turn starts with its text; otherwise it is sent once more, then marked failed.
+let pendingInstruction: { at: number; text: string; tries: number; sentAt: number } | null = null
+const DELIVERY_WAIT_MS = 15_000
+
+async function deliver($: EngineInterface, p: { at: number; text: string; tries: number; sentAt: number }) {
+  pendingInstruction = { ...p, tries: p.tries + 1, sentAt: Date.now() }
+  patch($, { delivery: { at: p.at, state: p.tries ? 'retried' : 'sent' } })
+  let reason = ''
+  try {
+    const r = await $.prompt.submit({ text: p.text, asUser: true })
+    if (r.drop !== undefined) reason = r.drop || 'refused'
+  } catch (error) { reason = String(error) }
+  if (reason) report($, `instruction from the office did not enter: ${reason}`)
+  if (reason && pendingInstruction?.at === p.at) {
+    if (pendingInstruction.tries < 2) $.clock.after(3000, () => { if (pendingInstruction?.at === p.at) void deliver($, pendingInstruction) })
+    else { pendingInstruction = null; patch($, { delivery: { at: p.at, state: 'failed', reason: firstLine(reason, 120) } }) }
+  }
+}
+
+// Every tick: a sent instruction whose turn never started while the session sat
+// idle (or after its running turn ended) was lost.
+async function checkDelivery($: EngineInterface) {
+  const p = pendingInstruction
+  if (!p || !me || Date.now() - p.sentAt < DELIVERY_WAIT_MS) return
+  if (me.state === 'working' && !me.bg) return        // still queued behind a running turn
+  if (p.tries < 2) { await deliver($, p); return }
+  pendingInstruction = null
+  patch($, { delivery: { at: p.at, state: 'failed', reason: '沒有進到對話（可能在終端機中斷時被清掉）' } })
 }
 
 function describe(e: { tool: string } & Record<string, unknown>) {
@@ -911,6 +946,7 @@ export const register: Register = on => {
       }
       await checkPermission($)
       await takeInstruction($)
+      await checkDelivery($)
     })
     return started
   })
@@ -997,6 +1033,10 @@ export const register: Register = on => {
   on('turn.start', async ($, e, next) => {
     if (e.agentId === undefined && me) {
       const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null }
+      if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
+        p.delivery = { at: pendingInstruction.at, state: 'delivered' }
+        pendingInstruction = null
+      }
       const task = isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
       if (task) p.task = task
       if (task && !me.title) p.title = firstLine(e.text, 24)

@@ -174,6 +174,7 @@
   .report a { color: var(--accent); }
   .report hr { border: 0; border-top: 1px solid rgba(0,0,0,.15); margin: .8em 0; }
   .sent { font-size: .8rem; color: var(--muted); }
+  .sent.lost { color: var(--danger, #c0392b); font-weight: 600; }
   .hist summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--muted); }
   .hist summary:hover { color: var(--fg); }
   .hist[open] summary { margin-bottom: 8px; }
@@ -385,7 +386,7 @@
       askOpts: '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。', askOld: '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。',
       permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
-      sent: '已送出「{text}」，等 session 接手（{ago}）', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
+      sent: '已送出「{text}」，等 session 接手（{ago}）', sentRetried: '「{text}」第一次沒進到對話，已重送（{ago}）', sentLost: '「{text}」沒送到：{why}。請再傳一次，或到它的 terminal 輸入。', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
       histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
       bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。watchdog 每分鐘會自動重開一個；要手動開就在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions，原因可以用 install/install.sh --check 查。',
       bridgeNone: '還沒有橋接視窗。跑 install/install.sh 讓 watchdog 自動開，或在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions。',
@@ -425,7 +426,7 @@
       askOpts: 'It is waiting for your answer: pick an option, or type an answer below (the terminal works too; the first answer counts).', askOld: 'It is asking you something in the terminal (an older mod; the question is not shown here). Switch over to answer.',
       permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
-      sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
+      sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', sentRetried: '“{text}” did not reach the conversation; sent again ({ago})', sentLost: '“{text}” was not delivered: {why}. Send it again, or type it in its terminal.', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
       histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
       bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. The watchdog reopens one every minute; to start one yourself, run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab, and install/install.sh --check shows why it stopped.',
       bridgeNone: 'No bridge yet. Run install/install.sh so the watchdog opens one, or run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab.',
@@ -439,6 +440,7 @@
   const tt = (key, vars) => (I18N[LANG][key] ?? I18N.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars && vars[k] != null ? vars[k] : '');
   // the office mod writes its activity lines and a few fixed reports in Chinese
   const MOD_EN = [
+    [/^沒有進到對話（可能在終端機中斷時被清掉）$/, 'it never reached the conversation (an interrupt in the terminal may have cleared it)'],
     [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
     [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
     [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'],
@@ -1352,7 +1354,10 @@
     const d = desks.get(modalId);
     if (!d) { closeModal(); return; }
     const st = effState(d), lv = liveness(d);
-    const pending = !!(d.instructionAt && !(d.instructionDoneAt >= d.instructionAt));
+    // taken from the inbox is not yet delivered: the desk says when its turn started, was resent, or never came
+    const dv = d.delivery && d.delivery.at === d.instructionAt ? d.delivery : null;
+    const pending = !!(d.instructionAt && (!(d.instructionDoneAt >= d.instructionAt) || (dv && (dv.state === 'sent' || dv.state === 'retried'))));
+    const lost = !!(dv && dv.state === 'failed');
     // a rename from the page shows at once; the desk catches up within a sync or two
     const pendingName = renamed && renamed.id === d.id && now() - renamed.at < 15000 && d.title !== renamed.name ? renamed.name : null;
     document.getElementById('m-title').textContent = pendingName ?? (d.title || d.label || d.id);
@@ -1392,8 +1397,10 @@
     if (decide) renderReport(document.getElementById('m-decide-body'), decide);
     document.getElementById('m-report').hidden = asking || (!!decide && !rest);
     renderReport(document.getElementById('m-report'), (decide ? rest : trMod(d.report)) || tt('noReport'));
-    const sent = document.getElementById('m-sent'); sent.hidden = !pending;
-    if (pending) sent.textContent = tt('sent', { text: (d.instruction || '').slice(0, 60), ago: ago(d.instructionAt) });
+    const sent = document.getElementById('m-sent'); sent.hidden = !pending && !lost; sent.classList.toggle('lost', lost);
+    const sentText = (d.instruction || '').slice(0, 60);
+    if (lost) sent.textContent = tt('sentLost', { text: sentText, why: trMod(dv.reason || '') });
+    else if (pending) sent.textContent = tt(dv && dv.state === 'retried' ? 'sentRetried' : 'sent', { text: sentText, ago: ago(d.instructionAt) });
     document.getElementById('m-meta').textContent = (d.reportedAt ? tt('reportedAgo', { ago: ago(d.reportedAt) }) + '  ·  ' : '') + tt('updatedAgo', { ago: ago(d.seenAt) });
     renderHistory(d);
     mSend.disabled = !(lv === 'live' && canWrite);
