@@ -206,14 +206,18 @@
   .hicons { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   .hicon { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; font: 700 11px/1 var(--body); padding: 3px 5px; border: 0; border-radius: 999px; background: var(--bubble); color: var(--bubble-fg); box-shadow: 0 1px 0 rgba(0,0,0,.25); cursor: pointer; white-space: nowrap; }
   .hicon.decide { box-shadow: inset 0 0 0 2px var(--wait); }
+  .lowuse { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: .88rem; color: var(--wait); border: 1px dashed var(--wait); border-radius: 6px; padding: 8px 12px; }
+  .reply-hint { font-size: .78rem; color: var(--muted); padding: 0 18px 8px; }
+  .model-pick { font: inherit; font-size: .85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
   .perm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .perm-note { font-size: .82rem; color: var(--muted); }
   .blocked { font-size: .9rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 6px; padding: 8px 12px; }
   .reply { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding: 12px 18px; border-top: 1px solid var(--line); }
   .reply textarea { flex: 1; min-width: 0; font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 2.6em; }
   .reply textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-  .reply button { font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
-  .reply button:disabled { opacity: .5; cursor: default; }
+  .reply button, .perm button, .lowuse button { font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
+  .reply button:disabled, .perm button:disabled { opacity: .5; cursor: default; }
+  .perm .ghost, .lowuse .ghost { background: none; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
   .reply .ghost { background: none; color: var(--muted); border: 1px solid var(--line); align-self: flex-start; font-weight: 500; }
   .reply .ghost:hover { color: var(--fg); border-color: var(--fg); }
   .reply .fire { margin-left: auto; display: flex; gap: 6px; }
@@ -263,6 +267,8 @@
         <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
         <div class="blocked" id="m-blocked" hidden></div>
         <div class="perm" id="m-perm" hidden><button type="button" id="m-perm-allow">允許</button><button type="button" class="ghost" id="m-perm-deny">拒絕</button><span class="perm-note" id="m-perm-note"></span></div>
+        <div class="lowuse" id="m-lowuse" hidden><span id="m-lowuse-text"></span><button type="button" class="ghost" id="m-handoff"></button></div>
+        <div class="lowuse" id="m-codex-row" hidden><span id="m-codex-text"></span><button type="button" id="m-codex"></button></div>
         <div class="ask" id="m-ask" hidden></div>
         <div class="sent" id="m-sent" hidden></div>
         <div class="meta" id="m-meta"></div>
@@ -270,7 +276,8 @@
       </div>
       <div class="shots" id="m-shots" hidden></div>
       <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button></form>
-      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+      <div class="reply-hint" id="m-reply-hint"></div>
+      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"><option value=""></option><option value="/model opus"></option><option value="/model sonnet"></option><option value="/fast"></option></select><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
     </div>
   </div>
 
@@ -370,7 +377,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型／快速模式…', modelOpus: '換成 Opus', modelSonnet: '換成 Sonnet', fastToggle: '切換快速模式', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -410,7 +417,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model / fast mode…', modelOpus: 'Switch to Opus', modelSonnet: 'Switch to Sonnet', fastToggle: 'Toggle fast mode', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -453,7 +460,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); { const o = document.getElementById('m-model').options; [['modelPick'], ['modelOpus'], ['modelSonnet'], ['fastToggle']].forEach(([k], i) => { o[i].textContent = tt(k); }); } set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -1330,7 +1337,9 @@
     const k = n => n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
     const ctxText = d.ctx && typeof d.ctx.percent === 'number' ? tt('ctx', { p: 100 - d.ctx.percent }) + (d.ctx.tokens != null ? tt('ctxUsed', { used: k(d.ctx.tokens), win: k(d.ctx.window) }) : '') : '';
     const costText = typeof d.cost === 'number' ? tt('cost', { c: d.cost.toFixed(2) }) : '';
-    document.getElementById('m-branch').textContent = [d.seat ? tt('seat', { n: d.seat }) : '', d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    const modelText = modelName(d.model), effortText = d.effort ? tt('effortLabel', { e: d.effort }) : '';
+    document.getElementById('m-branch').textContent = [d.seat ? tt('seat', { n: d.seat }) : '', modelText, effortText, d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    fillHandoff(d, lv);
     document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + (st === 'working' && d.activity ? '　·　' + trMod(d.activity) : '');
     const { decide, rest } = splitDecide(d.report);
     const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
@@ -1627,6 +1636,52 @@
     if (!d?.perm || !db || !canWrite) return;
     try { await db.doc('desks/' + d.id).update({ permAnswer: answer, permAnswerAt: now(), permFor: d.perm.at }); d.permFor = d.perm.at; fillModal(); }
     catch (e) { console.warn('permission answer failed', e); }
+  });
+  // 'claude-opus-5-5' -> 'Opus 5.5'
+  function modelName(id) {
+    const m = /claude-(opus|sonnet|haiku|fable)-(\d+)-(\d+)/i.exec(id || '');
+    return m ? m[1][0].toUpperCase() + m[1].slice(1) + ' ' + m[2] + '.' + m[3] : (id || '');
+  }
+  // instructions that must not acknowledge the report (send() would send the colleague back to its desk)
+  async function instruct(id, text) {
+    if (!id || !db || !canWrite) return false;
+    try { await db.doc('desks/' + id).update({ instruction: text, instructionAt: now() }); return true; } catch (e) { console.warn('instruction failed', e); return false; }
+  }
+  document.getElementById('m-model').addEventListener('change', async e => {
+    const v = e.target.value; e.target.value = '';
+    if (v) await instruct(modalId, v);
+  });
+  // Before the 5-hour usage runs out: ask for a handoff, then let Codex take over from it
+  const HANDOFF_ASK = '用量快用完了。請執行 /ai:handoff 寫交接檔，最後把要貼給下一個 agent 的第一句話放在 ```handoff 程式碼區塊裡（接手的可能是 Codex，沒有你的 skill，所以那句話要自己說得清楚）。';
+  const handoffBlock = d => (/```handoff\s*\n([\s\S]*?)```/.exec(d.report || '') || [])[1]?.trim() || '';
+  const handoffAsked = new Set(), codexAsked = new Set();
+  function fillHandoff(d, lv) {
+    const five = (d.limits || []).find(l => l.kind === 'five_hour');
+    const left = five ? Math.max(0, 100 - Math.round(five.percentUsed)) : 100;
+    const block = handoffBlock(d), live = lv === 'live';
+    const low = document.getElementById('m-lowuse');
+    low.hidden = !live || left > 15 || !!block;
+    if (!low.hidden) {
+      document.getElementById('m-lowuse-text').textContent = handoffAsked.has(d.id) ? tt('handoffSent') : tt('lowUse', { p: left });
+      const b = document.getElementById('m-handoff'); b.textContent = tt('handoff'); b.hidden = handoffAsked.has(d.id) || !canWrite;
+    }
+    const row = document.getElementById('m-codex-row');
+    row.hidden = !block || !d.cwd;
+    if (!row.hidden) {
+      const sent = codexAsked.has(d.id + block.length);
+      document.getElementById('m-codex-text').textContent = sent ? tt('codexSent') : tt('codexReady');
+      const b = document.getElementById('m-codex'); b.textContent = tt('codexGo'); b.hidden = sent || !canWrite;
+    }
+  }
+  document.getElementById('m-handoff').addEventListener('click', async () => {
+    const id = modalId;
+    if (await instruct(id, HANDOFF_ASK)) { handoffAsked.add(id); fillModal(); }
+  });
+  document.getElementById('m-codex').addEventListener('click', async () => {
+    const d = desks.get(modalId), block = d && handoffBlock(d);
+    if (!block || !db || !canWrite) return;
+    try { await db.collection('requests').doc().set({ kind: 'codex', cwd: d.cwd, task: block, title: '', status: 'pending', at: now() }); codexAsked.add(d.id + block.length); fillModal(); }
+    catch (e) { console.warn('codex request failed', e); }
   });
   document.getElementById('m-copyname').addEventListener('click', e => { const d = desks.get(modalId); if (d?.title) copyText(d.title, e.currentTarget, 'copyName', document.getElementById('m-title')); });
   function copyText(text, btn, label, fallbackEl) {

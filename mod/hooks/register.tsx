@@ -49,6 +49,9 @@ type Desk = {
   tty: string | null
   /** Set while the session waits on something only the person at the terminal can answer. */
   blocked: 'permission' | 'question' | null
+  /** The main loop's model and effort as of its last request: the page shows them. */
+  model?: string | null
+  effort?: string | null
   /** The pending permission request (its settings hook's start, and the session id it runs under), so the page can answer it. */
   perm?: { at: number; sid: string } | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
@@ -396,7 +399,10 @@ async function openRequestedSessions($: EngineInterface) {
     let isDir = false
     try { isDir = (await $.fs.stat(cwd)).kind === 'dir' } catch { isDir = false }
     if (!cwd || !isDir) { await mark('failed', { error: `目錄不存在：${cwd || '(空)'}` }); continue }
-    const command = `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} claude${task ? ' ' + shellQuote(task) : ''}`
+    // kind 'codex': Codex takes over from a handoff, with its first message as the task
+    const command = doc.data.kind === 'codex'
+      ? `cd ${shellQuote(cwd)} && codex ${shellQuote(task)}`
+      : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} claude${task ? ' ' + shellQuote(task) : ''}`
     const script = [
       'tell application "iTerm2"',
       '  activate',
@@ -949,6 +955,15 @@ export const register: Register = on => {
       if (p.title) void handTitle($, p.title)
     }
     return next(e)
+  })
+
+  // the model and effort each main-loop request goes out with, for the page's info line
+  on('turn.step', async function* ($, e, next) {
+    if (e.agentId === undefined && me) {
+      const effort = e.effort === undefined ? null : String(e.effort)
+      if (e.model !== me.model || effort !== (me.effort ?? null)) patch($, { model: e.model, effort })
+    }
+    return yield* next(e)
   })
 
   on('tool.call', async ($, e, next) => {
