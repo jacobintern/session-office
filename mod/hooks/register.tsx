@@ -49,6 +49,8 @@ type Desk = {
   tty: string | null
   /** Set while the session waits on something only the person at the terminal can answer. */
   blocked: 'permission' | 'question' | null
+  /** The pending permission request (its settings hook's start, and the session id it runs under), so the page can answer it. */
+  perm?: { at: number; sid: string } | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -160,11 +162,12 @@ async function checkPermission($: EngineInterface) {
     const { at, event: e } = JSON.parse(await $.fs.read(path)) as { at?: number; event?: { agent_id?: string; tool_name?: string; tool_input?: Record<string, unknown> } }
     if (typeof at !== 'number' || at <= permSeenAt) return
     permSeenAt = at
+    const sid = await $.session.id()
     if (at <= permSettledAt || !e || e.agent_id) return
     const what = describe({ tool: e.tool_name ?? '', ...(e.tool_input ?? {}) })
     const command = e.tool_input?.command
     const detail = typeof command === 'string' ? '\n\n```\n' + command.slice(0, 600) + '\n```' : ''
-    patch($, { state: 'reporting', activity: '等你確認權限', blocked: 'permission', reportedAt: Date.now(), report: `### 在 terminal 等你確認權限\n\n${what}${detail}\n\n_切到它的 terminal 分頁按允許或拒絕。_` })
+    patch($, { state: 'reporting', activity: '等你確認權限', blocked: 'permission', perm: { at, sid }, reportedAt: Date.now(), report: `### 等你確認權限\n\n${what}${detail}\n\n_在下面按允許或拒絕，或到它的 terminal 分頁回答。_` })
   } catch { /* half-written; next round */ }
 }
 
@@ -294,6 +297,7 @@ let tickCount = 0
 const synced: Record<string, string> = {}
 const askSince: Record<string, number> = {}
 const inboxWritten: Record<string, number> = {}
+const permRelayed: Record<string, number> = {}
 
 async function ensureTool($: EngineInterface) {
   if (toolReady) return true
@@ -694,6 +698,12 @@ async function bridgeTick($: EngineInterface) {
         await $.fs.write(inboxPath(id), JSON.stringify({ instruction: text, instructionAt: at }))
         inboxWritten[id] = at
       }
+      // 允許 / 拒絕 pressed on the page: hand it to the settings hook waiting on that request
+      const answer = doc.data.permAnswer, answerAt = doc.data.permAnswerAt, perm = files.get(id)?.perm
+      if ((answer === 'allow' || answer === 'deny') && typeof answerAt === 'number' && permRelayed[id] !== answerAt && perm && doc.data.permFor === perm.at) {
+        await $.fs.write(`${hookDir()}/answer-${perm.sid}.json`, JSON.stringify({ behavior: answer, for: perm.at }))
+        permRelayed[id] = answerAt
+      }
     }
     lastTick.note = `第 ${tickCount} 輪完成：資料庫 ${docs.size} 筆、桌卡檔 ${files.size} 個、已同步 ${Object.keys(synced).length} 個`
   } catch (error) {
@@ -963,7 +973,9 @@ export const register: Register = on => {
     patch($, { state: 'working', activity: describe(e as { tool: string } & Record<string, unknown>) }, { throttle: true })
     const result = await next(e)
     permSettledAt = Date.now()
-    if (me?.blocked === 'permission') patch($, { state: 'working', activity: '權限已處理，繼續', blocked: null })
+    // the dialog was answered (here or from the page): the settings hook stops waiting for the page
+    try { const sid = await $.session.id(); if (await $.fs.exists(`${hookDir()}/perm-${sid}.json`)) await $.fs.write(`${hookDir()}/settled-${sid}`, String(permSettledAt)) } catch { /* no hook dir */ }
+    if (me?.blocked === 'permission') patch($, { state: 'working', activity: '權限已處理，繼續', blocked: null, perm: null })
     return result
   })
   on('turn.complete', async ($, e, next) => {

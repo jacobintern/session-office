@@ -26,7 +26,7 @@ const ours = h => typeof h.command === 'string' && h.command.includes('office-ho
 for (const ev of ['UserPromptSubmit', 'PermissionRequest']) {
   s.hooks[ev] = (s.hooks[ev] || []).map(g => ({ ...g, hooks: (g.hooks || []).filter(h => !ours(h)) })).filter(g => g.hooks.length)
   // UserPromptSubmit only to remove the title hook of an older version
-  if (mode === 'add' && ev === 'PermissionRequest') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" permission`, timeout: 5 }] })
+  if (mode === 'add' && ev === 'PermissionRequest') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" permission`, timeout: 610 }] })
   if (!s.hooks[ev].length) delete s.hooks[ev]
 }
 if (fs.existsSync(file)) fs.copyFileSync(file, file + '.bak-session-office')

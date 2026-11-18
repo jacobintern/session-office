@@ -206,6 +206,8 @@
   .hicons { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
   .hicon { position: absolute; transform: translate(-50%, -100%); pointer-events: auto; font: 700 11px/1 var(--body); padding: 3px 5px; border: 0; border-radius: 999px; background: var(--bubble); color: var(--bubble-fg); box-shadow: 0 1px 0 rgba(0,0,0,.25); cursor: pointer; white-space: nowrap; }
   .hicon.decide { box-shadow: inset 0 0 0 2px var(--wait); }
+  .perm { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .perm-note { font-size: .82rem; color: var(--muted); }
   .blocked { font-size: .9rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 6px; padding: 8px 12px; }
   .reply { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding: 12px 18px; border-top: 1px solid var(--line); }
   .reply textarea { flex: 1; min-width: 0; font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 2.6em; }
@@ -260,6 +262,7 @@
         <div class="report" id="m-report"></div>
         <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
         <div class="blocked" id="m-blocked" hidden></div>
+        <div class="perm" id="m-perm" hidden><button type="button" id="m-perm-allow">允許</button><button type="button" class="ghost" id="m-perm-deny">拒絕</button><span class="perm-note" id="m-perm-note"></span></div>
         <div class="ask" id="m-ask" hidden></div>
         <div class="sent" id="m-sent" hidden></div>
         <div class="meta" id="m-meta"></div>
@@ -372,7 +375,7 @@
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
       askOpts: '它在等你回答：點選項，或直接在下面打字回答（terminal 也能答，先答的算數）。', askOld: '它在 terminal 問你問題（舊版 mod 看不到題目），請切過去作答。',
-      permWait: '這個 session 在 terminal 等你確認權限，頁面回覆進不去，請切過去回答。',
+      permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
       sent: '已送出「{text}」，等 session 接手（{ago}）', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
       histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。',
@@ -412,7 +415,7 @@
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
       askOpts: 'It is waiting for your answer: pick an option, or type an answer below (the terminal works too; the first answer counts).', askOld: 'It is asking you something in the terminal (an older mod; the question is not shown here). Switch over to answer.',
-      permWait: 'This session is waiting for a permission prompt in the terminal; replies from the page cannot reach it. Switch over to answer.',
+      permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
       sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
       histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.',
@@ -1315,6 +1318,15 @@
       ? (Array.isArray(d.ask) && d.ask.length ? tt('askOpts') : tt('askOld'))
       : tt('permWait');
     renderAsk(d);
+    // 允許 / 拒絕: answered by the settings hook, which waits for the page while the terminal dialog stays up
+    const permEl = document.getElementById('m-perm'), permOpen = d.blocked === 'permission' && d.perm && lv === 'live';
+    permEl.hidden = !permOpen;
+    if (permOpen) {
+      const sent = d.permFor === d.perm.at;
+      document.getElementById('m-perm-allow').textContent = tt('permAllow'); document.getElementById('m-perm-deny').textContent = tt('permDeny');
+      for (const b of permEl.querySelectorAll('button')) b.disabled = sent || !canWrite;
+      document.getElementById('m-perm-note').textContent = sent ? tt('permSent') : '';
+    }
     const k = n => n >= 1000 ? Math.round(n / 1000) + 'k' : String(n);
     const ctxText = d.ctx && typeof d.ctx.percent === 'number' ? tt('ctx', { p: 100 - d.ctx.percent }) + (d.ctx.tokens != null ? tt('ctxUsed', { used: k(d.ctx.tokens), win: k(d.ctx.window) }) : '') : '';
     const costText = typeof d.cost === 'number' ? tt('cost', { c: d.cost.toFixed(2) }) : '';
@@ -1610,6 +1622,12 @@
     endRename();
   });
   titleEdit.addEventListener('blur', () => setTimeout(endRename, 0));
+  for (const [btn, answer] of [['m-perm-allow', 'allow'], ['m-perm-deny', 'deny']]) document.getElementById(btn).addEventListener('click', async () => {
+    const d = desks.get(modalId);
+    if (!d?.perm || !db || !canWrite) return;
+    try { await db.doc('desks/' + d.id).update({ permAnswer: answer, permAnswerAt: now(), permFor: d.perm.at }); d.permFor = d.perm.at; fillModal(); }
+    catch (e) { console.warn('permission answer failed', e); }
+  });
   document.getElementById('m-copyname').addEventListener('click', e => { const d = desks.get(modalId); if (d?.title) copyText(d.title, e.currentTarget, 'copyName', document.getElementById('m-title')); });
   function copyText(text, btn, label, fallbackEl) {
     const done = () => { btn.textContent = tt('tutorCopied'); setTimeout(() => { btn.textContent = tt(label); }, 1500); };
