@@ -37,6 +37,12 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   permission dialog; a mod's own hook on that event can be cut off by other
   plugins.
 
+## Token cost
+
+Under US$1 a month: syncing and desk cards run in the mod without any model
+turn; only the short report-format note added to each prompt costs tokens.
+See [docs/token-cost.md](docs/token-cost.md).
+
 ## Before you start
 
 | | needed | check |

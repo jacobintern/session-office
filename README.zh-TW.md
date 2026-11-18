@@ -20,6 +20,10 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 - **page/**：artifact 頁面本身。
 - **install/**：讓 bridge 保持運作的 watchdog、它的 LaunchAgent，以及 `office-hook.sh`：安裝程式會把一個 hook 加進 `~/.claude/settings.json`（旁邊留一份備份），在 session 等權限確認時通知頁面；mod 自己的這種 hook 可能被其他外掛擋掉。
 
+## Token 用量
+
+每月不到 US$1，不是燒 token 的工具：同步和桌卡都由 mod 直接處理，不經過模型；只有每次提問附上的匯報格式說明（約 130 token）會花 token。細節見 [docs/token-cost.md](docs/token-cost.md)。
+
 ## 行前準備
 
 | | 必要 | 怎麼確認 |
