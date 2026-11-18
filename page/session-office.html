@@ -884,10 +884,10 @@
     const walked = t < 22 ? t : t < 28 ? 22 : t - 6, standing = t >= 22 && t < 28;
     const kx = Math.round(x - 150 + (w + 300) * (walked / 44)), step = standing ? 0 : Math.floor(t * 2.5) % 2;
     const breath = t >= 23.2 && t < 27.5, glow = night > 0.5 || (standing && t < 27.5);
-    ctx.drawImage(kaijuSprite(step, glow), kx, ground - 126 + step);
+    ctx.drawImage(kaijuSprite(step, glow), kx, ground - 116 + step);
     if (!breath) return;
     // the beam leaves the jaws and climbs up-right out of the window, flickering
-    const mx = kx + 132, my = ground - 126 + 45, flick = Math.floor(t * 12) % 2;
+    const mx = kx + 132, my = ground - 116 + 45, flick = Math.floor(t * 12) % 2;
     for (let k = 0; k < 90; k++) {
       const bx = mx + k * 5, by = my - k * 3.4;
       px(bx - 5, by - 5, 10, 10, flick ? 'rgba(92,200,255,.55)' : 'rgba(92,200,255,.4)');
