@@ -219,6 +219,8 @@
   .reply { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; padding: 12px 18px; border-top: 1px solid var(--line); }
   .reply textarea { flex: 1; min-width: 0; font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 2.6em; }
   .reply textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  /* iOS Safari zooms into any field under 16px on focus and stays zoomed after it closes */
+  @media (max-width: 860px) { .reply textarea, .field input, .field textarea, .title-edit, .model-pick { font-size: 16px; } }
   .reply button, .perm button, .lowuse button { font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
   .reply button:disabled, .perm button:disabled { opacity: .5; cursor: default; }
   .perm .ghost, .lowuse .ghost { background: none; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
