@@ -37,6 +37,12 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   permission dialog; a mod's own hook on that event can be cut off by other
   plugins.
 
+## User manual
+
+A picture-led manual in Traditional Chinese: open [docs/manual/index.html](docs/manual/index.html)
+in a browser. It is also published as a claude.ai artifact; after editing the
+source, publish it to the same artifact so the link keeps working.
+
 ## Token cost
 
 Under US$1 a month: syncing and desk cards run in the mod without any model

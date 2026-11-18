@@ -1,0 +1,365 @@
+<title>Session Office 使用手冊</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a sticky chapter list on the left, a wide reading column whose screenshots run the full width,
+   with numbered pins on each screenshot keyed to a legend grid underneath. */
+:root {
+  --bg: #f3ede3; --paper: #fbf8f2; --ink: #2a2521; --muted: #6e655b; --line: #ddd3c3;
+  --accent: #c4511f; --accent-ink: #ffffff; --ok: #2f8a4c; --wait: #c98a12; --code-bg: #ece4d6;
+  --display: 'Silkscreen', 'Courier New', monospace;
+  --body: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1d1a17; --paper: #26221e; --ink: #ece5da; --muted: #a99f93; --line: #3b352f;
+  --accent: #e2703c; --accent-ink: #1d1a17; --ok: #5cbf7a; --wait: #e2ae3c; --code-bg: #332d27; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #1d1a17; --paper: #26221e; --ink: #ece5da; --muted: #a99f93; --line: #3b352f;
+  --accent: #e2703c; --accent-ink: #1d1a17; --ok: #5cbf7a; --wait: #e2ae3c; --code-bg: #332d27; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 16px/1.75 var(--body); }
+.shell { max-width: 1480px; margin: 0 auto; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 40px 96px; }
+nav.toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; font-size: 14px; }
+nav.toc .brand { font-family: var(--display); font-size: 15px; letter-spacing: .08em; margin-bottom: 18px; }
+nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+nav.toc a { display: block; padding: 5px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+nav.toc a:hover, nav.toc a:focus-visible { background: var(--paper); color: var(--ink); outline: none; }
+main { min-width: 0; }
+header.hero { padding-bottom: 28px; border-bottom: 2px solid var(--ink); margin-bottom: 8px; }
+.kicker { font-family: var(--display); font-size: 13px; letter-spacing: .14em; color: var(--accent); }
+h1 { font-family: var(--body); font-weight: 700; font-size: clamp(30px, 4vw, 44px); line-height: 1.25; margin: 6px 0 12px; text-wrap: balance; }
+.lead { font-size: 18px; max-width: 46em; color: var(--ink); margin: 0; }
+section { padding-top: 56px; scroll-margin-top: 16px; }
+h2 { font-size: 26px; line-height: 1.35; margin: 0 0 14px; display: flex; align-items: baseline; gap: 12px; text-wrap: balance; }
+h2 .no { font-family: var(--display); font-size: 14px; color: var(--accent); letter-spacing: .06em; }
+h3 { font-size: 18px; margin: 28px 0 10px; }
+p { max-width: 46em; margin: 0 0 14px; }
+code, kbd { font-family: var(--mono); font-size: .88em; background: var(--code-bg); padding: 1px 6px; border-radius: 4px; }
+.note { max-width: 46em; padding: 12px 16px; border-left: 4px solid var(--accent); background: var(--paper); border-radius: 0 8px 8px 0; margin: 16px 0; }
+.note strong { color: var(--accent); }
+.demo-tag { font-size: 13px; color: var(--muted); margin-top: 8px; }
+
+/* cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 18px 0; }
+.card { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; min-width: 0; }
+.card h4 { margin: 0 0 8px; font-size: 16px; }
+.card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 15px; }
+.card dt { color: var(--muted); white-space: nowrap; }
+.card dd { margin: 0; }
+.card p { margin: 0; font-size: 15px; }
+
+/* figures with pins */
+figure.shot { margin: 22px 0 0; }
+.frame { border-radius: 12px; border: 1px solid var(--line); background: var(--paper); cursor: zoom-in; padding: 18px; }
+.imgbox { position: relative; }
+.frame img { border-radius: 6px; display: block; width: 100%; height: auto; max-width: 100%; }
+.pin { position: absolute; transform: translate(-50%, -50%); width: 26px; height: 26px; border-radius: 50%;
+  background: var(--accent); color: #fff; font: 700 13px/26px var(--body); text-align: center;
+  box-shadow: 0 0 0 3px #fff, 0 2px 6px rgba(0,0,0,.35); transition: transform .15s; pointer-events: none; }
+.pin.on, .frame:hover .pin.on { transform: translate(-50%, -50%) scale(1.35); background: var(--ink); }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 8px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.legend { list-style: none; padding: 0; margin: 18px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px 22px; }
+.legend li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 6px 8px; border-radius: 8px; }
+.legend li:hover, .legend li:focus-within { background: var(--paper); }
+.legend .n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font: 700 13px/26px var(--body); text-align: center; margin-top: 1px; }
+.legend b { display: block; font-weight: 700; }
+.legend span { color: var(--muted); font-size: 15px; }
+
+/* tables */
+.tw { overflow-x: auto; margin: 16px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--paper); }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-weight: 700; font-size: 13px; letter-spacing: .04em; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 500; white-space: nowrap; }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+ul.plain { padding-left: 1.2em; max-width: 46em; margin: 0 0 14px; }
+ul.plain li { margin: 4px 0; }
+ul.check { list-style: none; padding: 0; margin: 8px 0 14px; display: grid; gap: 6px; }
+ul.check li::before { content: "□"; color: var(--accent); margin-right: 10px; font-weight: 700; }
+
+.faq { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 16px; }
+.faq .card h4 { color: var(--ink); }
+.faq .card .why { color: var(--muted); font-size: 14px; margin-bottom: 6px; }
+
+dialog.zoom { border: 0; padding: 0; background: transparent; width: 96vw; max-width: 2000px; max-height: 96vh; overflow: auto; }
+dialog.zoom::backdrop { background: rgba(20, 16, 12, .82); }
+dialog.zoom #zoom-body .frame { width: 100%; cursor: zoom-out; border: 0; }
+dialog.zoom .close { display: block; margin: 0 0 8px auto; border: 0; border-radius: 999px; padding: 6px 14px; font: 500 14px var(--body); background: #fff; color: #222; cursor: pointer; }
+
+@media (max-width: 980px) {
+  .shell { grid-template-columns: minmax(0, 1fr); gap: 0; padding-block: 24px 64px; }
+  nav.toc { position: static; margin-bottom: 24px; }
+  nav.toc ol { display: flex; flex-wrap: wrap; gap: 6px; }
+  nav.toc a { background: var(--paper); border: 1px solid var(--line); padding: 3px 10px; }
+  .pin { width: 18px; height: 18px; font-size: 10px; line-height: 18px; box-shadow: 0 0 0 2px #fff; }
+}
+@media (prefers-reduced-motion: reduce) { .pin { transition: none; } html { scroll-behavior: auto; } }
+html { scroll-behavior: smooth; }
+</style>
+
+<div class="shell">
+<nav class="toc" aria-label="章節">
+  <div class="brand">SESSION OFFICE</div>
+  <ol>
+    <li><a href="#before">開始之前</a></li>
+    <li><a href="#tour">畫面導覽</a></li>
+    <li><a href="#people">看懂同事</a></li>
+    <li><a href="#report">處理匯報</a></li>
+    <li><a href="#blocked">卡住等你</a></li>
+    <li><a href="#tutor">英文小老師</a></li>
+    <li><a href="#manage">管理 session</a></li>
+    <li><a href="#mobile">在手機上用</a></li>
+    <li><a href="#more">其他功能</a></li>
+    <li><a href="#tokens">會不會燒 token</a></li>
+    <li><a href="#faq">常見問題</a></li>
+  </ol>
+</nav>
+
+<main>
+<header class="hero">
+  <div class="kicker">使用手冊</div>
+  <h1>Session Office 使用手冊</h1>
+  <p class="lead">Session Office 是一間像素辦公室。每個 Claude Code session 是一位同事，做完一輪就走到你桌前匯報；你在網頁上回覆、派工或結束它，不用切回 terminal。</p>
+</header>
+
+<section id="before">
+  <h2><span class="no">01</span>開始之前</h2>
+  <p>網頁只是一扇窗，真正做事的是 Mac 上的 session。下面三樣都要開著，畫面才會更新、指令才送得出去。</p>
+  <div class="cards">
+    <div class="card"><h4>Mac 醒著</h4><dl><dt>怎麼確認</dt><dd>接電源、蓋子打開；螢幕關掉沒關係</dd><dt>沒開會怎樣</dt><dd>所有 session 停住，2 分鐘後標成離線</dd></dl></div>
+    <div class="card"><h4>橋接 session</h4><dl><dt>怎麼確認</dt><dd>iTerm 裡一個專用分頁；看門狗每分鐘檢查，掛了自動重開</dd><dt>沒開會怎樣</dt><dd>頁面上方出現橘色「橋接視窗沒在跑」</dd></dl></div>
+    <div class="card"><h4>office mod</h4><dl><dt>怎麼確認</dt><dd>新開的 session 會自己走進辦公室坐下</dd><dt>沒開會怎樣</dt><dd>那個 session 不會出現在辦公室</dd></dl></div>
+  </div>
+  <div class="note"><strong>注意：</strong>橋接分頁跳過了權限確認，不要在那個分頁打字派工作。</div>
+</section>
+
+<section id="tour">
+  <h2><span class="no">02</span>畫面導覽</h2>
+  <p>電腦上分成左、中、右三欄加上頁首；窄螢幕會疊成一欄。點截圖可以放大。</p>
+  <figure class="shot" data-shot="office"><div class="frame"><div class="imgbox"><img src="img/office.jpg" width="3200" height="1360" alt="Session Office 整體畫面"></div></div>
+    <figcaption><span>截圖用的是示範資料，同事名稱、票號和匯報內容都是虛構的。</span><span>點圖放大</span></figcaption></figure>
+  <ol class="legend" data-for="office"></ol>
+  <p style="margin-top:18px">辦公室大小跟著螢幕走：螢幕越大格數越多，角色維持同樣大小。桌子只擺有人坐的那幾組，再多一組空桌。</p>
+</section>
+
+<section id="people">
+  <h2><span class="no">03</span>看懂同事</h2>
+  <p>同事在哪裡，就代表它在做什麼。</p>
+  <div class="tw"><table>
+    <thead><tr><th>狀態</th><th>在辦公室裡</th><th>名單分組</th></tr></thead>
+    <tbody>
+      <tr><td>工作中</td><td>坐在位子上，螢幕亮著</td><td><span class="dot" style="background:var(--ok)"></span>工作中</td></tr>
+      <tr><td>來匯報</td><td>走進你的辦公室排隊，前三位在你桌前，其餘在門外</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
+      <tr><td>卡住等你</td><td>一樣來排隊，匯報視窗標「卡住等你」</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
+      <tr><td>閒置</td><td>坐在位子上，頭上冒 z</td><td><span class="dot" style="background:var(--muted)"></span>閒置</td></tr>
+      <tr><td>離線</td><td>超過 2 分鐘沒更新；30 分鐘後從辦公室移走</td><td><span class="dot" style="background:var(--line)"></span>離線</td></tr>
+    </tbody></table></div>
+  <h3>頭上的東西</h3>
+  <ul class="plain">
+    <li><b>名牌</b>：預設是那個 session 的第一句任務，可以改名（見〈管理 session〉）。名牌也是 session 標題，別的 session 要傳訊息給它就用這個名字；兩位同事同名時會標「撞名」。</li>
+    <li><b>血條</b>：context 還剩多少，越短越該 <code>/compact</code>。</li>
+    <li><b>你頭上的兩條</b>：帳號 5 小時和每週用量還剩多少，重置後自動回滿。</li>
+    <li><b>匯報泡泡</b>（電腦）：排第一位的同事頭上冒泡泡，有「要你決定」時只顯示那幾件。</li>
+    <li><b>圖示</b>（手機）：泡泡改成小圖示，❗N 是有 N 件要你決定、💬 是一般匯報、🔒 是在 terminal 等權限。</li>
+  </ul>
+</section>
+
+<section id="report">
+  <h2><span class="no">04</span>處理匯報</h2>
+  <p>點名單上的一列、點同事或點泡泡，都會打開同一個匯報視窗。讀完、回一句或按「收到」，它就回座位。</p>
+  <figure class="shot" data-shot="report"><div class="frame"><div class="imgbox"><img src="img/report.jpg" width="2204" height="1047" alt="匯報視窗"></div></div>
+    <figcaption><span>示範資料。</span><span>點圖放大</span></figcaption></figure>
+  <ol class="legend" data-for="report"></ol>
+  <h3>常用說法</h3>
+  <p>這幾件事不用按鈕，在回覆框直接打就會觸發（回覆框下方也有提示）：</p>
+  <div class="tw"><table>
+    <thead><tr><th>打這句</th><th>它會做什麼</th></tr></thead>
+    <tbody>
+      <tr><td>回顧一下</td><td>收尾，把這次學到的教訓存進記憶</td></tr>
+      <tr><td>幫我 code review</td><td>檢查目前的改動有沒有 bug</td></tr>
+      <tr><td>驗收一下</td><td>對「已完成／已修好」做對抗式檢查，找出哪裡其實沒做好</td></tr>
+      <tr><td>交接</td><td>寫交接檔，讓別的 session 或別的 AI 接手（見〈管理 session〉）</td></tr>
+    </tbody></table></div>
+  <h3>指令有沒有送到</h3>
+  <p>送出後回覆框上方會顯示「已送出…，等 session 接手」，直到它真的開始處理才消失。session 正在忙時指令會先排隊，這段時間這行字會一直在。</p>
+  <ul class="plain">
+    <li><b>已重送</b>：第一次沒進到對話，辦公室自動再送一次。</li>
+    <li><b>沒送到</b>（紅字）：重送後還是沒進去，例如你在 terminal 按了中斷，排隊中的指令會被清掉。請再傳一次，或到它的 terminal 輸入。</li>
+  </ul>
+  <div class="note">網頁上的匯報只是最新一輪的副本；完整對話一直在那個 session 的 terminal 分頁裡。</div>
+</section>
+
+<section id="blocked">
+  <h2><span class="no">05</span>卡住等你</h2>
+  <p>同事卡住等你有兩種，兩種都能在網頁上解決。被 auto mode 擋下的操作不會跳對話框，它會在匯報裡說明，你在回覆框打「允許」就好。</p>
+  <div class="cards">
+    <div class="card"><h4>它用選擇題問你</h4><dl><dt>視窗裡</dt><dd>題目和選項按鈕</dd><dt>怎麼處理</dt><dd>點選項（複選題再按「送出答案」），或直接打字回答；terminal 也能答，先答的算數</dd></dl></div>
+    <div class="card"><h4>它在等權限確認</h4><dl><dt>視窗裡</dt><dd>它要跑的指令，和「允許」「拒絕」兩顆按鈕</dd><dt>怎麼處理</dt><dd>直接在網頁上按，手機也可以；Mac 的 terminal 對話框也照常出現，誰先按算誰</dd></dl></div>
+  </div>
+  <p>權限沒處理前，從網頁送的回覆都會排在後面等。</p>
+</section>
+
+<section id="tutor">
+  <h2><span class="no">06</span>英文小老師</h2>
+  <p>辦公室外左下有一張獨立的桌子。點她打開翻譯視窗，貼上文字按「逐段翻譯」，原文和譯文一段一段對照列出，翻好一段先顯示一段。看不懂的地方打問題按「問老師」。</p>
+  <figure class="shot" data-shot="tutor"><div class="frame"><div class="imgbox"><img src="img/tutor.jpg" width="2204" height="1386" alt="英文小老師視窗"></div></div>
+    <figcaption><span>示範資料。</span><span>點圖放大</span></figcaption></figure>
+  <ol class="legend" data-for="tutor"></ol>
+  <div class="cards">
+    <div class="card"><h4>翻譯方向固定</h4><p>中文段落翻成英文，其他翻成繁體中文；程式碼、指令、檔名不翻。解釋一律用中文，不跟著右上的中 / EN 切換。</p></div>
+    <div class="card"><h4>用你自己的額度</h4><p>她直接在頁面裡問 Claude，用的是你的 claude.ai 用量，不需要橋接。第一次使用時 claude.ai 會跳出「Use Claude」要你允許。</p></div>
+    <div class="card"><h4>不想看到她</h4><p>在 <code>~/.claude/office/config.json</code> 設 <code>"tutor": false</code>，她和桌子就會從辦公室拿掉。</p></div>
+  </div>
+</section>
+
+<section id="manage">
+  <h2><span class="no">07</span>管理 session</h2>
+  <p>這些操作在匯報視窗底部或頁首，按下去由橋接送進對應的 session 執行。</p>
+  <div class="tw"><table>
+    <thead><tr><th>操作</th><th>在哪裡</th><th>效果</th></tr></thead>
+    <tbody>
+      <tr><td>＋ 新開 session</td><td>頁首右上</td><td>填目錄、桌牌、第一個任務（後兩個可空），幾秒後新同事進來坐下</td></tr>
+      <tr><td>壓縮對話</td><td>匯報視窗</td><td>送 <code>/compact</code>；context 快滿時用，血條會回升</td></tr>
+      <tr><td>清空對話</td><td>匯報視窗</td><td>送 <code>/clear</code>；開始全新對話，桌牌和匯報一起清掉</td></tr>
+      <tr><td>換模型</td><td>匯報視窗下方的「模型：…」選單</td><td>選單第一行是目前的模型；可選 Fable、Opus、Sonnet、Haiku，選了會顯示「換成 … 中」，換好就變回「模型：…」</td></tr>
+      <tr><td>交接給 Codex</td><td>用量快沒了時，匯報視窗會出現提示</td><td>5 小時用量剩 15% 以下時按「請它交接」，它寫好交接檔後按「開 Codex 接手」，橋接會在新的 iTerm 分頁開 Codex 接著做</td></tr>
+      <tr><td>開除</td><td>匯報視窗右下</td><td>要再按一次「確定開除」；結束 session 並關掉分頁</td></tr>
+      <tr><td>改名</td><td>匯報視窗標題旁的 ✎</td><td>打新名字按 Enter；也可以在 terminal 打 <code>/office name 新名字</code> 或 <code>/rename 新名字</code>，或直接叫 session 改名。桌牌、名單和 session 標題一起換</td></tr>
+    </tbody></table></div>
+</section>
+
+<section id="mobile">
+  <h2><span class="no">08</span>在手機上用</h2>
+  <p>用同一個 claude.ai 帳號在手機打開同一個連結，就能看進度、回覆、派工。權限確認也能在手機上按允許或拒絕。</p>
+  <h3>出門前檢查</h3>
+  <ul class="check">
+    <li>Mac 接著電源</li>
+    <li>蓋子打開（闔蓋會睡著，所有 session 停住）</li>
+    <li>手機打開頁面，看得到同事、上方沒有「橋接視窗沒在跑」</li>
+  </ul>
+  <p>Mac 睡著時從手機送的回覆不會不見，會等 Mac 醒來再送進去。</p>
+</section>
+
+<section id="more">
+  <h2><span class="no">09</span>其他功能</h2>
+  <div class="cards">
+    <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。太久沒用 Codex 時，名牌會標資料是多久前的。</p></div>
+    <div class="card"><h4>Jira 我的票</h4><p>橋接每 2 分鐘抓一次。票號出現在某個 session 的桌牌或任務裡，票就會標綠框並附上那位同事，點了打開它。</p></div>
+    <div class="card"><h4>中 / EN</h4><p>頁首切換介面語言，記在這台瀏覽器；各 session 自己寫的回覆不會翻譯。</p></div>
+    <div class="card"><h4>窗外景色</h4><p>跟著台北當地時間日出、白天、黃昏、黑夜。網址加 <code>#t1830</code> 可以預覽 18:30 的樣子。</p></div>
+  </div>
+</section>
+
+<section id="tokens">
+  <h2><span class="no">10</span>會不會燒 token</h2>
+  <p>不會多燒。辦公室搬資料、畫畫面都不經過模型，只有你本來就會花的量，再加上每輪一行很短的提示。</p>
+  <h3>不花 token 的部分</h3>
+  <div class="cards">
+    <div class="card"><h4>同事走動、匯報</h4><p>session 的狀態由 office mod 直接寫進 Mac 上的檔案。mod 是 Claude Code 跑的一段程式，不是叫模型去做。</p></div>
+    <div class="card"><h4>橋接分頁</h4><p>同步也是 mod 程式定時跑，把桌卡搬上網頁、把你的回覆搬回來。分頁整天開著也沒有任何對話。</p></div>
+    <div class="card"><h4>網頁、Jira、Codex 用量</h4><p>畫面在你的瀏覽器裡畫；Jira 的票和 Codex 用量由 mod 自己抓，模型不參與。</p></div>
+  </div>
+  <h3>會用到 token 的部分</h3>
+  <div class="tw"><table>
+    <thead><tr><th>哪裡</th><th>用多少</th></tr></thead>
+    <tbody>
+      <tr><td>每輪附加的一行提示</td><td>請 session 需要你決定時加上「要你決定」段落；每輪約 130 個 token；實測一個月加起來不到 US$1</td></tr>
+      <tr><td>從網頁回覆或派工</td><td>你打的字會送進那個 session，跟在 terminal 打字一樣，不會多</td></tr>
+      <tr><td>英文小老師</td><td>只有按「逐段翻譯」或「問老師」時才用你的 claude.ai 額度；沒按就不用</td></tr>
+    </tbody></table></div>
+</section>
+
+<section id="faq">
+  <h2><span class="no">11</span>常見問題</h2>
+  <div class="faq">
+    <div class="card"><h4>上方出現橘色「橋接視窗沒在跑」</h4><div class="why">橋接 session 關了，或 Mac 睡著</div><p>看門狗一分鐘內會自動重開；Mac 睡著就先叫醒它。</p></div>
+    <div class="card"><h4>全部同事都「離線」</h4><div class="why">Mac 睡著或斷網</div><p>叫醒 Mac，重新連線後幾分鐘內恢復。</p></div>
+    <div class="card"><h4>送出回覆後一直「等 session 接手」</h4><div class="why">它卡在 terminal 的權限對話框</div><p>切到它的分頁按允許或拒絕。</p></div>
+    <div class="card"><h4>匯報視窗寫「還沒有匯報過」</h4><div class="why">它還沒做完一輪，或匯報被清掉</div><p>等它做完下一輪；完整對話在它的 terminal 分頁。</p></div>
+    <div class="card"><h4>新開的 session 沒出現</h4><div class="why">那個分頁沒載入 office mod</div><p>確認是從設定好的 shell 開的；已經開著的 session 要重開才會載入。</p></div>
+    <div class="card"><h4>英文小老師沒反應</h4><div class="why">第一次使用時沒按允許，或額度用完</div><p>重新整理頁面再試一次，claude.ai 會再問一次要不要允許。</p></div>
+  </div>
+</section>
+</main>
+</div>
+
+<dialog class="zoom" id="zoom" aria-label="放大的截圖"><button class="close" id="zoom-close">關閉</button><div id="zoom-body"></div></dialog>
+
+<script>
+// pins: [x%, y%, title, detail], numbered in order
+const PINS = {
+  office: [
+    [9, 17.5, '名單', '依「等你處理 → 工作中 → 閒置 → 離線」分組，點一列打開匯報視窗'],
+    [72.2, 4.2, '橋接燈', '綠燈加上次同步時間；橋接掛掉會轉紅'],
+    [95, 9.6, '＋ 新開 session', '填目錄和第一個任務，開一位新同事'],
+    [36.4, 33.2, '你和你的用量', '頭上兩條是 5 小時和每週用量還剩多少'],
+    [19.6, 41.4, 'Codex 秘書', '頭上是 Codex 用量；太久沒更新名牌會標多久前'],
+    [24.4, 58, '來匯報的同事', '在你桌前排隊，前三位在桌前，其餘在門外'],
+    [44.8, 41.4, '要你決定', '排第一位的同事有要你決定的事，泡泡只列那幾件'],
+    [56.6, 21, '窗外', '跟著台北時間日出、黃昏、黑夜'],
+    [74.4, 12, 'Jira 我的票', '指派給你、還沒完成的票，依狀態分組'],
+    [60.6, 44, '工作中的同事', '坐在自己的位子上，頭上是名牌和 context 血條'],
+    [18.4, 70.4, '時鐘', '目前時間'],
+    [30.6, 85, '英文小老師', '辦公室外左下，點她翻譯或問英文'],
+    [58.6, 78.4, '空桌', '永遠多擺一組，給下一位新同事'],
+  ],
+  report: [
+    [76.1, 3.3, '改名 ✎', '標題變成輸入框，Enter 存檔；session 標題也會跟著換'],
+    [79.9, 3.3, '複製傳訊名稱', '別的 session 傳訊息給它時用的名字'],
+    [89.3, 3.6, '狀態', '來匯報、工作中或卡住等你'],
+    [-0.3, 15.7, '資訊列', '座位、模型、effort、專案、分支、context 剩多少、花費'],
+    [-0.3, 21.5, '任務', '它這一輪在做什麼'],
+    [-0.3, 28.5, '匯報內容', '這一輪的回覆，支援表格和程式碼'],
+    [-0.3, 53, '要你決定', '獨立成橘色框，每件一句問題＋選項＋建議'],
+    [-0.3, 78.8, '回覆框', 'Enter 送出、Shift+Enter 換行，可以直接貼截圖'],
+    [92.8, 80.5, '送出', '它接到後回座位開工'],
+    [1.7, 90, '收到，回座位', '不用回覆、看過就好時按'],
+    [13.4, 90, '壓縮／清空對話', '送 /compact 或 /clear'],
+    [82.4, 90, '開除', '結束 session，要再按一次確認'],
+  ],
+  tutor: [
+    [73.4, 5.2, '翻譯方向', '中文翻英文，其他翻繁體中文'],
+    [-0.3, 14, '原文', '一個空行算一段；沒有空行就一行一段'],
+    [48.8, 14, '譯文', '翻好一段先顯示一段'],
+    [48.8, 22.6, '小提醒', '這段裡值得學的用字或說法，沒有就不寫'],
+    [57, 26.4, '複製', '只複製這一段的譯文'],
+    [-0.3, 48.4, '你問的問題', '按「問老師」送出的問題'],
+    [-0.3, 55, '老師的回答', '用中文解釋，會參考上面的翻譯'],
+    [-0.3, 79, '輸入框', 'Enter 換行，⌘/Ctrl+Enter 直接逐段翻譯'],
+    [1.8, 91.6, '逐段翻譯', '翻譯輸入框裡的文字'],
+    [10.8, 91.6, '問老師', '把輸入框的文字當問題問她'],
+    [18.7, 91.6, '複製全部譯文', '整份譯文一次複製'],
+  ],
+};
+function pinsFor(name) {
+  return PINS[name].map(([x, y], i) => { const p = document.createElement('span'); p.className = 'pin'; p.textContent = i + 1; p.style.left = x + '%'; p.style.top = y + '%'; p.dataset.i = i; return p; });
+}
+for (const fig of document.querySelectorAll('figure.shot')) {
+  const name = fig.dataset.shot, frame = fig.querySelector('.frame');
+  frame.querySelector('.imgbox').append(...pinsFor(name));
+  const legend = document.querySelector(`.legend[data-for="${name}"]`);
+  PINS[name].forEach(([, , title, detail], i) => {
+    const li = document.createElement('li'); li.tabIndex = 0;
+    li.innerHTML = `<div class="n">${i + 1}</div><div><b></b><span></span></div>`;
+    li.querySelector('b').textContent = title; li.querySelector('span').textContent = detail;
+    const pin = frame.querySelector(`.pin[data-i="${i}"]`);
+    const on = v => pin.classList.toggle('on', v);
+    li.addEventListener('mouseenter', () => on(true)); li.addEventListener('mouseleave', () => on(false));
+    li.addEventListener('focus', () => on(true)); li.addEventListener('blur', () => on(false));
+    legend.append(li);
+  });
+  frame.addEventListener('click', () => {
+    const body = document.getElementById('zoom-body'); body.replaceChildren(frame.cloneNode(true));
+    const d = document.getElementById('zoom'); if (d.showModal) d.showModal();
+  });
+}
+const zoom = document.getElementById('zoom');
+document.getElementById('zoom-close').addEventListener('click', () => zoom.close());
+zoom.addEventListener('click', e => { if (e.target === zoom || e.target.closest('.frame')) zoom.close(); });
+</script>
