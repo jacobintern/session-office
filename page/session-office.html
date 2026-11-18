@@ -89,7 +89,7 @@
   header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 20px; }
   h1 { font-family: var(--display); font-weight: 700; font-size: 1.35rem; letter-spacing: .02em; margin: 0; text-wrap: balance; }
   .sub { color: var(--muted); font-size: .9rem; margin: 0; }
-  .stat { margin-left: auto; display: flex; gap: 14px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .stat { margin-left: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font-size: .85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
   .stat b { color: var(--fg); font-weight: 600; }
   .bridge { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .bridge i { width: 8px; height: 8px; border-radius: 50%; background: var(--idle); }
@@ -1001,7 +1001,7 @@
     const onSpot = a.target && Math.abs(a.x - a.target.x) < 2 && Math.abs(a.y - a.target.y) < 2;
     const dir = a.walking ? (a.dir || 'down') : a.atBoss ? (a.queue === 0 && onSpot ? 'up' : 'left') : (a.slot.face || 'down');
     drawSprite(charOf(id), dir, col, x, y + 12);
-    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
+    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : isLost(d) ? LOST_RED : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
     // health = context window still free
     if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
     ctx.globalAlpha = 1;
@@ -1940,7 +1940,8 @@
         if (el.textContent !== ic.text) el.textContent = ic.text;
         el.className = 'hicon ' + ic.cls; el.title = ic.title;
         el.style.left = (ox + a.x * k) + 'px'; // above the name tag and HP bar; neighbours in the queue stand closer than an icon is wide, so every other one sits a step higher
-        el.style.top = (oy + (a.y - 90) * k - (a.queue > 0 && a.queue % 2 ? 22 : 0)) + 'px';
+        // a lost tag sits right on top of the name tag, so it reads as that dog's and not its neighbour's
+        el.style.top = (oy + (a.y - (ic.cls === 'lost' ? 78 : 90)) * k - (a.queue > 0 && a.queue % 2 ? 22 : 0)) + 'px';
       }
     }
     for (const [id, el] of hicons) if (!want.has(id)) { el.remove(); hicons.delete(id); }
