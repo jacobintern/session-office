@@ -141,6 +141,9 @@
   .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
   .pill { flex: none; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; color: var(--bg); }
   .pill.working { background: var(--ok); } .pill.reporting { background: var(--wait); } .pill.idle, .pill.gone { background: var(--idle); }
+  .dup { flex: none; font-size: .68rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 999px; padding: 0 6px; }
+  .copyname { flex: none; font: inherit; font-size: .75rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+  .copyname:hover, .copyname:focus-visible { color: var(--fg); border-color: var(--muted); outline: none; }
   .meta { font-size: .75rem; color: var(--muted); font-variant-numeric: tabular-nums; flex: none; }
   .modal { position: fixed; inset: 0; background: rgba(20,16,12,.55); display: flex; align-items: center; justify-content: center; padding: max(16px, env(safe-area-inset-left, 0px)); z-index: 20; }
   .panel { background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 8px; width: min(1100px, 100%); max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
@@ -248,7 +251,7 @@
 
   <div class="modal" id="modal" hidden>
     <div class="panel" role="dialog" aria-modal="true" aria-labelledby="m-title">
-      <header><span class="dot" id="m-dot"></span><span class="label" id="m-title"></span><span class="pill" id="m-pill"></span><button type="button" class="close" id="m-close" aria-label="關閉">×</button></header>
+      <header><span class="dot" id="m-dot"></span><span class="label" id="m-title"></span><span class="dup" id="m-dup" hidden></span><button type="button" class="copyname" id="m-copyname" hidden></button><span class="pill" id="m-pill"></span><button type="button" class="close" id="m-close" aria-label="關閉">×</button></header>
       <div class="body">
         <div class="branch" id="m-branch"></div>
         <div class="line" id="m-task"></div>
@@ -320,6 +323,7 @@
 
   const STALE_MS = 2 * 60 * 1000, GONE_MS = 30 * 60 * 1000;
   let desks = new Map();      // id -> doc data
+  let dupNames = new Set();
   let actors = new Map();     // id -> animation state
   let db = null, canWrite = true;
   let hover = null;
@@ -360,6 +364,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
+      copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -399,6 +404,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
+      copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -1144,6 +1150,11 @@
     }
     groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
     const titles = { waiting: tt('waitingYou'), working: tt('working'), idle: tt('idle'), gone: tt('gone') };
+    // two live sessions with one name cannot be told apart when messaging by name
+    const nameKey = d => (d.title || '').trim().toLowerCase();
+    const counts = new Map();
+    for (const d of live) if (nameKey(d)) counts.set(nameKey(d), (counts.get(nameKey(d)) || 0) + 1);
+    dupNames = new Set([...counts].filter(([, n]) => n > 1).map(([k]) => k));
     const parts = [];
     for (const key of ['waiting', 'working', 'idle', 'gone']) {
       if (key === 'gone' && !groups.gone.length) continue;
@@ -1155,6 +1166,7 @@
         el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
+        if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
         el.title = d.blocked ? tt('blocked') : key === 'waiting' ? tt('reporting') : titles[key];
         el.addEventListener('click', () => openModal(d.id));
@@ -1279,6 +1291,10 @@
     const st = effState(d), lv = liveness(d);
     const pending = !!(d.instructionAt && !(d.instructionDoneAt >= d.instructionAt));
     document.getElementById('m-title').textContent = d.title || d.label || d.id;
+    const copyBtn = document.getElementById('m-copyname'); copyBtn.hidden = !d.title || lv !== 'live';
+    copyBtn.textContent = tt('copyName'); copyBtn.title = tt('copyNameHint');
+    const dupEl = document.getElementById('m-dup'); dupEl.hidden = lv !== 'live' || !dupNames.has((d.title || '').trim().toLowerCase());
+    dupEl.textContent = tt('dupName'); dupEl.title = tt('dupHint');
     const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
     const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? tt('blocked') : STATE_TEXT[st]) : tt('gone');
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
@@ -1563,6 +1579,7 @@
     finally { tutorBusy = false; tutorCtl = null; tGo.disabled = tAsk.disabled = false; tStop.hidden = true; }
   }
   tStop.addEventListener('click', () => tutorCtl?.abort());
+  document.getElementById('m-copyname').addEventListener('click', e => { const d = desks.get(modalId); if (d?.title) copyText(d.title, e.currentTarget, 'copyName', document.getElementById('m-title')); });
   function copyText(text, btn, label, fallbackEl) {
     const done = () => { btn.textContent = tt('tutorCopied'); setTimeout(() => { btn.textContent = tt(label); }, 1500); };
     navigator.clipboard.writeText(text).then(done, () => { if (fallbackEl) getSelection().selectAllChildren(fallbackEl); });

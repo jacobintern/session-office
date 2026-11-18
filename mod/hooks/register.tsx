@@ -143,7 +143,8 @@ function rename($: EngineInterface, title: string) {
 // picks this file up then (a hook can set the title only while a prompt enters)
 async function handTitle($: EngineInterface, title: string) {
   if (!me) return
-  try { await $.fs.write(`${hookDir()}/title-${me.id}`, JSON.stringify(title)) } catch { /* no hook dir: install.sh not rerun */ }
+  // the hook knows the session by its current id, which /clear changes while the desk keeps its own
+  try { await $.fs.write(`${hookDir()}/title-${await $.session.id()}`, JSON.stringify(title)) } catch { /* no hook dir: install.sh not rerun */ }
 }
 
 // The terminal shows a permission dialog: the session stops until someone answers
@@ -152,7 +153,7 @@ async function handTitle($: EngineInterface, title: string) {
 let permSeenAt = 0, permSettledAt = 0
 async function checkPermission($: EngineInterface) {
   if (!me) return
-  const path = `${hookDir()}/perm-${me.id}.json`
+  const path = `${hookDir()}/perm-${await $.session.id()}.json`
   try {
     if (!(await $.fs.exists(path))) return
     const { at, event: e } = JSON.parse(await $.fs.read(path)) as { at?: number; event?: { agent_id?: string; tool_name?: string; tool_input?: Record<string, unknown> } }
@@ -947,6 +948,8 @@ export const register: Register = on => {
       if (task) p.task = task
       if (task && !me.title) p.title = firstLine(e.text, 24)
       patch($, p)
+      // an unnamed session takes its nameplate as its title, so the name on the page is the name to message it by
+      if (p.title) void handTitle($, p.title)
     }
     return next(e)
   })
