@@ -278,7 +278,7 @@
       <div class="shots" id="m-shots" hidden></div>
       <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button></form>
       <div class="reply-hint" id="m-reply-hint"></div>
-      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"><option value=""></option><option value="/model opus"></option><option value="/model sonnet"></option><option value="/fast"></option></select><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
     </div>
   </div>
 
@@ -378,7 +378,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型／快速模式…', modelOpus: '換成 Opus', modelSonnet: '換成 Sonnet', fastToggle: '切換快速模式', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -418,7 +418,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model / fast mode…', modelOpus: 'Switch to Opus', modelSonnet: 'Switch to Sonnet', fastToggle: 'Toggle fast mode', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -461,7 +461,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); { const o = document.getElementById('m-model').options; [['modelPick'], ['modelOpus'], ['modelSonnet'], ['fastToggle']].forEach(([k], i) => { o[i].textContent = tt(k); }); } set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -1383,6 +1383,7 @@
     const costText = typeof d.cost === 'number' ? tt('cost', { c: d.cost.toFixed(2) }) : '';
     const modelText = modelName(d.model), effortText = d.effort ? tt('effortLabel', { e: d.effort }) : '';
     document.getElementById('m-branch').textContent = [d.seat ? tt('seat', { n: d.seat }) : '', modelText, effortText, d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    fillModelPick(d);
     fillHandoff(d, lv);
     document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + (st === 'working' && d.activity ? '　·　' + trMod(d.activity) : '');
     const { decide, rest } = splitDecide(d.report);
@@ -1691,9 +1692,28 @@
     if (!id || !db || !canWrite) return false;
     try { await db.doc('desks/' + id).update({ instruction: text, instructionAt: now() }); return true; } catch (e) { console.warn('instruction failed', e); return false; }
   }
+  // The model picker: what the session runs now is the first line and ticked; picking another
+  // sends /model, and the first line says so until the desk reports the new model
+  const MODELS = [['claude-fable-5-1', 'claude-fable-5-1'], ['opus[1m]', 'claude-opus-5-5'], ['sonnet', 'claude-sonnet-5-5'], ['haiku', 'claude-haiku-5-5']];
+  const modelSwitch = {};
+  function fillModelPick(d) {
+    const sel = document.getElementById('m-model'), cur = modelName(d.model);
+    const pend = modelSwitch[modalId];
+    if (pend && (modelName(pend.id) === cur || now() - pend.at > 60000)) delete modelSwitch[modalId];
+    const head = modelSwitch[modalId] ? tt('modelSwitching', { m: modelName(modelSwitch[modalId].id) }) : tt('modelPick', { m: cur || '—' });
+    const want = [head, ...MODELS.map(([, id]) => (modelName(id) === cur ? '✓ ' : '') + modelName(id))].join('|');
+    if (sel.dataset.shown === want) return;
+    sel.dataset.shown = want;
+    sel.replaceChildren(new Option(head, ''), ...MODELS.map(([arg, id]) => { const o = new Option((modelName(id) === cur ? '✓ ' : '') + modelName(id), arg); o.disabled = modelName(id) === cur; return o; }));
+    sel.value = '';
+    sel.disabled = !canWrite;
+  }
   document.getElementById('m-model').addEventListener('change', async e => {
     const v = e.target.value; e.target.value = '';
-    if (v) await instruct(modalId, v);
+    const m = MODELS.find(([arg]) => arg === v);
+    if (!m || !(await instruct(modalId, '/model ' + v))) return;
+    modelSwitch[modalId] = { id: m[1], at: now() };
+    const d = desks.get(modalId); if (d) fillModelPick(d);
   });
   // Before the 5-hour usage runs out: ask for a handoff, then let Codex take over from it
   const HANDOFF_ASK = '用量快用完了。請執行 /ai:handoff 寫交接檔，最後把要貼給下一個 agent 的第一句話放在 ```handoff 程式碼區塊裡（接手的可能是 Codex，沒有你的 skill，所以那句話要自己說得清楚）。';

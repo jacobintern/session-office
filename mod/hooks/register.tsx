@@ -190,6 +190,10 @@ async function checkPermission($: EngineInterface) {
 // After a turn: background work still running means the colleague is waiting on
 // it, not on you, so it stays at its desk as working, unless it asks you something.
 const DECIDE_RE = /^#{1,3}\s*(要你決定|Decisions for you)\s*$/m
+async function noteModel($: EngineInterface) {
+  try { const model = await $.session.model(); if (me && model && model !== me.model) patch($, { model }) } catch { /* the next turn reports it */ }
+}
+
 async function checkBackground($: EngineInterface, turnAt: number) {
   if (!me || me.state !== 'reporting' || me.reportedAt !== turnAt || me.blocked || DECIDE_RE.test(me.report)) return
   const kinds: string[] = []
@@ -306,6 +310,7 @@ async function takeInstruction($: EngineInterface) {
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
       else patch($, { activity: `執行 /${name}` })
       await $.command.run({ command: name, args: rest.join(' ') })
+      if (name === 'model') await noteModel($)
       return
     }
     patch($, { state: 'working', activity: '收到辦公室的指令', task: firstLine(instruction, 80) })
@@ -933,6 +938,13 @@ export const register: Register = on => {
     return result
   })
   // /compact refills the health bar: read the new fill once it is done
+  // /model typed in the terminal: the page shows the new model now, not at the next turn
+  on('command.run', { command: 'model' }, async ($, e, next) => {
+    const result = await next(e)
+    await noteModel($)
+    return result
+  })
+
   on('command.run', { command: 'compact' }, async ($, e, next) => {
     const result = await next(e)
     if (me) { await refreshUsage($); await saveDesk($) }
