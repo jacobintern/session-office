@@ -2,17 +2,24 @@
 # Settings hooks for Session Office; install.sh adds them to ~/.claude/settings.json.
 # A mod's hook on this event can be cut off by another plugin that runs first,
 # so it lives here, where every settings hook runs.
+#   office-hook.sh stop        Stop: leaves the background work still running at the
+#                              end of a turn (subagents, shells, workflows) for the mod
 #   office-hook.sh permission  PermissionRequest: tells the office the session
 #                              waits on a permission dialog, then waits up to
 #                              10 minutes for 允許 / 拒絕 from the page while the
 #                              terminal dialog stays up; whichever answers first wins
 dir="${OFFICE_HOOK_DIR:-$HOME/.claude/office/hook}"   # OFFICE_HOOK_DIR: for tests
 # leftovers of sessions that have ended (title-* came from an older version)
-find "$dir" \( -name 'title-*' -o -name 'perm-*' -mtime +1 \) -delete 2>/dev/null
+find "$dir" \( -name 'title-*' -o \( -name 'perm-*' -o -name 'bg-*' -o -name 'settled-*' \) -mtime +1 \) -delete 2>/dev/null
 input=$(cat)
 sid=$(print -r -- "$input" | grep -o '"session_id" *: *"[A-Za-z0-9-]*"' | head -1 | sed 's/.*"\([A-Za-z0-9-]*\)"$/\1/')
 [ -n "$sid" ] || exit 0
 case "$1" in
+  stop)
+    zmodload zsh/datetime
+    mkdir -p "$dir"
+    print -r -- "{\"at\":${$(( EPOCHREALTIME * 1000 ))%.*},\"event\":$input}" > "$dir/bg-$sid.json"
+    ;;
   permission)
     mkdir -p "$dir"
     zmodload zsh/datetime

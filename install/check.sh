@@ -39,7 +39,7 @@ else
 fi
 
 if grep -q 'office-hook.sh' "$HOME/.claude/settings.json" 2>/dev/null && [ -x "$office/office-hook.sh" ]; then
-  pass "settings hook (permission dialogs on the page)"
+  pass "settings hooks (permission dialogs, background work)"
 else
   warn "settings hook not installed" "run install/install.sh again; without it permission dialogs do not show on the page"
 fi

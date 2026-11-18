@@ -3,8 +3,8 @@
 #   ~/.claude/office/            desk cards, inbox, config.json (from the example)
 #   bridge-watchdog.sh           keeps one bridge session running in iTerm2
 #   a LaunchAgent                runs the watchdog at login and every minute
-#   office-hook.sh               a settings hook in ~/.claude/settings.json that
-#                                shows permission dialogs on the page
+#   office-hook.sh               settings hooks in ~/.claude/settings.json: permission
+#                                dialogs on the page, background work after a turn
 # Usage: install.sh [--no-launchd] | --uninstall | --check
 set -e
 here=${0:A:h}
@@ -23,10 +23,11 @@ let s = {}
 try { s = JSON.parse(fs.readFileSync(file, 'utf8')) } catch (e) { if (fs.existsSync(file)) { console.error(`${file} is not valid JSON; left it alone.`); process.exit(0) } }
 s.hooks = s.hooks || {}
 const ours = h => typeof h.command === 'string' && h.command.includes('office-hook.sh')
-for (const ev of ['UserPromptSubmit', 'PermissionRequest']) {
+for (const ev of ['UserPromptSubmit', 'PermissionRequest', 'Stop']) {
   s.hooks[ev] = (s.hooks[ev] || []).map(g => ({ ...g, hooks: (g.hooks || []).filter(h => !ours(h)) })).filter(g => g.hooks.length)
   // UserPromptSubmit only to remove the title hook of an older version
   if (mode === 'add' && ev === 'PermissionRequest') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" permission`, timeout: 610 }] })
+  if (mode === 'add' && ev === 'Stop') s.hooks[ev].push({ hooks: [{ type: 'command', command: `/bin/zsh "${script}" stop`, timeout: 5 }] })
   if (!s.hooks[ev].length) delete s.hooks[ev]
 }
 if (fs.existsSync(file)) fs.copyFileSync(file, file + '.bak-session-office')

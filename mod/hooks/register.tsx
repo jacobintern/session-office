@@ -49,6 +49,8 @@ type Desk = {
   tty: string | null
   /** Set while the session waits on something only the person at the terminal can answer. */
   blocked: 'permission' | 'question' | null
+  /** Background work (subagents, shells, workflows) still running after the last turn: the colleague keeps working at its desk. */
+  bg?: { n: number; kinds: string[] } | null
   /** The main loop's model and effort as of its last request: the page shows them. */
   model?: string | null
   effort?: string | null
@@ -183,6 +185,27 @@ async function checkPermission($: EngineInterface) {
     const detail = typeof command === 'string' ? '\n\n```\n' + command.slice(0, 600) + '\n```' : ''
     patch($, { state: 'reporting', activity: '等你確認權限', blocked: 'permission', perm: { at, sid }, reportedAt: Date.now(), report: `### 等你確認權限\n\n${what}${detail}\n\n_在下面按允許或拒絕，或到它的 terminal 分頁回答。_` })
   } catch { /* half-written; next round */ }
+}
+
+// After a turn: background work still running means the colleague is waiting on
+// it, not on you, so it stays at its desk as working, unless it asks you something.
+const DECIDE_RE = /^#{1,3}\s*(要你決定|Decisions for you)\s*$/m
+async function checkBackground($: EngineInterface, turnAt: number) {
+  if (!me || me.state !== 'reporting' || me.reportedAt !== turnAt || me.blocked || DECIDE_RE.test(me.report)) return
+  const kinds: string[] = []
+  try { for (const a of await $.agent.list()) if (a.status === 'running' || a.status === 'pending') kinds.push('subagent') } catch { /* none */ }
+  try {
+    const { at, event } = JSON.parse(await $.fs.read(`${hookDir()}/bg-${await $.session.id()}.json`)) as { at?: number; event?: { background_tasks?: Array<{ type?: string; status?: string }> } }
+    if (typeof at === 'number' && at >= turnAt - 10_000 && Array.isArray(event?.background_tasks)) {
+      const fromHook = event.background_tasks.filter(t => !t.status || /running|pending/i.test(t.status)).map(t => t.type || 'task')
+      // the hook lists subagents too: prefer its list when it has one
+      if (fromHook.length) kinds.splice(0, kinds.length, ...fromHook)
+    }
+  } catch { /* no Stop hook installed, or nothing written */ }
+  if (!kinds.length || !me || me.reportedAt !== turnAt) return
+  const NAMES: Record<string, string> = { subagent: '子代理', shell: '背景指令', workflow: 'workflow', monitor: '監看' }
+  const named = [...new Set(kinds.map(k => NAMES[k] ?? k))]
+  patch($, { state: 'working', activity: `等 ${kinds.length} 個背景工作（${named.join('、')}）`, bg: { n: kinds.length, kinds: [...new Set(kinds)] } })
 }
 
 function patch($: EngineInterface, p: Partial<Desk>, options: { throttle?: boolean } = {}) {
@@ -957,7 +980,7 @@ export const register: Register = on => {
 
   on('turn.start', async ($, e, next) => {
     if (e.agentId === undefined && me) {
-      const p: Partial<Desk> = { state: 'working', activity: '思考中' }
+      const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null }
       const task = isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
       if (task) p.task = task
       if (task && !me.title) p.title = firstLine(e.text, 24)
@@ -1012,7 +1035,9 @@ export const register: Register = on => {
         const report = (e.answer ?? '').trim().slice(0, 4000) || `_（這輪沒有文字回覆：${e.reason === 'error' ? 'API 錯誤' : e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`
         const at = Date.now()
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
-        patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history })
+        patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        // the Stop settings hook writes what is still running a moment later
+        $.clock.after(1500, () => { void checkBackground($, at) })
       }
     }
     return next(e)

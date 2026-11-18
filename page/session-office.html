@@ -141,6 +141,7 @@
   .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
   .pill { flex: none; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; color: var(--bg); }
   .pill.working { background: var(--ok); } .pill.reporting { background: var(--wait); } .pill.idle, .pill.gone { background: var(--idle); }
+  .dup.bgwait { color: var(--ok); border-color: var(--ok); }
   .dup { flex: none; font-size: .68rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 999px; padding: 0 6px; }
   .copyname { flex: none; font: inherit; font-size: .75rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
   .title-edit { flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; font-weight: 600; color: var(--fg); background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; }
@@ -377,7 +378,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型／快速模式…', modelOpus: '換成 Opus', modelSonnet: '換成 Sonnet', fastToggle: '切換快速模式', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型／快速模式…', modelOpus: '換成 Opus', modelSonnet: '換成 Sonnet', fastToggle: '切換快速模式', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -417,7 +418,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model / fast mode…', modelOpus: 'Switch to Opus', modelSonnet: 'Switch to Sonnet', fastToggle: 'Toggle fast mode', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model / fast mode…', modelOpus: 'Switch to Opus', modelSonnet: 'Switch to Sonnet', fastToggle: 'Toggle fast mode', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -947,7 +948,7 @@
     const onSpot = a.target && Math.abs(a.x - a.target.x) < 2 && Math.abs(a.y - a.target.y) < 2;
     const dir = a.walking ? (a.dir || 'down') : a.atBoss ? (a.queue === 0 && onSpot ? 'up' : 'left') : (a.slot.face || 'down');
     drawSprite(charOf(id), dir, col, x, y + 12);
-    nameTag(x, y - 56, d.title || d.label || '', faded ? css('--idle') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
+    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
     // health = context window still free
     if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
     ctx.globalAlpha = 1;
@@ -1184,6 +1185,7 @@
         el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
+        if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
         el.title = d.blocked ? tt('blocked') : key === 'waiting' ? tt('reporting') : titles[key];
@@ -1319,7 +1321,7 @@
     const dupEl = document.getElementById('m-dup'); dupEl.hidden = lv !== 'live' || !dupNames.has((d.title || '').trim().toLowerCase());
     dupEl.textContent = tt('dupName'); dupEl.title = tt('dupHint');
     const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
-    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? tt('blocked') : STATE_TEXT[st]) : tt('gone');
+    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? tt('blocked') : st === 'working' && d.bg?.n ? tt('bgWait') : STATE_TEXT[st]) : tt('gone');
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
     blockedEl.textContent = d.blocked === 'question'
       ? (Array.isArray(d.ask) && d.ask.length ? tt('askOpts') : tt('askOld'))
