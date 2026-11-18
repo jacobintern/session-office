@@ -790,7 +790,7 @@
     // clouds pick up the sky: white by day, pink-orange at the edges of the day, dim at night
     const cloud = night > 0.5 ? mix('#c06a7e', '#2c3658', clamp01((night - 0.5) * 2)) : mix('#ffffff', '#ffc2a0', warm);
     [[0.12, 14], [0.33, 26], [0.58, 10], [0.8, 22]].forEach(([f, cy]) => { const cxp = x + w * f; px(cxp, y + cy, 44, 8, cloud); px(cxp + 8, y + cy - 5, 24, 6, cloud); px(cxp + 16, y + cy + 8, 20, 4, cloud + 'cc'); });
-    if (!reduced) kaiju(x, w, ground);
+    if (!reduced) kaiju(x, w, ground, night);
     // distant buildings (deterministic layout), the gap in the middle left for 101;
     // at dusk they turn to silhouettes and their windows come on
     const dim = clamp01((-el + 6) / 14);
@@ -833,25 +833,66 @@
       }
     }
   }
-  // A kaiju of our own (chibi, dark grey, yellow eyes, open jaws, back spikes)
+  // A kaiju of our own (chibi, dark grey, yellow eyes, open jaws, back plates)
   // wanders past behind the buildings: one 50 s crossing every 150 s (#kaiju: every 50 s).
-  function kaiju(x, w, ground) {
+  // Halfway it stops and breathes a blue beam at the sky; at night its plates glow.
+  const kaijuFrames = {};
+  function kaijuSprite(step, glow) {
+    const key = `${step}${glow ? 'g' : ''}`;
+    if (kaijuFrames[key]) return kaijuFrames[key];
+    // drawn on a grid of 3 px cells, facing right, then outlined
+    const W = 50, H = 40, U = 3, g = Array.from({ length: H }, () => Array(W).fill(''));
+    const set = (x, y, c) => { if (x >= 0 && y >= 0 && x < W && y < H) g[y][x] = c; };
+    const ell = (cx, cy, rx, ry, c, keep) => { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (((x + .5 - cx) / rx) ** 2 + ((y + .5 - cy) / ry) ** 2 <= 1 && (!keep || g[y][x])) set(x, y, c); };
+    const rect = (x0, y0, w, h, c) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) set(x, y, c); };
+    const tri = (x, y, h, c) => { for (let i = 0; i < h; i++) { const half = Math.floor((h - i) / 2); for (let d = -half; d <= half; d++) set(Math.round(x + d - i * .45), y - i, c); } };
+    // back plates first, so the body covers their bases
+    const plates = [[30, 6, 6], [26, 9, 8], [22, 13, 9], [18, 17, 9], [14, 22, 8], [11, 26, 7], [8, 30, 5], [6, 33, 4]];
+    for (const [x, y, h] of plates) tri(x, y, h, 'p');
+    for (const [x, y, h] of plates) tri(x + 1, y + 1, h - 2, 'q');
+    [[19, 31, 5], [14, 33, 4.4], [10, 35, 3.6], [6, 36, 2.8], [3, 36.5, 2], [1, 36, 1.4]].forEach(([x, y, r]) => ell(x, y, r, r * .85, 's')); // tail
+    const a = step ? 2 : -2;                                                          // which foot is forward
+    ell(20 - a, 32, 4.5, 4, 'd'); rect(17 - a, 35, 7, 3, 'd');                        // back leg
+    ell(24, 22, 10, 12, 's');                                                         // body
+    ell(28, 24, 5, 9, 'b', true);                                                     // belly, striped
+    for (let y = 16; y < 33; y += 2) for (let x = 0; x < W; x++) if (g[y][x] === 'b') set(x, y, 'B');
+    ell(24 + a, 32, 5, 4.2, 's'); rect(21 + a, 35, 8, 3, 's');                        // front leg
+    for (const cx of [22, 25, 28]) set(cx + a, 37, 'w');                              // toes
+    ell(32, 9, 8, 6.5, 's'); ell(39, 11, 5, 3.6, 's');                                // head, snout
+    rect(35, 13, 9, 1, 'm'); rect(35, 14, 8, 3, 'r');                                 // open jaws
+    for (const tx of [36, 38, 40, 42]) set(tx, 14, 'w');
+    for (const tx of [37, 39, 41]) set(tx, 16, 'w');
+    rect(33, 4, 6, 1, 'd');                                                           // brow
+    rect(34, 5, 4, 3, 'y'); rect(36, 6, 2, 2, 'k'); set(34, 5, 'w');                  // eye
+    ell(33, 21, 3.5, 2, 's'); rect(36, 21, 1, 2, 'w'); set(37, 22, 'w');              // arms, claws
+    ell(32, 25, 3, 1.8, 'd'); set(35, 25, 'w');
+    for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) if (g[y][x] === 's') { if (!g[y - 1]?.[x] || 'pq'.includes(g[y - 1][x])) set(x, y, 'h'); break; } // light from above
+    const pal = { o: '#1f2328', s: '#4b5059', h: '#5f6670', d: '#363a41', b: '#8e9387', B: '#7c8176', m: '#2a1d1e', r: '#b84a45', w: '#f4f4f0', y: '#f2c230', k: '#15171a',
+      p: glow ? '#8fe3ff' : '#aab3bd', q: glow ? '#3fb6f0' : '#7f8892' };
+    const c = document.createElement('canvas'); c.width = W * U; c.height = H * U;
+    const cx = c.getContext('2d');
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const v = g[y][x] || ([[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => g[y + dy]?.[x + dx]) ? 'o' : '');
+      if (v) { cx.fillStyle = pal[v]; cx.fillRect(x * U, y * U, U, U); }
+    }
+    return (kaijuFrames[key] = c);
+  }
+  function kaiju(x, w, ground, night) {
     const period = location.hash.includes('kaiju') ? 50 : 150, t = (now() / 1000) % period;
     if (t >= 50) return;
-    const kx = Math.round(x - 90 + (w + 180) * (t / 50)), top = ground - 104 + Math.round(Math.abs(Math.sin(t * 3)) * 2);
-    const k = (dx, dy, bw, bh, c) => px(kx + dx, top + dy, bw, bh, c);
-    const skin = '#4b5059', dark = '#33373e', belly = '#6c727c', spike = '#8a919b', white = '#f4f4f0';
-    k(-60, 80, 22, 10, dark); k(-46, 72, 22, 14, skin);                              // tail
-    for (let sy = 6; sy <= 74; sy += 12) { k(-40, sy, 11, 9, spike); k(-45, sy + 2, 5, 5, spike); } // back spikes
-    k(-32, 50, 50, 46, skin); k(-32, 50, 4, 46, dark); k(-2, 58, 18, 36, belly);     // round body
-    k(-26, 0, 48, 6, skin); k(-32, 4, 60, 46, skin); k(28, 24, 12, 10, skin);         // big head, snout
-    k(10, 13, 18, 4, dark);                                                           // angry brow
-    k(12, 17, 11, 9, '#f2c230'); k(18, 19, 4, 6, '#15171a');                          // yellow eye
-    k(14, 32, 24, 13, '#c9504a'); k(14, 32, 24, 2, dark);                             // open jaws
-    for (const tx of [15, 22, 29, 34]) k(tx, 34, 4, 4, white);                        // top teeth
-    for (const tx of [18, 25, 32]) k(tx, 41, 4, 4, white);                            // bottom teeth
-    k(16, 60, 11, 8, skin); k(25, 64, 4, 4, white);                                   // little arm, claw
-    k(-24, 94, 15, 8, dark); k(2, 94, 15, 8, dark);                                   // feet
+    // walks 0-22 s, stands 22-28 s (charges, then breathes), walks on 28-50 s
+    const walked = t < 22 ? t : t < 28 ? 22 : t - 6, standing = t >= 22 && t < 28;
+    const kx = Math.round(x - 150 + (w + 300) * (walked / 44)), step = standing ? 0 : Math.floor(t * 2.5) % 2;
+    const breath = t >= 23.2 && t < 27.5, glow = night > 0.5 || (standing && t < 27.5);
+    ctx.drawImage(kaijuSprite(step, glow), kx, ground - 126 + step);
+    if (!breath) return;
+    // the beam leaves the jaws and climbs up-right out of the window, flickering
+    const mx = kx + 132, my = ground - 126 + 45, flick = Math.floor(t * 12) % 2;
+    for (let k = 0; k < 90; k++) {
+      const bx = mx + k * 5, by = my - k * 3.4;
+      px(bx - 5, by - 5, 10, 10, flick ? 'rgba(92,200,255,.55)' : 'rgba(92,200,255,.4)');
+      px(bx - 2, by - 2, 5, 5, '#e8fbff');
+    }
   }
   function plant(x, y) { px(x + 8, y + 22, 24, 14, css('--desk')); px(x + 4, y + 2, 32, 22, '#3f8f5a'); px(x + 12, y - 6, 16, 12, '#58b273'); }
 
