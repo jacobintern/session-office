@@ -131,7 +131,9 @@ async function branchOf($: EngineInterface, cwd: string) {
 // ---- worker: the desk card as a file ---------------------------------------
 
 // Context fill, cost and the account's rate limits, read at each turn's end and on the heartbeat.
-async function refreshUsage($: EngineInterface) {
+// The limits are what this session's last API call saw, so `limitsAt` moves only when a
+// turn just ended (`fresh`) or the numbers changed; an idle session must not look current.
+async function refreshUsage($: EngineInterface, fresh = false) {
   if (!me) return
   try {
     const u = await $.session.usage()
@@ -143,8 +145,9 @@ async function refreshUsage($: EngineInterface) {
     else me.ctx = { tokens, window: u.context.window, percent }
     me.cost = u.cost ? Math.round(u.cost.usd * 100) / 100 : null
     if (u.rateLimits.length) {
-      me.limits = u.rateLimits.map(r => ({ kind: r.kind, percentUsed: r.percentUsed, ...(r.resetsAt ? { resetsAt: r.resetsAt } : {}) }))
-      me.limitsAt = Date.now()
+      const limits = u.rateLimits.map(r => ({ kind: r.kind, percentUsed: r.percentUsed, ...(r.resetsAt ? { resetsAt: r.resetsAt } : {}) }))
+      if (fresh || JSON.stringify(limits) !== JSON.stringify(me.limits ?? null)) me.limitsAt = Date.now()
+      me.limits = limits
     }
   } catch (error) {
     report($, `usage could not be read: ${String(error)}`)
@@ -1411,7 +1414,7 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) runningTurn = null
     if (e.agentId === undefined && me) {
-      await refreshUsage($)
+      await refreshUsage($, true)
       if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })
       else {
         const report = (e.answer ?? '').trim().slice(0, 4000) || `_（這輪沒有文字回覆：${e.reason === 'error' ? 'API 錯誤' : e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`
