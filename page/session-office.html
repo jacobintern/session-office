@@ -207,6 +207,9 @@
   .board .note .del { grid-column: 2; grid-row: 1 / span 2; align-self: start; font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 1px 7px; cursor: pointer; }
   .board .note .del:hover { color: var(--accent); border-color: var(--accent); }
   .board .none { font-size: .82rem; color: var(--muted); }
+  .board .archive summary { cursor: pointer; font-size: .78rem; color: var(--muted); margin: 2px 0; }
+  .board .archive[open] summary { margin-bottom: 6px; }
+  .board .note.archived { opacity: .6; }
   .board-form { display: flex; gap: 8px; margin-top: 8px; }
   .board-form textarea { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; }
   .board-form button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 14px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
@@ -422,7 +425,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號或 repo，不在 git 裡就沒有專案）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有便條。你和同專案的 session 都可以寫；session 下一句開始前會自動讀到。', boardPh: '留給同專案的同事…（Enter 送出，Shift+Enter 換行）', boardPost: '貼上去', boardDel: '刪除', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號或 repo，不在 git 裡就沒有專案）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有便條。你和同專案的 session 都可以寫；session 下一句開始前會自動讀到。', boardPh: '留給同專案的同事…（Enter 送出，Shift+Enter 換行）', boardPost: '貼上去', boardDel: '刪除', boardArchived: '封存（{n}）：被新便條取代或已處理，只供追查', boardTopic: '主題 {t}', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -462,7 +465,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      project: 'Project: ', projectNone: 'none (press ✎ to type a topic; sessions of one topic share a board)', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket or repo; none outside git)', mates: 'Teammates: ', matesNone: 'no one else', boardSum: 'Board: {p} ({n})', boardEmpty: 'No notes yet. You and the sessions of this project can write here; a session reads it before its next turn.', boardPh: 'A note for this project’s sessions… (Enter sends, Shift+Enter for a new line)', boardPost: 'Post', boardDel: 'Delete', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', effortPick: 'Effort: {e}', effortHint: 'Takes effect on the next turn, no restart; this session only, the default for new sessions stays', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      project: 'Project: ', projectNone: 'none (press ✎ to type a topic; sessions of one topic share a board)', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket or repo; none outside git)', mates: 'Teammates: ', matesNone: 'no one else', boardSum: 'Board: {p} ({n})', boardEmpty: 'No notes yet. You and the sessions of this project can write here; a session reads it before its next turn.', boardPh: 'A note for this project’s sessions… (Enter sends, Shift+Enter for a new line)', boardPost: 'Post', boardDel: 'Delete', boardArchived: 'Archived ({n}): replaced by a newer note or done; for the record', boardTopic: 'topic {t}', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', effortPick: 'Effort: {e}', effortHint: 'Takes effect on the next turn, no restart; this session only, the default for new sessions stays', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -900,8 +903,9 @@
   // wanders past behind the buildings: one 50 s crossing every 150 s (#kaiju: every 50 s).
   // Halfway it stops and breathes a blue beam at the sky; at night its plates glow.
   const kaijuFrames = {};
-  function kaijuSprite(step, glow) {
-    const key = `${step}${glow ? 'g' : ''}`;
+  // `lit`: how many back plates glow, counted from the tail (0-8)
+  function kaijuSprite(step, lit) {
+    const key = `${step}-${lit}`;
     if (kaijuFrames[key]) return kaijuFrames[key];
     // drawn on a grid of 3 px cells, facing right, then outlined
     const W = 50, H = 40, U = 3, g = Array.from({ length: H }, () => Array(W).fill(''));
@@ -911,8 +915,8 @@
     const tri = (x, y, h, c) => { for (let i = 0; i < h; i++) { const half = Math.floor((h - i) / 2); for (let d = -half; d <= half; d++) set(Math.round(x + d - i * .45), y - i, c); } };
     // back plates first, so the body covers their bases
     const plates = [[30, 6, 6], [26, 9, 8], [22, 13, 9], [18, 17, 9], [14, 22, 8], [11, 26, 7], [8, 30, 5], [6, 33, 4]];
-    for (const [x, y, h] of plates) tri(x, y, h, 'p');
-    for (const [x, y, h] of plates) tri(x + 1, y + 1, h - 2, 'q');
+    plates.forEach(([x, y, h], i) => tri(x, y, h, i >= plates.length - lit ? 'P' : 'p'));
+    plates.forEach(([x, y, h], i) => tri(x + 1, y + 1, h - 2, i >= plates.length - lit ? 'Q' : 'q'));
     [[19, 31, 5], [14, 33, 4.4], [10, 35, 3.6], [6, 36, 2.8], [3, 36.5, 2], [1, 36, 1.4]].forEach(([x, y, r]) => ell(x, y, r, r * .85, 's')); // tail
     const a = step ? 2 : -2;                                                          // which foot is forward
     ell(20 - a, 32, 4.5, 4, 'd'); rect(17 - a, 35, 7, 3, 'd');                        // back leg
@@ -929,9 +933,9 @@
     rect(34, 5, 4, 3, 'y'); rect(36, 6, 2, 2, 'k'); set(34, 5, 'w');                  // eye
     ell(33, 21, 3.5, 2, 's'); rect(36, 21, 1, 2, 'w'); set(37, 22, 'w');              // arms, claws
     ell(32, 25, 3, 1.8, 'd'); set(35, 25, 'w');
-    for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) if (g[y][x] === 's') { if (!g[y - 1]?.[x] || 'pq'.includes(g[y - 1][x])) set(x, y, 'h'); break; } // light from above
+    for (let x = 0; x < W; x++) for (let y = 0; y < H; y++) if (g[y][x] === 's') { if (!g[y - 1]?.[x] || 'pqPQ'.includes(g[y - 1][x])) set(x, y, 'h'); break; } // light from above
     const pal = { o: '#1f2328', s: '#4b5059', h: '#5f6670', d: '#363a41', b: '#8e9387', B: '#7c8176', m: '#2a1d1e', r: '#b84a45', w: '#f4f4f0', y: '#f2c230', k: '#15171a',
-      p: glow ? '#8fe3ff' : '#aab3bd', q: glow ? '#3fb6f0' : '#7f8892' };
+      p: '#aab3bd', q: '#7f8892', P: '#8fe3ff', Q: '#3fb6f0' };
     const c = document.createElement('canvas'); c.width = W * U; c.height = H * U;
     const cx = c.getContext('2d');
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -940,22 +944,54 @@
     }
     return (kaijuFrames[key] = c);
   }
+  // The breath: light gathers at the jaws while the plates light up from the
+  // tail (22-23.2 s), the beam fires with a flash and a recoil (23.2-27.5 s),
+  // thin at the jaws and widening as it climbs, with frayed edges and sparks;
+  // then the plates dim (to 28.5 s). At night the plates glow the whole way.
+  const sparks = [];
+  let sparkAt = 0;
   function kaiju(x, w, ground, night) {
     const period = location.hash.includes('kaiju') ? 50 : 150, t = (now() / 1000) % period;
     if (t >= 50) return;
     // walks 0-22 s, stands 22-28 s (charges, then breathes), walks on 28-50 s
     const walked = t < 22 ? t : t < 28 ? 22 : t - 6, standing = t >= 22 && t < 28;
-    const kx = Math.round(x - 150 + (w + 300) * (walked / 44)), step = standing ? 0 : Math.floor(t * 2.5) % 2;
-    const breath = t >= 23.2 && t < 27.5, glow = night > 0.5 || (standing && t < 27.5);
-    ctx.drawImage(kaijuSprite(step, glow), kx, ground - 116 + step);
-    if (!breath) return;
-    // the beam leaves the jaws and climbs up-right out of the window, flickering
-    const mx = kx + 132, my = ground - 116 + 45, flick = Math.floor(t * 12) % 2;
-    for (let k = 0; k < 90; k++) {
-      const bx = mx + k * 5, by = my - k * 3.4;
-      px(bx - 5, by - 5, 10, 10, flick ? 'rgba(92,200,255,.55)' : 'rgba(92,200,255,.4)');
-      px(bx - 2, by - 2, 5, 5, '#e8fbff');
+    const charge = standing && t < 23.2 ? (t - 22) / 1.2 : 0, firing = t >= 23.2 && t < 27.5, after = t >= 27.5 && t < 28.5 ? 1 - (t - 27.5) : 0;
+    const lit = night > 0.5 ? 8 : charge ? Math.min(8, Math.floor(charge * 9)) : firing ? 8 : after > 0 ? Math.ceil(after * 8) : 0;
+    const recoil = firing && t < 23.5 ? -3 : 0;
+    const kx = Math.round(x - 150 + (w + 300) * (walked / 44)) + recoil, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
+    ctx.drawImage(kaijuSprite(step, lit), kx, ky);
+    const mx = kx + 132, my = ky + 45;
+    const ux = 5 / Math.hypot(5, 3.4), uy = -3.4 / Math.hypot(5, 3.4), nx = -uy, ny = ux, P = 4;
+    const cell = (bx, by, size, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(bx / P) * P - size / 2, Math.round(by / P) * P - size / 2, size, size); };
+    const dot = (r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.fill(); };
+    if (charge) {
+      const r = 4 + charge * 14, a = .35 + charge * .5, j = Math.floor(t * 30) % 2 ? 2 : 0;
+      dot(r + 6 + j, `rgba(92,200,255,${a * .4})`); dot(r, `rgba(160,230,255,${a})`); dot(Math.max(1, r * .4), '#ffffff');
+      for (let i = 0; i < 6; i++) { const ang = i * 1.05 + t * 3, d = 40 - charge * 36 + i * 3; cell(mx + Math.cos(ang) * d, my + Math.sin(ang) * d, 3, 'rgba(180,235,255,.8)'); }
     }
+    if (firing) {
+      const age = t - 23.2, wobble = Math.sin(age * 40) * .6, reach = Math.min(1, age / .15) * 150;
+      for (let k = 0; k < reach; k++) {
+        const d = k * 5, bx = mx + ux * d, by = my + uy * d;
+        const taper = k > reach - 14 ? (reach - k) / 14 : 1;
+        const width = (5 + k * .22) * taper, jitter = Math.sin(k * .9 + age * 25) * 2.2 + wobble, ox = nx * jitter, oy = ny * jitter;
+        cell(bx + ox, by + oy, width * 2.4, `rgba(80,170,255,${.18 * taper})`);
+        cell(bx + ox, by + oy, width * 1.5, `rgba(120,210,255,${.55 * taper})`);
+        cell(bx + ox, by + oy, width * .75, `rgba(240,252,255,${.95 * taper})`);
+      }
+      const mb = 10 + Math.sin(age * 50) * 2;
+      dot(mb + 6, 'rgba(160,230,255,.6)'); dot(mb * .6, '#ffffff');
+      if (t - sparkAt > .03) { sparkAt = t; for (let i = 0; i < 2; i++) { const d = 20 + Math.random() * reach * 4.5, side = Math.random() < .5 ? -1 : 1, v = 40 + Math.random() * 60; sparks.push({ x: mx + ux * d, y: my + uy * d, vx: nx * side * v + ux * 30, vy: ny * side * v + uy * 30, life: .35 + Math.random() * .3, age: 0, t }); } }
+      if (age < .3) { ctx.fillStyle = `rgba(230,245,255,${(.3 - age) / .3 * .45})`; ctx.fillRect(x, 0, w, ground); }
+    }
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const s = sparks[i], dt = Math.max(0, Math.min(.05, t - s.t)); s.t = t;
+      s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 60 * dt;
+      const f = 1 - s.age / s.life;
+      if (f <= 0) sparks.splice(i, 1);
+      else cell(s.x, s.y, f > .5 ? 3 : 2, `rgba(${f > .6 ? '255,255,255' : '140,220,255'},${f})`);
+    }
+    if (after > 0) dot(4 + (1 - after) * 8, `rgba(140,220,255,${after * .5})`);
   }
   function plant(x, y) { px(x + 8, y + 22, 24, 14, css('--desk')); px(x + 4, y + 2, 32, 22, '#3f8f5a'); px(x + 12, y - 6, 16, 12, '#58b273'); }
 
@@ -1799,22 +1835,33 @@
     boardEl.hidden = !boardName;
     if (!boardName) return;
     const notes = boardDoc && Array.isArray(boardDoc.notes) ? boardDoc.notes : [];
-    document.getElementById('m-board-sum').textContent = tt('boardSum', { p: boardName, n: notes.length });
+    // a note replaced on its topic, or marked done, is archived: listed under a folded heading, not deleted
+    const active = notes.filter(n => !n.archived), archived = notes.filter(n => n.archived);
+    document.getElementById('m-board-sum').textContent = tt('boardSum', { p: boardName, n: active.length });
     boardList.innerHTML = '';
-    if (!notes.length) { const s = document.createElement('div'); s.className = 'none'; s.textContent = tt('boardEmpty'); boardList.append(s); }
-    for (const n of notes) {
-      const row = document.createElement('div'); row.className = 'note';
-      const who = document.createElement('div'); who.className = 'who'; who.textContent = (n.by || '') + ' · ' + ago(n.at);
+    if (!active.length) { const s = document.createElement('div'); s.className = 'none'; s.textContent = tt('boardEmpty'); boardList.append(s); }
+    const noteRow = n => {
+      const row = document.createElement('div'); row.className = 'note' + (n.archived ? ' archived' : '');
+      const who = document.createElement('div'); who.className = 'who'; who.textContent = (n.by || '') + ' · ' + ago(n.at) + (n.topic ? ' · ' + tt('boardTopic', { t: n.topic }) : '');
       const text = document.createElement('div'); text.className = 'text'; text.textContent = n.text || '';
       row.append(who, text);
       if (canWrite) { const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = tt('boardDel'); del.addEventListener('click', () => saveBoard(notes.filter(x => x !== n))); row.append(del); }
-      boardList.append(row);
+      return row;
+    };
+    for (const n of active) boardList.append(noteRow(n));
+    if (archived.length) {
+      const fold = document.createElement('details'); fold.className = 'archive';
+      const sum = document.createElement('summary'); sum.textContent = tt('boardArchived', { n: archived.length }); fold.append(sum);
+      const list = document.createElement('div'); list.className = 'notes'; for (const n of archived) list.append(noteRow(n)); fold.append(list);
+      boardList.append(fold);
     }
     boardText.disabled = boardPostBtn.disabled = !canWrite;
   }
   async function saveBoard(notes) {
     if (!boardName || !db || !canWrite) return;
-    try { await db.doc('boards/' + boardIdOf(boardName)).set({ project: boardName, notes: notes.slice(-50) }); } catch (e) { console.warn('board save failed', e); }
+    // every active note and the last 50 archived ones, the same trim as the bridge's
+    const kept = [...notes.filter(n => !n.archived), ...notes.filter(n => n.archived).slice(-50)].sort((a, b) => (a.at || 0) - (b.at || 0));
+    try { await db.doc('boards/' + boardIdOf(boardName)).set({ project: boardName, notes: kept }); } catch (e) { console.warn('board save failed', e); }
   }
   document.getElementById('m-board-form').addEventListener('submit', async e => {
     e.preventDefault();
