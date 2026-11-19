@@ -45,20 +45,23 @@
     --screen: #0e141b; --screen-on: #78d3ff; --bubble: #f4efe4; --bubble-fg: #2b2622;
     color-scheme: dark;
   }
-  body { background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); line-height: 1.5; }
   .wrap {
     max-width: none; margin: 0 auto;
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
     padding-block: 20px 48px;
     display: grid; grid-template-columns: 260px minmax(0, 1fr) minmax(280px, 380px); grid-template-areas: "head head head" "side main feed"; gap: 16px 24px; align-items: start;
+    /* three columns: the grid is the viewport, each column scrolls on its own, the page never does */
+    box-sizing: border-box; height: 100vh; grid-template-rows: auto minmax(0, 1fr);
   }
   .wrap > header { grid-area: head; }
   .banner { grid-column: 1 / -1; background: var(--wait); color: var(--bg); font-weight: 600; padding: 10px 14px; border-radius: 6px; font-size: .9rem; }
-  .side { grid-area: side; display: flex; flex-direction: column; gap: 14px; min-width: 0; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
-  .main { grid-area: main; display: flex; flex-direction: column; gap: 20px; min-width: 0; }
-  .feed { grid-area: feed; display: flex; flex-direction: column; gap: 14px; min-width: 0; position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; }
-  @media (max-width: 1480px) { .wrap { grid-template-columns: 260px minmax(0, 1fr); grid-template-areas: "head head" "side main" "side feed"; } .feed { position: static; max-height: none; } }
+  .side { grid-area: side; display: flex; flex-direction: column; gap: 14px; min-width: 0; align-self: stretch; min-height: 0; overflow-y: auto; }
+  .main { grid-area: main; display: flex; flex-direction: column; gap: 20px; min-width: 0; align-self: stretch; min-height: 0; overflow-y: auto; }
+  .feed { grid-area: feed; display: flex; flex-direction: column; gap: 14px; min-width: 0; align-self: stretch; min-height: 0; overflow-y: auto; }
+  /* two columns or one: the page scrolls as usual; the roster sticks beside it */
+  @media (max-width: 1480px) { .wrap { grid-template-columns: 260px minmax(0, 1fr); grid-template-areas: "head head" "side main" "side feed"; height: auto; grid-template-rows: none; } .side { align-self: start; position: sticky; top: 16px; max-height: calc(100vh - 32px); } .main, .feed { align-self: start; overflow: visible; } }
   @media (max-width: 860px) { .wrap { grid-template-columns: minmax(0, 1fr); grid-template-areas: "head" "main" "feed" "side"; } .side { position: static; max-height: none; } }
   .feed > h2 { font-size: .9rem; font-weight: 600; margin: 0; color: var(--muted); display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .feed > h2 .meta { margin-left: auto; }
@@ -565,15 +568,17 @@
   // canvas px (a tile of ~37 px, the size the characters are drawn for) it takes as
   // many tiles as the main column is wide and the window is tall, never fewer than
   // 30 x 18.75, and the extra floor gets more pods. Narrower than 30 tiles it scales down.
+  const wide = matchMedia('(min-width: 1481px)');
   function fitOffice() {
     const box = canvas.parentElement, w = box.clientWidth;
     if (!w) return;
     COLS = Math.max(MIN_COLS, Math.floor(w / (TILE * VIEW_SCALE)));
-    const k = w / (COLS * TILE), top = box.getBoundingClientRect().top + scrollY;
-    // what sits under the office: its own border, the wrap's bottom padding and the body
-    // margin, so on the wide layout the page itself never scrolls (only the Jira column does)
-    const below = (box.offsetHeight - box.clientHeight) + parseFloat(getComputedStyle(box.closest('.wrap')).paddingBottom) + parseFloat(getComputedStyle(document.body).marginBottom);
-    FIT_ROWS = COLS > MIN_COLS ? Math.max(MIN_ROWS, Math.floor((innerHeight - top - below) / (TILE * k) * 4) / 4) : MIN_ROWS;
+    const k = w / (COLS * TILE), border = box.offsetHeight - box.clientHeight;
+    // the room for the office: with three columns the main column is viewport-high and the
+    // office fills it; narrower, the page scrolls and the office takes the window below its top
+    const room = wide.matches ? box.parentElement.clientHeight - border
+      : innerHeight - (box.getBoundingClientRect().top + scrollY) - border - parseFloat(getComputedStyle(box.closest('.wrap')).paddingBottom);
+    FIT_ROWS = COLS > MIN_COLS ? Math.max(MIN_ROWS, Math.floor(room / (TILE * k) * 4) / 4) : MIN_ROWS;
   }
   function layout() {
     const list = [...desks.values()].filter(d => liveness(d) !== 'gone').sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
@@ -2165,7 +2170,8 @@
   }
 
   // ---- loop ----------------------------------------------------------------
-  fitOffice(); addEventListener('resize', fitOffice); new ResizeObserver(fitOffice).observe(canvas.parentElement);
+  fitOffice(); addEventListener('resize', fitOffice);
+  { const ro = new ResizeObserver(fitOffice); ro.observe(canvas.parentElement); ro.observe(canvas.parentElement.parentElement); }  // the main column shrinks when the header or banner grows
   let last = performance.now(), L = layout(), rosterDirty = true;
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000) * (location.hash === '#slow' ? 0.08 : 1); last = t;
