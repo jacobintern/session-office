@@ -194,6 +194,21 @@
   .hist summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--muted); }
   .hist summary:hover { color: var(--fg); }
   .hist[open] summary { margin-bottom: 8px; }
+  .board summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--muted); }
+  .board summary:hover { color: var(--fg); }
+  .board[open] summary { margin-bottom: 8px; }
+  .board .notes { display: grid; gap: 6px; }
+  .board .note { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bubble); color: var(--bubble-fg); font-size: .9rem; line-height: 1.5; }
+  .board .note .who { grid-column: 1; font-size: .75rem; color: var(--muted); }
+  .board .note .text { grid-column: 1; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .board .note .del { grid-column: 2; grid-row: 1 / span 2; align-self: start; font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 1px 7px; cursor: pointer; }
+  .board .note .del:hover { color: var(--accent); border-color: var(--accent); }
+  .board .none { font-size: .82rem; color: var(--muted); }
+  .board-form { display: flex; gap: 8px; margin-top: 8px; }
+  .board-form textarea { flex: 1; min-width: 0; font: inherit; font-size: .9rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; }
+  .board-form button { font: inherit; font-size: .85rem; font-weight: 600; padding: 6px 14px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
+  .board-form button:disabled { opacity: .5; cursor: default; }
+  @media (max-width: 860px) { .board-form textarea { font-size: 16px; } }
   .hist .item { display: grid; gap: 6px; margin-bottom: 12px; }
   .hist .when { font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
   .tpairs { display: grid; gap: 10px; min-width: 0; }
@@ -298,6 +313,7 @@
         <div class="sent" id="m-sent" hidden></div>
         <div class="meta" id="m-meta"></div>
         <details class="hist" id="m-hist" hidden><summary></summary><div id="m-hist-list"></div></details>
+        <details class="board" id="m-board" open hidden><summary id="m-board-sum"></summary><div class="notes" id="m-board-list"></div><form class="board-form" id="m-board-form"><textarea id="m-board-text" rows="2" maxlength="1000"></textarea><button type="submit" id="m-board-post"></button></form></details>
       </div>
       <div class="shots" id="m-shots" hidden></div>
       <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button></form>
@@ -313,6 +329,7 @@
         <div class="body">
           <label class="field">目錄<input id="s-cwd" list="dirs" required placeholder="/path/to/repo" autocomplete="off"><datalist id="dirs"></datalist></label>
           <label class="field">桌牌（可空，空的話用第一句任務）<input id="s-name" maxlength="40" autocomplete="off"></label>
+          <label class="field">專案／話題（可空；同話題的 session 共用公佈欄）<input id="s-project" list="projects" maxlength="60" autocomplete="off"><datalist id="projects"></datalist></label>
           <label class="field">第一個任務（可空）<textarea id="s-task" rows="3" maxlength="4000" placeholder="Enter 送出，Shift+Enter 換行"></textarea></label>
           <div class="line">橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。</div>
         </div>
@@ -387,7 +404,7 @@
       decide: '要你決定', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
       ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
-      spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
+      spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
       sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
@@ -402,7 +419,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      project: '專案：', projectByManual: '你指定的', projectByTicket: '分支票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號或 repo，不在 git 裡就沒有專案）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有便條。你和同專案的 session 都可以寫；session 下一句開始前會自動讀到。', boardPh: '留給同專案的同事…（Enter 送出，Shift+Enter 換行）', boardPost: '貼上去', boardDel: '刪除', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -427,7 +444,7 @@
       decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
       ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
-      spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
+      spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
       sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
@@ -442,7 +459,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      project: 'Project: ', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket or repo)', mates: 'Teammates: ', matesNone: 'no one else', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      project: 'Project: ', projectNone: 'none (press ✎ to type a topic; sessions of one topic share a board)', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket or repo; none outside git)', mates: 'Teammates: ', matesNone: 'no one else', boardSum: 'Board: {p} ({n})', boardEmpty: 'No notes yet. You and the sessions of this project can write here; a session reads it before its next turn.', boardPh: 'A note for this project’s sessions… (Enter sends, Shift+Enter for a new line)', boardPost: 'Post', boardDel: 'Delete', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -488,8 +505,8 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
-    set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
+    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
+    set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-project', 'spawnProject'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
     set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
@@ -517,7 +534,8 @@
   const switchingOf = d => { if (d.switching && now() - d.switching.at < 120000) return d.switching; const m = /^\/office model (\S+)/.exec(d.instruction || ''); return m && isPending(d) ? { to: m[1], at: d.instructionAt } : null; };
   const isSwitching = d => !!switchingOf(d);
   // the project a desk belongs to; a ticket rolls up to its parent when the Jira feed knows one
-  const projectOf = d => { if (!d.project) return null; if (d.projectBy === 'ticket' && jira && Array.isArray(jira.issues)) { const t = jira.issues.find(i => i.key === d.project); if (t && t.parent) return { name: t.parent, by: 'parent' }; } return { name: d.project, by: d.projectBy || 'repo' }; };
+  const projectOf = d => d.project ? { name: d.projectRoot || d.project, by: d.projectRoot && d.projectRoot !== d.project ? 'parent' : (d.projectBy || 'repo') } : null;
+  const boardIdOf = name => 'b' + hash(name).toString(16);
   const effState = d => liveness(d) !== 'live' ? 'idle' : isSwitching(d) ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
   const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
@@ -1355,11 +1373,11 @@
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
     try { mReply.value = drafts[id] || ''; } catch (e) {}
-    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; fillModal(); renderShots();
+    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; fillModal(); renderShots(); watchBoard(desks.get(id));
     setTimeout(() => mReply.focus(), 0);
   }
   function closeModal() {
-    endRename();
+    endRename(); watchBoard(null);
     if (modalId) drafts[modalId] = mReply.value;
     modalId = null; modal.hidden = true;
     if (lastFocus && lastFocus.focus) lastFocus.focus();
@@ -1663,13 +1681,16 @@
 
   // ---- opening a new session from the page ------------------------------------
   const spawn = document.getElementById('spawn'), sForm = document.getElementById('s-form'), sSend = document.getElementById('s-send');
-  const sCwd = document.getElementById('s-cwd'), sName = document.getElementById('s-name'), sTask = document.getElementById('s-task');
+  const sCwd = document.getElementById('s-cwd'), sName = document.getElementById('s-name'), sProject = document.getElementById('s-project'), sTask = document.getElementById('s-task');
   submitOnEnter(sTask, 's-form');
   function openSpawn() {
     // the folders from config.json (newSessionDirs) first, then wherever sessions run now
     const dirs = new Set(officeCfg?.newSessionDirs || []);
     for (const d of desks.values()) if (d.cwd) dirs.add(d.cwd);
     document.getElementById('dirs').replaceChildren(...[...dirs].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
+    // the projects the desks are in now, so a new colleague can join one by picking it
+    const projects = new Set([...desks.values()].map(d => projectOf(d)?.name).filter(Boolean));
+    document.getElementById('projects').replaceChildren(...[...projects].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
     if (!sCwd.value) sCwd.value = [...dirs][0] || '';
     spawn.hidden = false; setTimeout(() => sCwd.focus(), 0);
   }
@@ -1681,12 +1702,12 @@
   sForm.addEventListener('submit', async ev => {
     ev.preventDefault();
     if (!db || !canWrite) return;
-    const cwd = sCwd.value.trim(), task = sTask.value.trim(), title = sName.value.trim();
+    const cwd = sCwd.value.trim(), task = sTask.value.trim(), title = sName.value.trim(), project = sProject.value.trim().slice(0, 60);
     if (!cwd) return;
     sSend.disabled = true;
     try {
-      await db.collection('requests').doc().set({ kind: 'spawn', cwd, task, title, status: 'pending', at: now() });
-      sTask.value = ''; sName.value = ''; closeSpawn();
+      await db.collection('requests').doc().set({ kind: 'spawn', cwd, task, title, project, status: 'pending', at: now() });
+      sTask.value = ''; sName.value = ''; sProject.value = ''; closeSpawn();
     } catch (e) { console.warn('spawn request failed', e); }
     finally { sSend.disabled = false; }
   });
@@ -1729,12 +1750,17 @@
   let projectEditing = false;
   function fillProject(d, lv) {
     const box = document.getElementById('m-project'), pr = projectOf(d);
-    box.hidden = !pr && !projectEditing;
+    watchBoard(d);   // the board follows the project, which can change while the window is open
+    // a live desk without a project (a folder outside git) still shows the line, so the topic can be typed
+    const canSet = lv === 'live' && canWrite;
+    box.hidden = !pr && !canSet && !projectEditing;
     const nameEl = document.getElementById('m-project-name');
     nameEl.innerHTML = '';
-    if (pr) { nameEl.append(tt('project')); const b = document.createElement('b'); b.textContent = pr.name; nameEl.append(b, ' '); const by = document.createElement('span'); by.className = 'by'; by.textContent = '（' + tt('projectBy' + pr.by[0].toUpperCase() + pr.by.slice(1)) + '）'; nameEl.append(by); }
+    nameEl.append(tt('project'));
+    if (pr) { const b = document.createElement('b'); b.textContent = pr.name; nameEl.append(b, ' '); const by = document.createElement('span'); by.className = 'by'; by.textContent = '（' + tt('projectBy' + pr.by[0].toUpperCase() + pr.by.slice(1)) + '）'; nameEl.append(by); }
+    else { const by = document.createElement('span'); by.className = 'by'; by.textContent = tt('projectNone'); nameEl.append(by); }
     nameEl.hidden = projectEditing;
-    document.getElementById('m-project-rename').hidden = lv !== 'live' || !canWrite || projectEditing;
+    document.getElementById('m-project-rename').hidden = !canSet || projectEditing;
     const mates = document.getElementById('m-mates'); mates.innerHTML = '';
     if (!pr) return;
     mates.append(tt('mates'));
@@ -1748,6 +1774,47 @@
       mates.append(b);
     }
   }
+  // the project board: one document per project, shown and edited in the window
+  const boardEl = document.getElementById('m-board'), boardList = document.getElementById('m-board-list'), boardText = document.getElementById('m-board-text'), boardPostBtn = document.getElementById('m-board-post');
+  let boardUnsub = null, boardDoc = null, boardName = null;
+  function watchBoard(d) {
+    const pr = d ? projectOf(d) : null, name = pr ? pr.name : null;
+    if (name === boardName) return;
+    if (boardUnsub) { try { boardUnsub(); } catch (e) {} boardUnsub = null; }
+    boardName = name; boardDoc = null;
+    if (!name || !db) { renderBoard(); return; }
+    boardUnsub = db.doc('boards/' + boardIdOf(name)).onSnapshot(snap => { boardDoc = snap.exists ? snap.data() : { project: name, notes: [] }; renderBoard(); }, e => console.warn('board doc', e));
+    renderBoard();
+  }
+  function renderBoard() {
+    boardEl.hidden = !boardName;
+    if (!boardName) return;
+    const notes = boardDoc && Array.isArray(boardDoc.notes) ? boardDoc.notes : [];
+    document.getElementById('m-board-sum').textContent = tt('boardSum', { p: boardName, n: notes.length });
+    boardList.innerHTML = '';
+    if (!notes.length) { const s = document.createElement('div'); s.className = 'none'; s.textContent = tt('boardEmpty'); boardList.append(s); }
+    for (const n of notes) {
+      const row = document.createElement('div'); row.className = 'note';
+      const who = document.createElement('div'); who.className = 'who'; who.textContent = (n.by || '') + ' · ' + ago(n.at);
+      const text = document.createElement('div'); text.className = 'text'; text.textContent = n.text || '';
+      row.append(who, text);
+      if (canWrite) { const del = document.createElement('button'); del.type = 'button'; del.className = 'del'; del.textContent = tt('boardDel'); del.addEventListener('click', () => saveBoard(notes.filter(x => x !== n))); row.append(del); }
+      boardList.append(row);
+    }
+    boardText.disabled = boardPostBtn.disabled = !canWrite;
+  }
+  async function saveBoard(notes) {
+    if (!boardName || !db || !canWrite) return;
+    try { await db.doc('boards/' + boardIdOf(boardName)).set({ project: boardName, notes: notes.slice(-50) }); } catch (e) { console.warn('board save failed', e); }
+  }
+  document.getElementById('m-board-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const text = boardText.value.trim().slice(0, 1000); if (!text) return;
+    const notes = boardDoc && Array.isArray(boardDoc.notes) ? boardDoc.notes : [];
+    boardText.value = '';
+    await saveBoard([...notes, { id: Date.now().toString(36), at: now(), by: tt('you'), text }]);
+  });
+  submitOnEnter(boardText, 'm-board-form');
   const projectEdit = document.getElementById('m-project-edit');
   function endProjectEdit() { if (!projectEditing) return; projectEditing = false; projectEdit.hidden = true; if (modalId) fillModal(); }
   document.getElementById('m-project-rename').addEventListener('click', () => {

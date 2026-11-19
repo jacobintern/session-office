@@ -62,11 +62,13 @@ type Desk = {
   dialog?: string | null
   /** A model switch from the page in progress: the session restarts under the same id with `to` as its model. */
   switching?: { to: string; at: number } | null
-  /** The project this desk belongs to: the name typed by the person, else the ticket key in the branch name, else the repo. */
+  /** The project this desk belongs to: the name typed by the person, else the ticket key in the branch name, else the repo; none outside git. */
   project?: string | null
   projectBy?: 'manual' | 'ticket' | 'repo' | null
-  /** The name typed with `/office project`, kept across a resume; empty means automatic. */
+  /** The name typed with `/office project` (or given to a new session from the page), kept across a resume; empty means automatic. */
   projectManual?: string | null
+  /** The project rolled up to its parent ticket (the bridge fills it from Jira); the board is kept per root. */
+  projectRoot?: string | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -89,6 +91,10 @@ let failureShown = false
 const deskDir = () => `${home}/.claude/office/desks`
 const inboxDir = () => `${home}/.claude/office/inbox`
 const deskPath = (id: string) => `${deskDir()}/${id}.json`
+// the project board: the bridge writes each desk's copy here, posts from a session wait in posts/
+const boardsDir = () => `${home}/.claude/office/boards`
+const boardFile = (id: string) => `${boardsDir()}/${id}.json`
+const boardPostDir = () => `${boardsDir()}/posts`
 const inboxPath = (id: string) => `${inboxDir()}/${id}.json`
 // written and read by install/office-hook.sh, the settings hooks
 const hookDir = () => `${home}/.claude/office/hook`
@@ -157,7 +163,8 @@ async function saveDesk($: EngineInterface) {
 
 // The project a desk belongs to, in this order: the name the person typed, the
 // ticket key in the branch name (plain pattern, no Jira needed; the page rolls a
-// child ticket up to its parent when Jira is configured), else the repo.
+// child ticket up to its parent when Jira is configured), else the repo. A folder
+// outside git gets none: its name (Documents, 桌面) is no project anyone meant.
 const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
 async function repoOf($: EngineInterface, cwd: string): Promise<string | null> {
   try {
@@ -169,11 +176,16 @@ async function setProject($: EngineInterface) {
   if (!me) return
   const manual = (me.projectManual ?? '').trim()
   const ticket = TICKET_RE.exec(me.branch ?? '')?.[1] ?? null
+  const repo = manual || ticket ? null : await repoOf($, me.cwd)
   const p: Partial<Desk> = manual ? { project: manual, projectBy: 'manual' }
     : ticket ? { project: ticket, projectBy: 'ticket' }
-    : { project: (await repoOf($, me.cwd)) ?? me.label, projectBy: 'repo' }
+    : repo ? { project: repo, projectBy: 'repo' }
+    : { project: null, projectBy: null }
   patch($, p)
 }
+const projectText = () => !me ? '' : me.project
+  ? `專案「${me.project}」（${me.projectBy === 'manual' ? '你指定的' : me.projectBy === 'ticket' ? '分支票號' : 'repo'}）。`
+  : '沒有專案：這個資料夾不在 git 裡，要跟別的 session 共用公佈欄就 `/office project <話題>` 指定一個。'
 
 function rename($: EngineInterface, title: string) {
   patch($, { title })
@@ -576,6 +588,62 @@ async function saveImages($: EngineInterface, refs: string[]): Promise<string[]>
 // bridge opens a new iTerm tab in that folder running `claude`, with the first
 // task as the opening prompt and the desk title passed through the environment.
 const REQUESTS = 'requests'
+const BOARDS = 'boards'
+const BOARD_KEEP = 50
+type Note = { id: string; at: number; by: string; text: string }
+// same hash as the page's, so both sides name a project's board document alike
+const fnv = (s: string) => { let h = 2166136261; for (const ch of s) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) } return (h >>> 0).toString(16) }
+const boardId = (project: string) => 'b' + fnv(project)
+let jiraParent: Record<string, string> = {}
+const rootOf = (project: string | null | undefined) => project ? (jiraParent[project] ?? project) : null
+const boardsWritten: Record<string, string> = {}
+
+// Each desk gets a file with its project's board; a note a session posted is
+// appended to the board document. One list of the collection per round.
+async function syncBoards($: EngineInterface, desks: Desk[]) {
+  const roots = new Map<string, string>()
+  for (const d of desks) { const r = rootOf(d.project); if (r) roots.set(d.id, r) }
+  // a desk that left its project (the name cleared, or /office project to none) loses its board file
+  for (const d of desks) if (!roots.has(d.id) && boardsWritten[d.id] !== undefined) { await $.process.run(['rm', '-f', boardFile(d.id)], { timeoutMs: 5000 }); delete boardsWritten[d.id] }
+  if (!roots.size) return
+  const boards: Record<string, { version?: number; notes: Note[] }> = {}
+  for (const doc of docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: BOARDS, query: { limit: 200 } }))) {
+    if (typeof doc.data.project === 'string') boards[doc.data.project] = { version: doc.version, notes: Array.isArray(doc.data.notes) ? (doc.data.notes as Note[]) : [] }
+  }
+  let posts: string[] = []
+  try { posts = (await $.process.run(['ls', boardPostDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(f => f.endsWith('.json')) } catch { /* no posts yet */ }
+  for (const f of posts) {
+    const path = `${boardPostDir()}/${f}`
+    try {
+      const post = JSON.parse(await $.fs.read(path)) as { desk: string; by: string; text: string; at: number }
+      const root = roots.get(post.desk)
+      if (root) {
+        const b = boards[root] ?? { notes: [] }
+        b.notes = [...b.notes, { id: post.at.toString(36), at: post.at, by: post.by, text: post.text }].slice(-BOARD_KEEP)
+        const data = { project: root, notes: b.notes }
+        const wrote = b.version === undefined
+          ? await $.tool.call({ tool: 'ArtifactData', action: 'set', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data })
+          : await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data, if_version: b.version })
+        if (!wroteOk(wrote)) { report($, `board post for ${root} not written: ${JSON.stringify(wrote).slice(0, 160)}`); continue }   // the file waits for the next round
+        const m = /"version"\s*:\s*(\d+)|version (\d+)/.exec(JSON.stringify(wrote))
+        b.version = Number(m?.[1] ?? m?.[2])
+        boards[root] = b
+      }
+      await $.process.run(['rm', '-f', path], { timeoutMs: 5000 })
+    } catch { /* half-written; next round */ }
+  }
+  for (const [deskId, root] of roots) {
+    const body = JSON.stringify({ project: root, notes: boards[root]?.notes ?? [] })
+    if (boardsWritten[deskId] === body) continue
+    await $.fs.write(boardFile(deskId), body)
+    boardsWritten[deskId] = body
+  }
+}
+
+const BOARD_CONTEXT = (b: { project: string; notes: Note[] }) => {
+  const when = (t: number) => new Date(t).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return `# 專案公佈欄「${b.project}」（Session Office）\n同專案的 session 和使用者留給彼此的便條，最新的在最後。跟你的工作有關的要照著做或避開：\n${b.notes.map(n => `- [${when(n.at)} ${n.by}] ${n.text}`).join('\n')}\n要留話給同專案的其他 session（例如你改了共用的東西、別人接手要注意的事），用 office 的 board 工具（action: post）。`
+}
 const requested = new Set<string>()
 const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 const asQuote = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
@@ -589,6 +657,7 @@ async function openRequestedSessions($: EngineInterface) {
     const cwd = typeof doc.data.cwd === 'string' ? doc.data.cwd.trim() : ''
     const task = typeof doc.data.task === 'string' ? doc.data.task.trim() : ''
     const title = typeof doc.data.title === 'string' ? doc.data.title.trim() : ''
+    const project = typeof doc.data.project === 'string' ? doc.data.project.trim().slice(0, 60) : ''
     const mark = async (status: string, extra: Record<string, unknown> = {}) => {
       await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: REQUESTS, doc_id: id, data: { status, ...extra }, ...(doc.version !== undefined ? { if_version: doc.version } : {}) })
     }
@@ -598,7 +667,7 @@ async function openRequestedSessions($: EngineInterface) {
     // kind 'codex': Codex takes over from a handoff, with its first message as the task
     const command = doc.data.kind === 'codex'
       ? `cd ${shellQuote(cwd)} && codex ${shellQuote(task)}`
-      : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} claude${task ? ' ' + shellQuote(task) : ''}`
+      : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`
     const script = [
       'tell application "iTerm2"',
       '  activate',
@@ -693,6 +762,9 @@ async function syncJira($: EngineInterface) {
   try {
     const issues = await fetchJira($)
     if (!issues) { report($, `Jira: ${jiraNote}`); return }
+    const parents: Record<string, string> = {}
+    for (const i of issues) if (i.parent) parents[i.key] = i.parent
+    jiraParent = parents
     const ok = await putMeta($, 'jira', { fetchedAt: Date.now(), site: cfg.jira.site, jql: cfg.jira.jql ?? JIRA_JQL, issues })
     jiraNote = ok ? `${issues.length} 張票，${new Date().toLocaleTimeString('zh-TW', { hour12: false })} 更新` : '寫入 meta/jira 失敗'
   } catch (error) {
@@ -862,12 +934,13 @@ async function bridgeTick($: EngineInterface) {
         // a session 開除'd from the page also loses its terminal tab
         if (doc?.data.instruction === '/exit' && typeof desk.tty === 'string') await closeTerminal($, desk.tty, typeof desk.pid === 'number' ? desk.pid : null)
         if (doc) await $.tool.call({ tool: 'ArtifactData', action: 'delete', url: OFFICE_URL, collection: COLLECTION, doc_id: id, ...(doc.version !== undefined ? { if_version: doc.version } : {}) })
-        await $.process.run(['rm', '-f', deskPath(id), inboxPath(id)])
+        await $.process.run(['rm', '-f', deskPath(id), inboxPath(id), boardFile(id)])
+        delete boardsWritten[id]
         delete synced[id]
         delete inboxWritten[id]
         continue
       }
-      const data: Record<string, unknown> = { ...desk, seat: seatOf[id] }
+      const data: Record<string, unknown> = { ...desk, seat: seatOf[id], projectRoot: rootOf(desk.project) }
       // a session on an older mod that is inside AskUserQuestion: its tool.call
       // hook only wrote the tool's name as activity, so flag the wait from here
       if (desk.state === 'working' && desk.activity === 'AskUserQuestion' && !desk.blocked) {
@@ -884,6 +957,7 @@ async function bridgeTick($: EngineInterface) {
       else report($, `desk ${desk.title || desk.label} could not be synced: ${JSON.stringify(wrote).slice(0, 200)}`)
     }
 
+    try { await syncBoards($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `boards: ${String(error).slice(0, 200)}`) }
     await openRequestedSessions($)
 
     for (const [id, doc] of docs) {
@@ -992,7 +1066,22 @@ export const register: Register = on => {
   // The report format the page relies on rides along with every prompt, so a
   // running session follows it from its next turn (CLAUDE.md is read only at start;
   // prompt.compose is taken by another plugin before ours).
-  on('prompt.submit', async ($, e, next) => next({ ...e, context: [...(e.context ?? []), REPORT_FORMAT()] }))
+  // the project board rides along with the next prompt whenever it changed since it was last shown
+  let boardShown = ''
+  on('prompt.submit', async ($, e, next) => {
+    const context = [...(e.context ?? []), REPORT_FORMAT()]
+    if (me) {
+      try {
+        const raw = await $.fs.read(boardFile(me.id))
+        if (raw !== boardShown) {
+          const b = JSON.parse(raw) as { project: string; notes: Note[] }
+          if (b.notes.length) context.push(BOARD_CONTEXT(b))
+          boardShown = raw
+        }
+      } catch { /* no board yet */ }
+    }
+    return next({ ...e, context })
+  })
   on('session.start', async ($, e, next) => {
     const started = await next(e)
     home = (await $.env.get('HOME')) ?? ''
@@ -1021,6 +1110,7 @@ export const register: Register = on => {
         tty: await ownTty($),
         blocked: null,
         ask: null,
+        projectManual: ((await $.env.get('CLAUDE_OFFICE_PROJECT')) ?? '').trim().slice(0, 60) || null,   // the topic typed in the page's new-session window
       }
       // a reload (or /resume) of a session that already has a desk keeps what the
       // old desk knew: above all which page instruction it last ran, or the one
@@ -1033,7 +1123,7 @@ export const register: Register = on => {
           if (!me.title && prev.title) me.title = prev.title
           if (Array.isArray(prev.history)) me.history = prev.history
           if (prev.ctx && prev.ctx.tokens !== null) me.ctx = prev.ctx    // the health bar survives a resume until the next turn measures it
-          if (prev.projectManual) me.projectManual = prev.projectManual
+          if (prev.projectManual && !me.projectManual) me.projectManual = prev.projectManual
           // and what the page shows: the task, and a report still waiting for you
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
@@ -1060,6 +1150,15 @@ export const register: Register = on => {
           isDeferred: false,
         })
       } catch (error) { report($, `rename tool not registered: ${String(error)}`) }
+      try {
+        await $.tool.register({
+          name: 'board',
+          description: "Session Office project board: notes the sessions of one project (same topic, ticket or repo) and the user leave for each other. `read` lists them; `post` adds one — use it when you changed something shared, or the next session on this project must know something.",
+          inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['read', 'post'] }, text: { type: 'string', description: 'The note to post, at most 1000 characters.' } }, required: ['action'] },
+          isDeferred: false,
+        })
+      } catch (error) { report($, `board tool not registered: ${String(error)}`) }
+      await $.process.run(['mkdir', '-p', boardPostDir()], { timeoutMs: 5000 }).catch(() => {})
       $.clock.after(15_000, () => { void startupCheck($) })
     }
 
@@ -1085,6 +1184,23 @@ export const register: Register = on => {
     const title = String((e as unknown as { title?: unknown }).title ?? '').trim().slice(0, 60)
     rename($, title)
     return { result: title ? `Nameplate set to "${title}".` : 'Nameplate cleared; it shows the first task again.' }
+  })
+
+  on('tool.call', { tool: 'mcp__office__board' }, async ($, e) => {
+    if (!me) return { deny: 'This session has no desk in Session Office.' }
+    const { action, text } = e as unknown as { action?: string; text?: string }
+    let board: { project: string; notes: Note[] } | null = null
+    try { board = JSON.parse(await $.fs.read(boardFile(me.id))) } catch { /* not synced yet */ }
+    if (action === 'post') {
+      const note = String(text ?? '').trim().slice(0, 1000)
+      if (!note) return { deny: 'Nothing to post.' }
+      if (!me.project) return { deny: 'This desk has no project (the folder is not in git), so there is no board; the user can set a topic with `/office project <name>`.' }
+      const at = Date.now()
+      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, text: note, at }))
+      return { result: `Posted to the board of ${board?.project ?? rootOf(me.project) ?? 'this project'}; the bridge publishes it within a few seconds.` }
+    }
+    if (!board) return { result: 'No board yet for this desk (the bridge has not synced it, or the desk has no project).' }
+    return { result: board.notes.length ? BOARD_CONTEXT(board) : `The board of ${board.project} is empty.` }
   })
 
   // /clear typed in the window: wipe the desk the same way (the page's /clear
@@ -1126,7 +1242,7 @@ export const register: Register = on => {
     if (sub === 'project' && me) {
       me.projectManual = rest.join(' ').trim().slice(0, 60)
       await setProject($)
-      return { text: me.projectManual ? `專案改成「${me.project}」。` : `專案改回自動判斷：「${me.project}」（${me.projectBy === 'ticket' ? '分支票號' : 'repo'}）。` }
+      return { text: me.projectManual ? `專案改成「${me.project}」。` : `專案改回自動判斷。${projectText()}` }
     }
     if (sub === 'doctor') return { text: await doctor($) }
     if (sub === 'status') {
