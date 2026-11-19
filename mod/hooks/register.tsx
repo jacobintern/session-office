@@ -190,6 +190,16 @@ const projectText = () => !me ? '' : me.project
   ? `專案「${me.project}」（${me.projectBy === 'manual' ? '你指定的' : me.projectBy === 'ticket' ? '分支票號' : 'repo'}）。`
   : '沒有專案：這個資料夾不在 git 裡，要跟別的 session 共用公佈欄就 `/office project <話題>` 指定一個。'
 
+// The session's name as the engine last recorded it. A rename that took some other
+// way than the command.run hook (the app's rename, one queued across a reload)
+// still ends in the transcript, and the desk takes it from there.
+let handingTitle: { title: string, at: number } | null = null   // a /rename the office queued (it waits for idle) and the engine has not run yet
+async function sessionTitle($: EngineInterface): Promise<string> {
+  if (!me || !/^[\w-]+$/.test(me.id)) return ''
+  const ran = await $.process.run(['sh', '-c', `grep -h '"type":"custom-title"' "$HOME"/.claude/projects/*/${me.id}.jsonl | tail -1`], { timeoutMs: 5000 }).catch(() => null)
+  try { return String(JSON.parse(ran?.stdout.trim() || '{}').customTitle ?? '').trim().slice(0, 60) } catch { return '' }
+}
+
 function rename($: EngineInterface, title: string) {
   patch($, { title })
   if (title) void handTitle($, title)
@@ -198,6 +208,7 @@ function rename($: EngineInterface, title: string) {
 // what other sessions message it by; run from the clock, as a command cannot be
 // run inside a hook the turn waits on (the rename tool's), and queued till idle
 async function handTitle($: EngineInterface, title: string) {
+  handingTitle = { title, at: Date.now() }
   $.clock.after(10, () => {
     $.command.run({ command: 'rename', args: title }).catch(error => report($, `/rename did not run: ${String(error)}`))
   })
@@ -1203,6 +1214,9 @@ export const register: Register = on => {
           }
         }
       } catch { /* no desk yet */ }
+      // a reload must not hand the session back a name it has since been renamed from
+      const named = await sessionTitle($)
+      if (named) me.title = named
       await noteModel($)
       await setProject($)
       await refreshUsage($)
@@ -1236,6 +1250,9 @@ export const register: Register = on => {
       if (!me) return
       if (tick % HEARTBEAT_EVERY === 0) {
         me.branch = await branchOf($, me.cwd)
+        const named = await sessionTitle($)
+        if (handingTitle && (named === handingTitle.title || Date.now() - handingTitle.at > 30 * 60_000)) handingTitle = null
+        if (named && !handingTitle && named !== me.title) me.title = named
         await refreshUsage($)
         await saveDesk($)
       }
@@ -1283,6 +1300,7 @@ export const register: Register = on => {
   // /rename typed in the window: the nameplate follows the session title
   on('command.run', { command: 'rename' }, async ($, e, next) => {
     const result = await next(e)
+    handingTitle = null
     const named = e.args.trim() || (/renamed to:\s*(.+)$/m.exec(String((result as { text?: unknown }).text ?? ''))?.[1] ?? '').trim()
     if (me && named && named !== me.title) patch($, { title: named.slice(0, 60) })
     return result
@@ -1367,7 +1385,8 @@ export const register: Register = on => {
       } else if (me.delivery?.state === 'failed') p.delivery = null    // typed in the terminal instead: the lost mark has served its purpose
       const task = isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
       if (task) p.task = task
-      if (task && !me.title) p.title = firstLine(e.text, 24)
+      // a session renamed some way the desk missed keeps that name, not this prompt
+      if (task && !me.title) p.title = (await sessionTitle($)) || firstLine(e.text, 24)
       patch($, p)
       // an unnamed session takes its nameplate as its title, so the name on the page is the name to message it by
       if (p.title) void handTitle($, p.title)
