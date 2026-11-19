@@ -89,7 +89,7 @@ const inboxPath = (id: string) => `${inboxDir()}/${id}.json`
 const hookDir = () => `${home}/.claude/office/hook`
 
 // What a /clear leaves on the desk: the conversation's task, title and report go.
-const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null }
+const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null }
 // A prompt the engine injected (a task notification, a system reminder, a
 // local command's output) is not something the person asked for.
 const isMetaPrompt = (text: string) => /^\s*</.test(text ?? '')
@@ -127,7 +127,9 @@ async function refreshUsage($: EngineInterface) {
     const tokens = typeof u.context.tokens === 'number' ? u.context.tokens : null
     const percent = typeof u.context.percent === 'number' ? u.context.percent
       : tokens !== null && u.context.window > 0 ? Math.round(tokens / u.context.window * 100) : null
-    me.ctx = { tokens, window: u.context.window, percent }
+    // before the first turn of a resumed process the engine knows no context yet: keep the last fill (a model switch resumes)
+    if (tokens === null && me.ctx && me.ctx.tokens !== null) me.ctx = { ...me.ctx, window: u.context.window }
+    else me.ctx = { tokens, window: u.context.window, percent }
     me.cost = u.cost ? Math.round(u.cost.usd * 100) / 100 : null
     if (u.rateLimits.length) {
       me.limits = u.rateLimits.map(r => ({ kind: r.kind, percentUsed: r.percentUsed, ...(r.resetsAt ? { resetsAt: r.resetsAt } : {}) }))
@@ -1004,6 +1006,7 @@ export const register: Register = on => {
           if (typeof prev.startedAt === 'number') me.startedAt = prev.startedAt
           if (!me.title && prev.title) me.title = prev.title
           if (Array.isArray(prev.history)) me.history = prev.history
+          if (prev.ctx && prev.ctx.tokens !== null) me.ctx = prev.ctx    // the health bar survives a resume until the next turn measures it
           // and what the page shows: the task, and a report still waiting for you
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
