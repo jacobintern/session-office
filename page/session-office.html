@@ -498,7 +498,7 @@
     [/_切到它的 terminal 分頁按允許或拒絕。_/, '_Switch to its terminal tab to allow or deny._'],
     [/這個 session 在 terminal 問你問題（它還在用舊版 mod，這裡看不到題目）。/, 'This session is asking you something in the terminal (an older mod; the question is not shown here).'],
     [/_請切到它的 terminal 分頁作答。_/, '_Switch to its terminal tab to answer._'],
-    [/_（這輪沒有文字回覆：API 錯誤）_/, '_(no text this turn: API error)_'], [/_（這輪沒有文字回覆：模型拒絕）_/, '_(no text this turn: refused)_'], [/_（這輪沒有文字回覆：(\w+)）_/, '_(no text this turn: $1)_'],
+    [/_（這輪沒有文字回覆：API 錯誤）_/, '_(no text this turn: API error)_'], [/_（這輪沒有文字回覆：API 錯誤：(.+)）_/, '_(no text this turn: API error: $1)_'], [/_（這輪沒有文字回覆：電腦睡著，回覆中斷。傳「繼續」讓它接著做）_/, '_(no text this turn: the computer slept mid-response. Send 「繼續」 (continue) to carry on)_'], [/_（這輪沒有文字回覆：模型拒絕）_/, '_(no text this turn: refused)_'], [/_（這輪沒有文字回覆：(\w+)）_/, '_(no text this turn: $1)_'],
   ];
   const trMod = s => LANG === 'zh' || !s ? s : MOD_EN.reduce((out, [re, to]) => out.replace(re, to), s);
   function applyStatic() {

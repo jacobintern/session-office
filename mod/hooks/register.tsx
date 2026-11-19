@@ -200,6 +200,37 @@ async function sessionTitle($: EngineInterface): Promise<string> {
   try { return String(JSON.parse(ran?.stdout.trim() || '{}').customTitle ?? '').trim().slice(0, 60) } catch { return '' }
 }
 
+// turn.complete says only that an API error ended the turn; the engine's own words
+// for it ("API Error: Your computer went to sleep mid-response…") are in the transcript
+async function lastApiError($: EngineInterface): Promise<string> {
+  if (!me || !/^[\w-]+$/.test(me.id)) return ''
+  const ran = await $.process.run(['sh', '-c', `tail -n 40 "$HOME"/.claude/projects/*/${me.id}.jsonl | grep '"isApiErrorMessage":true' | tail -1`], { timeoutMs: 5000 }).catch(() => null)
+  try {
+    const content = JSON.parse(ran?.stdout.trim() || '{}').message?.content
+    const text = Array.isArray(content) ? content.map((c: { text?: unknown }) => String(c.text ?? '')).join(' ') : String(content ?? '')
+    return text.replace(/^API Error:\s*/i, '').split('\n')[0].trim().slice(0, 200)
+  } catch { return '' }
+}
+const errorReport = (raw: string) => /went to sleep/i.test(raw)
+  ? '_（這輪沒有文字回覆：電腦睡著，回覆中斷。傳「繼續」讓它接著做）_'
+  : `_（這輪沒有文字回覆：API 錯誤${raw ? `：${raw}` : ''}）_`
+
+// While the main loop runs a turn the Mac must not idle-sleep: a sleep kills the
+// response mid-stream. caffeinate -i holds off idle sleep only (a closed lid still
+// sleeps) and -w ends it with this process, so a crash leaves nothing behind.
+let awakePid: number | null = null
+async function keepAwake($: EngineInterface, on: boolean) {
+  if (on && awakePid === null && me?.pid) {
+    const ran = await $.process.run(['sh', '-c', `caffeinate -i -w ${me.pid} >/dev/null 2>&1 & echo $!`], { timeoutMs: 5000 }).catch(() => null)
+    const pid = Number(ran?.stdout.trim())
+    if (pid > 0) awakePid = pid
+  } else if (!on && awakePid !== null) {
+    const pid = awakePid
+    awakePid = null
+    await $.process.run(['kill', String(pid)], { timeoutMs: 5000 }).catch(() => {})
+  }
+}
+
 function rename($: EngineInterface, title: string) {
   patch($, { title })
   if (title) void handTitle($, title)
@@ -1388,6 +1419,7 @@ export const register: Register = on => {
       // a session renamed some way the desk missed keeps that name, not this prompt
       if (task && !me.title) p.title = (await sessionTitle($)) || firstLine(e.text, 24)
       patch($, p)
+      void keepAwake($, true)
       // an unnamed session takes its nameplate as its title, so the name on the page is the name to message it by
       if (p.title) void handTitle($, p.title)
     }
@@ -1433,10 +1465,11 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) runningTurn = null
     if (e.agentId === undefined && me) {
+      void keepAwake($, false)
       await refreshUsage($, true)
       if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })
       else {
-        const report = (e.answer ?? '').trim().slice(0, 4000) || `_（這輪沒有文字回覆：${e.reason === 'error' ? 'API 錯誤' : e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`
+        const report = (e.answer ?? '').trim().slice(0, 4000) || (e.reason === 'error' ? errorReport(await lastApiError($)) : `_（這輪沒有文字回覆：${e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`)
         const at = Date.now()
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
         patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
