@@ -39,9 +39,9 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 
 ## User manual
 
-A picture-led manual in Traditional Chinese: open [docs/manual/index.html](docs/manual/index.html)
-in a browser. It is also published as a claude.ai artifact; after editing the
-source, publish it to the same artifact so the link keeps working.
+A picture-led manual in Traditional Chinese: <https://jacobintern.github.io/session-office/manual/>
+(GitHub Pages; the source is [docs/manual/](docs/manual/), and a push to main
+updates it within minutes).
 
 ## Token cost
 

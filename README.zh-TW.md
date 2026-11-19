@@ -22,7 +22,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 
 ## 使用手冊
 
-以截圖為主的操作手冊：用瀏覽器打開 [docs/manual/index.html](docs/manual/index.html)。手冊也發布成 claude.ai artifact；改完原始檔後發布到同一個 artifact，連結就不會變。
+以截圖為主的操作手冊：<https://jacobintern.github.io/session-office/manual/>（GitHub Pages，原始檔在 [docs/manual/](docs/manual/)，推上 main 幾分鐘後就會更新）。
 
 ## Token 用量
 
