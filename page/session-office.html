@@ -1964,14 +1964,15 @@
     const pend = modelSwitch[modalId];
     if (pend && (modelName(pend.id) === cur || now() - pend.at > 60000)) delete modelSwitch[modalId];
     const head = modelSwitch[modalId] ? tt('modelSwitching', { m: modelName(modelSwitch[modalId].id) }) : tt('modelPick', { m: cur || '—' });
+    // a switch restarts the session, so not while it is running a round or waiting on background work.
+    // Set on every call: the options below are rebuilt only when their text changes, and a desk going idle changes none of it
+    sel.disabled = !canWrite || isSwitching(d) || d.state === 'working';
+    sel.title = d.state === 'working' && !isSwitching(d) ? tt('modelBusy') : '';
     const want = [head, ...MODELS.map(([, id]) => (modelName(id) === cur ? '✓ ' : '') + modelName(id))].join('|');
     if (sel.dataset.shown === want) return;
     sel.dataset.shown = want;
     sel.replaceChildren(new Option(head, ''), ...MODELS.map(([arg, id]) => { const o = new Option((modelName(id) === cur ? '✓ ' : '') + modelName(id), arg); o.disabled = modelName(id) === cur; return o; }));
     sel.value = '';
-    // a switch restarts the session, so not while it is running a round or waiting on background work
-    sel.disabled = !canWrite || isSwitching(d) || d.state === 'working';
-    sel.title = d.state === 'working' && !isSwitching(d) ? tt('modelBusy') : '';
   }
   // picking asks first: a switch restarts the session, and a phone's select changes on a slip of the finger
   const modelConfirm = document.getElementById('m-model-confirm'), modelSel = document.getElementById('m-model');
