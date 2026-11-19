@@ -293,7 +293,8 @@ async function waitForAnswer($: EngineInterface, ask: AskQuestion[], signal: Abo
 }
 
 async function takeInstruction($: EngineInterface) {
-  if (!me || me.blocked === 'question') return
+  // mid-switch the process is on its way out: the resumed one takes the instruction
+  if (!me || me.blocked === 'question' || switching) return
   const path = inboxPath(me.id)
   try {
     if (!(await $.fs.exists(path))) return
