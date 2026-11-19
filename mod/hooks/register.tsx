@@ -62,6 +62,11 @@ type Desk = {
   dialog?: string | null
   /** A model switch from the page in progress: the session restarts under the same id with `to` as its model. */
   switching?: { to: string; at: number } | null
+  /** The project this desk belongs to: the name typed by the person, else the ticket key in the branch name, else the repo. */
+  project?: string | null
+  projectBy?: 'manual' | 'ticket' | 'repo' | null
+  /** The name typed with `/office project`, kept across a resume; empty means automatic. */
+  projectManual?: string | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -148,6 +153,26 @@ async function saveDesk($: EngineInterface) {
   } catch (error) {
     report($, `desk file could not be written: ${String(error)}`)
   }
+}
+
+// The project a desk belongs to, in this order: the name the person typed, the
+// ticket key in the branch name (plain pattern, no Jira needed; the page rolls a
+// child ticket up to its parent when Jira is configured), else the repo.
+const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
+async function repoOf($: EngineInterface, cwd: string): Promise<string | null> {
+  try {
+    const { exitCode, stdout } = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 })
+    return exitCode === 0 ? basename(stdout.trim()) || null : null
+  } catch { return null }
+}
+async function setProject($: EngineInterface) {
+  if (!me) return
+  const manual = (me.projectManual ?? '').trim()
+  const ticket = TICKET_RE.exec(me.branch ?? '')?.[1] ?? null
+  const p: Partial<Desk> = manual ? { project: manual, projectBy: 'manual' }
+    : ticket ? { project: ticket, projectBy: 'ticket' }
+    : { project: (await repoOf($, me.cwd)) ?? me.label, projectBy: 'repo' }
+  patch($, p)
 }
 
 function rename($: EngineInterface, title: string) {
@@ -316,6 +341,7 @@ async function takeInstruction($: EngineInterface) {
         if (rest[0] === 'name') rename($, rest.slice(1).join(' ').trim().slice(0, 60))
         else if (rest[0] === 'pause') await pause($)
         else if (rest[0] === 'model') await switchModel($, rest[1] ?? '')
+        else if (rest[0] === 'project') { me.projectManual = rest.slice(1).join(' ').trim().slice(0, 60); await setProject($) }
         return
       }
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
@@ -974,7 +1000,7 @@ export const register: Register = on => {
     const sessionId = await $.session.id()
     isBridge = (await $.env.get('CLAUDE_OFFICE_BRIDGE')) === '1' || (await $.store.get('bridgeSessionId')) === sessionId
     if (!e.isInteractive && (await $.env.get('CLAUDE_OFFICE_HEADLESS')) !== '1') return started
-    await $.command.register({ name: 'office', description: 'Session Office: link, this desk, `name <text>`, `doctor`, `bridge`' })
+    await $.command.register({ name: 'office', description: 'Session Office: link, this desk, `name <text>`, `project <name>`, `doctor`, `bridge`' })
 
     if (!isBridge) {
       me = {
@@ -1007,6 +1033,7 @@ export const register: Register = on => {
           if (!me.title && prev.title) me.title = prev.title
           if (Array.isArray(prev.history)) me.history = prev.history
           if (prev.ctx && prev.ctx.tokens !== null) me.ctx = prev.ctx    // the health bar survives a resume until the next turn measures it
+          if (prev.projectManual) me.projectManual = prev.projectManual
           // and what the page shows: the task, and a report still waiting for you
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
@@ -1020,6 +1047,7 @@ export const register: Register = on => {
         }
       } catch { /* no desk yet */ }
       await noteModel($)
+      await setProject($)
       await refreshUsage($)
       await saveDesk($)
       if (me.title) await handTitle($, me.title)
@@ -1094,6 +1122,11 @@ export const register: Register = on => {
       const title = rest.join(' ').trim()
       rename($, title)
       return { text: title ? `桌牌改成「${title}」。` : '桌牌清掉了，改回顯示第一句任務。' }
+    }
+    if (sub === 'project' && me) {
+      me.projectManual = rest.join(' ').trim().slice(0, 60)
+      await setProject($)
+      return { text: me.projectManual ? `專案改成「${me.project}」。` : `專案改回自動判斷：「${me.project}」（${me.projectBy === 'ticket' ? '分支票號' : 'repo'}）。` }
     }
     if (sub === 'doctor') return { text: await doctor($) }
     if (sub === 'status') {

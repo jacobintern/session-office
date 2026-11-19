@@ -163,6 +163,14 @@
   .panel .close { margin-left: auto; font: inherit; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 1.3rem; line-height: 1; padding: 4px 8px; }
   .panel .close:focus-visible { outline: 2px solid var(--accent); }
   .branch { font-family: var(--mono); font-size: .78rem; color: var(--muted); overflow-wrap: anywhere; }
+  .project { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: .85rem; color: var(--muted); }
+  .project b { color: var(--fg); font-weight: 600; }
+  .project .by { font-size: .75rem; }
+  .project-edit { font: inherit; font-size: .85rem; color: var(--fg); background: var(--bg); border: 1px solid var(--accent); border-radius: 4px; padding: 2px 8px; width: 14em; }
+  .project .mates { display: inline-flex; flex-wrap: wrap; gap: 4px 8px; align-items: center; }
+  .project .mate { font: inherit; font-size: .8rem; font-weight: 600; color: var(--fg); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
+  .project .mate:hover { border-color: var(--fg); }
+  .project .mate .dot { width: 7px; height: 7px; }
   .line { font-size: .9rem; overflow-wrap: anywhere; color: var(--muted); }
   .body { padding: 14px 18px; display: grid; gap: 10px; overflow-y: auto; min-height: 0; }
   .report { font-size: .95rem; line-height: 1.65; background: var(--bubble); color: var(--bubble-fg); border-radius: 6px; padding: 14px 18px; overflow-wrap: anywhere; }
@@ -278,6 +286,7 @@
       <header><span class="dot" id="m-dot"></span><span class="label" id="m-title"></span><input class="title-edit" id="m-title-edit" maxlength="60" hidden><button type="button" class="copyname" id="m-rename" hidden>✎</button><span class="dup" id="m-dup" hidden></span><button type="button" class="copyname" id="m-copyname" hidden></button><span class="pill" id="m-pill"></span><button type="button" class="close" id="m-close" aria-label="關閉">×</button></header>
       <div class="body">
         <div class="branch" id="m-branch"></div>
+        <div class="project" id="m-project"><span id="m-project-name"></span><input class="project-edit" id="m-project-edit" maxlength="60" hidden><button type="button" class="copyname" id="m-project-rename" hidden>✎</button><span class="mates" id="m-mates"></span></div>
         <div class="line" id="m-task"></div>
         <div class="report" id="m-report"></div>
         <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
@@ -393,7 +402,7 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      project: '專案：', projectByManual: '你指定的', projectByTicket: '分支票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -433,7 +442,7 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
+      project: 'Project: ', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket or repo)', mates: 'Teammates: ', matesNone: 'no one else', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
       code: '(code)',
@@ -507,6 +516,8 @@
   // restarting under a new model: its own look, neither working nor idle. The pick counts from the moment it is sent, before the mod has taken it.
   const switchingOf = d => { if (d.switching && now() - d.switching.at < 120000) return d.switching; const m = /^\/office model (\S+)/.exec(d.instruction || ''); return m && isPending(d) ? { to: m[1], at: d.instructionAt } : null; };
   const isSwitching = d => !!switchingOf(d);
+  // the project a desk belongs to; a ticket rolls up to its parent when the Jira feed knows one
+  const projectOf = d => { if (!d.project) return null; if (d.projectBy === 'ticket' && jira && Array.isArray(jira.issues)) { const t = jira.issues.find(i => i.key === d.project); if (t && t.parent) return { name: t.parent, by: 'parent' }; } return { name: d.project, by: d.projectBy || 'repo' }; };
   const effState = d => liveness(d) !== 'live' ? 'idle' : isSwitching(d) ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
   const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
@@ -1344,7 +1355,7 @@
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
     try { mReply.value = drafts[id] || ''; } catch (e) {}
-    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); fillModal(); renderShots();
+    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; fillModal(); renderShots();
     setTimeout(() => mReply.focus(), 0);
   }
   function closeModal() {
@@ -1426,6 +1437,7 @@
     const costText = typeof d.cost === 'number' ? tt('cost', { c: d.cost.toFixed(2) }) : '';
     const modelText = modelName(d.model), effortText = d.effort ? tt('effortLabel', { e: d.effort }) : '';
     document.getElementById('m-branch').textContent = [d.seat ? tt('seat', { n: d.seat }) : '', modelText, effortText, d.label, d.branch, ctxText, costText, d.cwd].filter(Boolean).join('  ·  ');
+    fillProject(d, lv);
     fillModelPick(d);
     fillHandoff(d, lv);
     document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + (st === 'working' && d.activity ? '　·　' + trMod(d.activity) : '');
@@ -1713,6 +1725,45 @@
   }
   tStop.addEventListener('click', () => tutorCtl?.abort());
   // the pencil turns the title into a field; the session runs /office name, then /rename
+  // the project line: name, how it was decided, a pencil to set it by hand, and the desks in the same project
+  let projectEditing = false;
+  function fillProject(d, lv) {
+    const box = document.getElementById('m-project'), pr = projectOf(d);
+    box.hidden = !pr && !projectEditing;
+    const nameEl = document.getElementById('m-project-name');
+    nameEl.innerHTML = '';
+    if (pr) { nameEl.append(tt('project')); const b = document.createElement('b'); b.textContent = pr.name; nameEl.append(b, ' '); const by = document.createElement('span'); by.className = 'by'; by.textContent = '（' + tt('projectBy' + pr.by[0].toUpperCase() + pr.by.slice(1)) + '）'; nameEl.append(by); }
+    nameEl.hidden = projectEditing;
+    document.getElementById('m-project-rename').hidden = lv !== 'live' || !canWrite || projectEditing;
+    const mates = document.getElementById('m-mates'); mates.innerHTML = '';
+    if (!pr) return;
+    mates.append(tt('mates'));
+    const others = [...desks.values()].filter(o => o.id !== d.id && liveness(o) === 'live' && projectOf(o)?.name === pr.name);
+    if (!others.length) { const s = document.createElement('span'); s.textContent = tt('matesNone'); mates.append(s); return; }
+    for (const o of others) {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'mate';
+      const dot = document.createElement('span'); dot.className = 'dot ' + effState(o);
+      b.append(dot, o.title || o.label || o.id); b.title = (o.branch ? o.branch + ' · ' : '') + STATE_TEXT[effState(o)];
+      b.addEventListener('click', () => openModal(o.id));
+      mates.append(b);
+    }
+  }
+  const projectEdit = document.getElementById('m-project-edit');
+  function endProjectEdit() { if (!projectEditing) return; projectEditing = false; projectEdit.hidden = true; if (modalId) fillModal(); }
+  document.getElementById('m-project-rename').addEventListener('click', () => {
+    const d = desks.get(modalId); if (!d) return;
+    projectEditing = true; projectEdit.value = d.projectBy === 'manual' ? d.project : ''; projectEdit.placeholder = d.project || ''; projectEdit.title = tt('projectHint');
+    projectEdit.hidden = false; fillModal(); projectEdit.focus(); projectEdit.select();
+  });
+  projectEdit.addEventListener('keydown', async e => {
+    if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); endProjectEdit(); return; }
+    if (e.key !== 'Enter' || e.isComposing) return;
+    e.preventDefault();
+    const name = projectEdit.value.trim().slice(0, 60);
+    if (modalId) await instruct(modalId, ('/office project ' + name).trim());
+    endProjectEdit();
+  });
+  projectEdit.addEventListener('blur', () => setTimeout(endProjectEdit, 0));
   const titleEl = document.getElementById('m-title'), titleEdit = document.getElementById('m-title-edit');
   function endRename() {
     if (!renaming) return;
