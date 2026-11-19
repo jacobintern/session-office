@@ -134,6 +134,7 @@
   .roster h3 .n { font-weight: 500; }
   .roster h3.waiting { color: var(--wait); } .roster h3.working { color: var(--ok); } .roster h3.switching { color: var(--wait); }
   .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px 6px 10px; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
+  .row .proj { width: 8px; height: 8px; border-radius: 2px; flex: none; align-self: center; }   /* the project's colour, same as the stripe on the nameplate */
   .row .label { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; font-size: .88rem; }  /* the full name, wrapped, not an ellipsis */
   .row:hover { background: var(--panel); }
   .row.waiting { border-left-color: var(--wait); background: var(--panel); }
@@ -542,6 +543,9 @@
   // the project a desk belongs to; a ticket rolls up to its parent when the Jira feed knows one
   const projectOf = d => d.project ? { name: d.projectRoot || d.project, by: d.projectRoot && d.projectRoot !== d.project ? 'parent' : (d.projectBy || 'repo') } : null;
   const boardIdOf = name => 'b' + hash(name).toString(16);
+  // one colour per project, picked by its name, so desks of one project match on the canvas and in the roster
+  const PROJECT_COLORS = ['#e8a640', '#5fc46e', '#78d3ff', '#d97ad1', '#f0e35f', '#ff8c69', '#9fd16b', '#b7a0ff'];
+  const projectColor = name => PROJECT_COLORS[hash(name) % PROJECT_COLORS.length];
   const effState = d => liveness(d) !== 'live' ? 'idle' : isSwitching(d) ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
   const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
@@ -1095,7 +1099,9 @@
     const onSpot = a.target && Math.abs(a.x - a.target.x) < 2 && Math.abs(a.y - a.target.y) < 2;
     const dir = a.walking ? (a.dir || 'down') : a.atBoss ? (a.queue === 0 && onSpot ? 'up' : 'left') : (a.slot.face || 'down');
     drawSprite(charOf(id), dir, col, x, y + 12);
-    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : isLost(d) ? LOST_RED : isSwitching(d) ? css('--wait') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
+    const pr = projectOf(d), openPr = hoverId || modalId ? projectOf(desks.get(hoverId || modalId)) : null;
+    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : isLost(d) ? LOST_RED : isSwitching(d) ? css('--wait') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'),
+      pr && !faded ? projectColor(pr.name) : null, pr && openPr && openPr.name === pr.name ? projectColor(pr.name) : null);
     // health = context window still free
     if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
     ctx.globalAlpha = 1;
@@ -1124,16 +1130,20 @@
     if (hover === id) { ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2; ctx.strokeRect(x - 32, y - 56, 64, 72); }
   }
   // Gather-style tag above the head: dark pill, status dot, name.
-  function nameTag(x, bottomY, text, dot) {
+  // `stripe`: the project's colour on the left edge; `ring`: outlined in it while a desk of the same project is open
+  function nameTag(x, bottomY, text, dot, stripe, ring) {
     ctx.font = `600 11px ${css('--body')}`; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
     let t = text; while (t.length > 1 && ctx.measureText(t).width > 110) t = t.slice(0, -2) + '…';
-    const tw = ctx.measureText(t).width, w = Math.round(tw + 26), h = 18;
+    const sw = stripe ? 6 : 0;
+    const tw = ctx.measureText(t).width, w = Math.round(tw + 26 + sw), h = 18;
     const bx = Math.round(x - w / 2), by = Math.round(bottomY - h - 4);
     ctx.fillStyle = 'rgba(28,24,22,.88)';
     ctx.beginPath(); ctx.roundRect(bx, by, w, h, 9); ctx.fill();
     px(x - 3, by + h, 6, 3, 'rgba(28,24,22,.88)');
-    ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(bx + 11, by + h / 2, 3.5, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#f4efe6'; ctx.fillText(t, bx + 19, by + h / 2 + 0.5);
+    if (stripe) { ctx.save(); ctx.beginPath(); ctx.roundRect(bx, by, w, h, 9); ctx.clip(); ctx.fillStyle = stripe; ctx.fillRect(bx, by, sw, h); ctx.restore(); }
+    if (ring) { ctx.strokeStyle = ring; ctx.lineWidth = 2; ctx.beginPath(); ctx.roundRect(bx - 1, by - 1, w + 2, h + 2, 10); ctx.stroke(); }
+    ctx.fillStyle = dot; ctx.beginPath(); ctx.arc(bx + sw + 11, by + h / 2, 3.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#f4efe6'; ctx.fillText(t, bx + sw + 19, by + h / 2 + 0.5);
   }
 
   // RPG health bar: `left` is the share still left (0..1); green, then yellow under
@@ -1348,6 +1358,8 @@
         el.type = 'button'; el.className = 'row ' + key; el.dataset.id = d.id;
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
+        const pr = key !== 'gone' ? projectOf(d) : null;
+        if (pr) { const c = document.createElement('span'); c.className = 'proj'; c.style.background = projectColor(pr.name); c.title = tt('project') + pr.name; el.prepend(c); }
         if (key !== 'gone' && isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); b.title = tt('lostHint'); el.querySelector('.label').after(b); }
         if (key === 'switching') { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(modelName((MODELS.find(([a]) => a === switchingOf(d).to) || [])[1] || switchingOf(d).to)); b.title = trMod(d.activity || ''); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
@@ -1355,6 +1367,8 @@
         el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
         el.title = d.blocked ? tt('blocked') : key === 'waiting' ? tt('reporting') : titles[key];
         el.addEventListener('click', () => openModal(d.id));
+        el.addEventListener('mouseenter', () => { hoverId = d.id; });
+        el.addEventListener('mouseleave', () => { if (hoverId === d.id) hoverId = null; });
         parts.push(el);
       }
     }
@@ -1426,6 +1440,7 @@
   // ---- modal: the full report and the reply box ------------------------------
   const modal = document.getElementById('modal'), mReply = document.getElementById('m-reply'), mSend = document.getElementById('m-send');
   let modalId = null, lastFocus = null;
+  let hoverId = null;   // the roster row under the pointer: its project's desks get a ring on the canvas
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
     try { mReply.value = drafts[id] || ''; } catch (e) {}
