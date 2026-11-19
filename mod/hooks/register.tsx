@@ -451,8 +451,9 @@ async function switchModel($: EngineInterface, arg: string) {
   // not 'working': the page gives a switching desk its own look
   patch($, { state: 'idle', activity: `換成 ${arg} 中：用新模型接回這段對話`, switching: { to: arg, at: Date.now() }, blocked: null, ask: null, bg: null, dialog: null })
   await saveDesk($)
-  // the new tab waits for this process to end before resuming, so two processes never hold the session
-  const command = `cd ${shellQuote(cwd)} && while kill -0 ${pid} 2>/dev/null; do sleep 0.3; done; claude --resume ${id} --model ${shellQuote(arg)}`
+  // the new tab waits for this process to end before resuming, so two processes never hold the session;
+  // `; exit` closes the tab however the session later ends (see TAB_EXIT)
+  const command = `cd ${shellQuote(cwd)} && while kill -0 ${pid} 2>/dev/null; do sleep 0.3; done; claude --resume ${id} --model ${shellQuote(arg)}${TAB_EXIT}`
   const script = [
     'tell application "iTerm2"',
     '  if (count of windows) = 0 then',
@@ -738,6 +739,9 @@ async function restoreEffortDefaults($: EngineInterface, before: Json | null) {
   await $.fs.write(settingsPath(), JSON.stringify(after, null, 2) + '\n')
 }
 const requested = new Set<string>()
+// A tab the office opens ends with its session: closing it only on 開除 or a model
+// switch left a bare shell behind after /exit typed, Ctrl+C or a crash.
+const TAB_EXIT = '; exit'
 const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
 const asQuote = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 
@@ -758,9 +762,9 @@ async function openRequestedSessions($: EngineInterface) {
     try { isDir = (await $.fs.stat(cwd)).kind === 'dir' } catch { isDir = false }
     if (!cwd || !isDir) { await mark('failed', { error: `目錄不存在：${cwd || '(空)'}` }); continue }
     // kind 'codex': Codex takes over from a handoff, with its first message as the task
-    const command = doc.data.kind === 'codex'
+    const command = (doc.data.kind === 'codex'
       ? `cd ${shellQuote(cwd)} && codex ${shellQuote(task)}`
-      : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`
+      : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`) + TAB_EXIT
     const script = [
       'tell application "iTerm2"',
       '  activate',
