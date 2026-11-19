@@ -208,28 +208,12 @@ async function lastApiError($: EngineInterface): Promise<string> {
   try {
     const content = JSON.parse(ran?.stdout.trim() || '{}').message?.content
     const text = Array.isArray(content) ? content.map((c: { text?: unknown }) => String(c.text ?? '')).join(' ') : String(content ?? '')
-    return text.replace(/^API Error:\s*/i, '').split('\n')[0].trim().slice(0, 200)
+    return (text.replace(/^API Error:\s*/i, '').split('\n')[0] ?? '').trim().slice(0, 200)
   } catch { return '' }
 }
 const errorReport = (raw: string) => /went to sleep/i.test(raw)
   ? '_（這輪沒有文字回覆：電腦睡著，回覆中斷。傳「繼續」讓它接著做）_'
   : `_（這輪沒有文字回覆：API 錯誤${raw ? `：${raw}` : ''}）_`
-
-// While the main loop runs a turn the Mac must not idle-sleep: a sleep kills the
-// response mid-stream. caffeinate -i holds off idle sleep only (a closed lid still
-// sleeps) and -w ends it with this process, so a crash leaves nothing behind.
-let awakePid: number | null = null
-async function keepAwake($: EngineInterface, on: boolean) {
-  if (on && awakePid === null && me?.pid) {
-    const ran = await $.process.run(['sh', '-c', `caffeinate -i -w ${me.pid} >/dev/null 2>&1 & echo $!`], { timeoutMs: 5000 }).catch(() => null)
-    const pid = Number(ran?.stdout.trim())
-    if (pid > 0) awakePid = pid
-  } else if (!on && awakePid !== null) {
-    const pid = awakePid
-    awakePid = null
-    await $.process.run(['kill', String(pid)], { timeoutMs: 5000 }).catch(() => {})
-  }
-}
 
 function rename($: EngineInterface, title: string) {
   patch($, { title })
@@ -889,20 +873,27 @@ const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has 
 // Codex: every Codex call logs the account's limits in its rollout file
 // (~/.codex/sessions/**/rollout-*.jsonl, a token_count event). The bridge
 // publishes the latest one as meta/codex for the Codex coworker on the page.
+// A rollout file written in the last two minutes means Codex is running (`working`).
 const CODEX_EVERY = 12                      // every 12th tick: 1 minute
+const CODEX_ACTIVE = `find "$HOME/.codex/sessions" -name 'rollout-*.jsonl' -mtime -120s 2>/dev/null | head -1`
 const CODEX_LATEST = `for f in $(ls -t $(find "$HOME/.codex/sessions" -name 'rollout-*.jsonl' -mtime -8 2>/dev/null) 2>/dev/null | head -5); do l=$(grep '"rate_limits"' "$f" | tail -1); [ -n "$l" ] && { printf '%s' "$l"; exit 0; }; done`
-let codexLast = ''
+let codexLast = '', codexLimits: Record<string, unknown> | null = null
 
-async function syncCodex($: EngineInterface) {
+// every other tick for `working`; the limits only on `full` ticks or when `working` flips
+async function syncCodex($: EngineInterface, full: boolean) {
   if (cfg.codex === false) return
   try {
-    const ran = await $.process.run(['sh', '-c', CODEX_LATEST], { timeoutMs: 10_000 })
-    if (!ran.stdout.trim()) return
-    const line = JSON.parse(ran.stdout) as { timestamp?: string; payload?: { rate_limits?: Record<string, any> } }
-    const rl = line.payload?.rate_limits
-    if (!rl) return
-    const win = (w: any) => w && typeof w.used_percent === 'number' ? { usedPercent: w.used_percent, windowMinutes: w.window_minutes ?? null, resetsAt: typeof w.resets_at === 'number' ? w.resets_at * 1000 : null } : null
-    const data = { primary: win(rl.primary), secondary: win(rl.secondary), at: Date.parse(line.timestamp ?? '') || null }
+    const active = await $.process.run(['sh', '-c', CODEX_ACTIVE], { timeoutMs: 10_000 })
+    const working = !!active.stdout.trim()
+    if (full || !codexLimits || working !== (JSON.parse(codexLast || '{}').working ?? false)) {
+      const ran = await $.process.run(['sh', '-c', CODEX_LATEST], { timeoutMs: 10_000 })
+      const line = ran.stdout.trim() ? JSON.parse(ran.stdout) as { timestamp?: string; payload?: { rate_limits?: Record<string, any> } } : null
+      const rl = line?.payload?.rate_limits
+      const win = (w: any) => w && typeof w.used_percent === 'number' ? { usedPercent: w.used_percent, windowMinutes: w.window_minutes ?? null, resetsAt: typeof w.resets_at === 'number' ? w.resets_at * 1000 : null } : null
+      if (rl) codexLimits = { primary: win(rl.primary), secondary: win(rl.secondary), at: Date.parse(line?.timestamp ?? '') || null }
+    }
+    if (!codexLimits) return
+    const data = { ...codexLimits, working }
     const key = JSON.stringify(data)
     if (key === codexLast) return
     if (await putMeta($, 'codex', { ...data, fetchedAt: Date.now() })) codexLast = key
@@ -976,7 +967,7 @@ async function bridgeTick($: EngineInterface) {
     if (!(await ensureTool($))) { lastTick.note = 'ArtifactData 工具載不進來'; return }
     if (tickCount % 2 === 1) await heartbeat($)
     if (tickCount === 2 || tickCount % JIRA_EVERY === 0) { lastTick.note = '抓 Jira'; await syncJira($) }
-    if (tickCount === 3 || tickCount % CODEX_EVERY === 0) await syncCodex($)
+    if (tickCount === 3 || tickCount % 2 === 0) await syncCodex($, tickCount === 3 || tickCount % CODEX_EVERY === 0)
     if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
     lastTick.note = '讀資料庫'
     const listResult = await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: COLLECTION, query: { limit: 200 } })
@@ -1419,7 +1410,6 @@ export const register: Register = on => {
       // a session renamed some way the desk missed keeps that name, not this prompt
       if (task && !me.title) p.title = (await sessionTitle($)) || firstLine(e.text, 24)
       patch($, p)
-      void keepAwake($, true)
       // an unnamed session takes its nameplate as its title, so the name on the page is the name to message it by
       if (p.title) void handTitle($, p.title)
     }
@@ -1465,7 +1455,6 @@ export const register: Register = on => {
   on('turn.complete', async ($, e, next) => {
     if (e.agentId === undefined) runningTurn = null
     if (e.agentId === undefined && me) {
-      void keepAwake($, false)
       await refreshUsage($, true)
       if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })
       else {
