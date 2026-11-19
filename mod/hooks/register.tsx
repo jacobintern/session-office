@@ -599,8 +599,9 @@ async function saveImages($: EngineInterface, refs: string[]): Promise<string[]>
 const REQUESTS = 'requests'
 const BOARDS = 'boards'
 const BOARD_KEEP = 50
-/** `topic`: a post on the same topic replaces this note (it is archived, not deleted); `archived`: when it was replaced or marked done. */
-type Note = { id: string; at: number; by: string; text: string; topic?: string; archived?: number }
+/** One card per member: `desk` is the session that wrote it (none: the person, from the page); a new post by the
+ *  same member replaces the card (the old one is archived, not deleted); `archived`: when it was replaced, or the desk left. */
+type Note = { id: string; at: number; by: string; text: string; desk?: string; user?: boolean; topic?: string; archived?: number }
 const activeNotes = (notes: Note[]) => notes.filter(n => !n.archived)
 /** Every active note, and the last BOARD_KEEP archived ones, oldest first. */
 const trimNotes = (notes: Note[]) => [...activeNotes(notes), ...notes.filter(n => n.archived).slice(-BOARD_KEEP)].sort((a, b) => a.at - b.at)
@@ -610,9 +611,20 @@ const boardId = (project: string) => 'b' + fnv(project)
 let jiraParent: Record<string, string> = {}
 const rootOf = (project: string | null | undefined) => project ? (jiraParent[project] ?? project) : null
 const boardsWritten: Record<string, string> = {}
+async function writeBoard($: EngineInterface, root: string, b: { version?: number; notes: Note[] }): Promise<boolean> {
+  const data = { project: root, notes: b.notes }
+  const wrote = b.version === undefined
+    ? await $.tool.call({ tool: 'ArtifactData', action: 'set', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data })
+    : await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data, if_version: b.version })
+  if (!wroteOk(wrote)) { report($, `board for ${root} not written: ${JSON.stringify(wrote).slice(0, 160)}`); return false }
+  const m = /"version"\s*:\s*(\d+)|version (\d+)/.exec(JSON.stringify(wrote))
+  b.version = Number(m?.[1] ?? m?.[2])
+  return true
+}
 
-// Each desk gets a file with its project's board; a note a session posted is
-// appended to the board document. One list of the collection per round.
+// Each desk gets a file with its project's board; a post by a session replaces
+// that session's card on the board document, and a desk that left the project
+// (or the office) has its card archived. One list of the collection per round.
 async function syncBoards($: EngineInterface, desks: Desk[]) {
   const roots = new Map<string, string>()
   for (const d of desks) { const r = rootOf(d.project); if (r) roots.set(d.id, r) }
@@ -628,30 +640,28 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
   for (const f of posts) {
     const path = `${boardPostDir()}/${f}`
     try {
-      const post = JSON.parse(await $.fs.read(path)) as { desk: string; by: string; text: string; at: number; topic?: string; done?: string }
+      const post = JSON.parse(await $.fs.read(path)) as { desk: string; by: string; text: string; at: number }
       const root = roots.get(post.desk)
       if (root) {
         const b = boards[root] ?? { notes: [] }
-        if (post.done) {
-          // a note marked done is archived, the same as one replaced on its topic
-          b.notes = b.notes.map(n => n.id === post.done && !n.archived ? { ...n, archived: post.at } : n)
-        } else {
-          const note: Note = { id: post.at.toString(36), at: post.at, by: post.by, text: post.text }
-          if (post.topic) note.topic = post.topic
-          b.notes = [...b.notes.map(n => post.topic && n.topic === post.topic && !n.archived ? { ...n, archived: post.at } : n), note]
-        }
-        b.notes = trimNotes(b.notes)
-        const data = { project: root, notes: b.notes }
-        const wrote = b.version === undefined
-          ? await $.tool.call({ tool: 'ArtifactData', action: 'set', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data })
-          : await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: BOARDS, doc_id: boardId(root), data, if_version: b.version })
-        if (!wroteOk(wrote)) { report($, `board post for ${root} not written: ${JSON.stringify(wrote).slice(0, 160)}`); continue }   // the file waits for the next round
-        const m = /"version"\s*:\s*(\d+)|version (\d+)/.exec(JSON.stringify(wrote))
-        b.version = Number(m?.[1] ?? m?.[2])
+        const note: Note = { id: post.at.toString(36), at: post.at, by: post.by, text: post.text, desk: post.desk }
+        // also a card from before cards carried the desk id, told by the same name
+        b.notes = trimNotes([...b.notes.map(n => !n.archived && (n.desk === post.desk || (!n.desk && !n.user && n.by === post.by)) ? { ...n, archived: post.at } : n), note])
+        if (!(await writeBoard($, root, b))) continue   // the file waits for the next round
         boards[root] = b
       }
       await $.process.run(['rm', '-f', path], { timeoutMs: 5000 })
     } catch { /* half-written; next round */ }
+  }
+  // a member that is no longer on the project (left it, or the office) takes its card down
+  const members = new Set<string>()
+  for (const [deskId, root] of roots) members.add(`${root}\n${deskId}`)
+  for (const [root, b] of Object.entries(boards)) {
+    const gone = b.notes.filter(n => !n.archived && n.desk && !members.has(`${root}\n${n.desk}`))
+    if (!gone.length) continue
+    const at = Date.now()
+    b.notes = trimNotes(b.notes.map(n => gone.includes(n) ? { ...n, archived: at } : n))
+    await writeBoard($, root, b)
   }
   for (const [deskId, root] of roots) {
     const body = JSON.stringify({ project: root, notes: boards[root]?.notes ?? [] })
@@ -663,12 +673,13 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
 
 const BOARD_CONTEXT = (b: { project: string; notes: Note[] }, includeArchived = false) => {
   const when = (t: number) => new Date(t).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-  const line = (n: Note) => `- [${when(n.at)} ${n.by} · id ${n.id}${n.topic ? ` · 主題 ${n.topic}` : ''}] ${n.text}`
+  const line = (n: Note) => `- [${when(n.at)} ${n.by}] ${n.text}`
   const active = activeNotes(b.notes), archived = b.notes.filter(n => n.archived)
-  const head = `# 專案公佈欄「${b.project}」（Session Office）\n同專案的 session 和使用者留給彼此的便條，最新的在最後。跟你的工作有關的要照著做或避開：\n`
-  const tail = `\n要留話給同專案的其他 session（例如你改了共用的東西、別人接手要注意的事），用 office 的 board 工具（action: post）。進度、狀態這類會過期的便條要帶 topic（例如「TICKET-123/進度」）：同 topic 再 post 會取代舊的，舊的進封存。待辦類的便條處理完用 action: done 加它的 id 收掉。`
-  const arc = includeArchived && archived.length ? `\n封存（被取代或已處理，只供追查）：\n${archived.map(line).join('\n')}` : ''
-  return head + (active.length ? active.map(line).join('\n') : '（目前沒有現役的便條）') + arc + tail
+  const head = `# 專案公佈欄「${b.project}」（Session Office）\n每位成員一張卡：同專案每個 session 和使用者各一則，寫的是那位目前的狀態或要大家知道的事。跟你的工作有關的要照著做或避開：\n`
+  const tail = `\n你的卡用 office 的 board 工具更新（action: post 會換掉你上一則）：你改了共用的東西、進度有變、在等某位同事、或接手的人要知道的事時就更新。
+跟同專案 session 有關的技術協調（介面長怎樣、共用檔誰改、命名、誰先誰後）先用傳訊問那個 session 或更新你的卡，彼此談好再動手，不要丟給使用者；只有範圍、優先順序、開工、開／關／合併 MR、刪東西這類破壞性操作、花錢、或兩邊談不攏的事，才放進「要你決定」問使用者。`
+  const arc = includeArchived && archived.length ? `\n封存（被新的卡換掉，或那位已離開；只供追查）：\n${archived.map(line).join('\n')}` : ''
+  return head + (active.length ? active.map(line).join('\n') : '（目前沒有人貼卡）') + arc + tail
 }
 // `/effort <level>` also saves the level as the default for new sessions, in
 // settings.json (top-level `effortLevel`, and per model under `modelSettings`).
@@ -1209,8 +1220,8 @@ export const register: Register = on => {
       try {
         await $.tool.register({
           name: 'board',
-          description: "Session Office project board: notes the sessions of one project (same topic, ticket or repo) and the user leave for each other. `read` lists the active notes (`include_archived` adds the replaced and done ones); `post` adds one — use it when you changed something shared, or the next session on this project must know something. Give a status or progress note a `topic` (e.g. `TICKET-123/progress`): a later post on the same topic replaces it, so readers see only the latest. `done` with a note's `id` archives a to-do note once it is handled.",
-          inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['read', 'post', 'done'] }, text: { type: 'string', description: 'post: the note, at most 1000 characters.' }, topic: { type: 'string', description: 'post: the subject this note is the latest word on; a later post with the same topic archives this one. At most 60 characters.' }, id: { type: 'string', description: 'done: the id of the note to archive, as read shows it.' }, include_archived: { type: 'boolean', description: 'read: also list the archived notes.' } }, required: ['action'] },
+          description: "Session Office project board: one card per member of this project (each session of the same topic, ticket or repo, and the user). `read` lists the cards (`include_archived` adds the replaced ones); `post` writes your card and replaces your earlier one — do it when you changed something shared, your progress changed, you are waiting on a teammate, or the next session must know something. Technical coordination with a teammate (interfaces, who edits a shared file, naming, ordering) goes to that session by message or on your card, not to the user.",
+          inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['read', 'post'] }, text: { type: 'string', description: 'post: your card, at most 1000 characters; it replaces your earlier one.' }, include_archived: { type: 'boolean', description: 'read: also list the replaced cards.' } }, required: ['action'] },
           isDeferred: false,
         })
       } catch (error) { report($, `board tool not registered: ${String(error)}`) }
@@ -1244,7 +1255,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'mcp__office__board' }, async ($, e) => {
     if (!me) return { deny: 'This session has no desk in Session Office.' }
-    const { action, text, topic, id, include_archived } = e as unknown as { action?: string; text?: string; topic?: string; id?: string; include_archived?: boolean }
+    const { action, text, include_archived } = e as unknown as { action?: string; text?: string; include_archived?: boolean }
     let board: { project: string; notes: Note[] } | null = null
     try { board = JSON.parse(await $.fs.read(boardFile(me.id))) } catch { /* not synced yet */ }
     const noProject = 'This desk has no project (the folder is not in git), so there is no board; the user can set a topic with `/office project <name>`.'
@@ -1253,20 +1264,9 @@ export const register: Register = on => {
       const note = String(text ?? '').trim().slice(0, 1000)
       if (!note) return { deny: 'Nothing to post.' }
       if (!me.project) return { deny: noProject }
-      const at = Date.now(), subject = String(topic ?? '').trim().slice(0, 60)
-      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, text: note, at, ...(subject ? { topic: subject } : {}) }))
-      return { result: `Posted to the board of ${name}${subject ? ` on topic "${subject}" (the earlier note on it is archived)` : ''}; the bridge publishes it within a few seconds.` }
-    }
-    if (action === 'done') {
-      const target = String(id ?? '').trim()
-      if (!target) return { deny: 'Which note? Pass its id, as read shows it.' }
-      if (!me.project) return { deny: noProject }
-      const hit = board?.notes.find(n => n.id === target)
-      if (!hit) return { deny: `No note with id ${target} on the board of ${name}.` }
-      if (hit.archived) return { result: `Note ${target} is already archived.` }
       const at = Date.now()
-      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, at, done: target }))
-      return { result: `Note ${target} marked done; the bridge archives it within a few seconds.` }
+      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, text: note, at }))
+      return { result: `Your card on the board of ${name} is updated (the earlier one is archived); the bridge publishes it within a few seconds.` }
     }
     if (!board) return { result: 'No board yet for this desk (the bridge has not synced it, or the desk has no project).' }
     return { result: board.notes.length ? BOARD_CONTEXT(board, !!include_archived) : `The board of ${board.project} is empty.` }
