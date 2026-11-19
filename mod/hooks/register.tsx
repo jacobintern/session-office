@@ -361,12 +361,18 @@ async function takeInstruction($: EngineInterface) {
       if (name === 'model') pageModelSwitchAt = Date.now()
       // a command that opens a dialog in the terminal resolves only when the dialog is answered there
       const stuck = $.clock.after(DIALOG_WAIT_MS, () => { if (me && !me.blocked) patch($, { state: 'reporting', activity: '卡在 terminal 的對話框', blocked: 'dialog', dialog: `/${name}`, reportedAt: Date.now() }) })
+      const settingsBefore = name === 'effort' ? await readSettings($) : null
       try { await $.command.run({ command: name, args: rest.join(' ') }) }
       finally {
         stuck.cancel()
         if (me?.blocked === 'dialog') patch($, { state: 'idle', activity: '對話框已處理', blocked: null, dialog: null })
       }
       if (name === 'model') await noteModel($)
+      if (name === 'effort') {
+        await restoreEffortDefaults($, settingsBefore)
+        // nothing reads the effort back until the next request; show the level asked for till then
+        if (/^(low|medium|high|xhigh|max)$/.test(rest[0] ?? '')) patch($, { effort: rest[0], activity: `effort 改成 ${rest[0]}（只有這個 session）` })
+      }
       return
     }
     patch($, { state: 'working', activity: '收到辦公室的指令', task: firstLine(instruction, 80) })
@@ -643,6 +649,36 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
 const BOARD_CONTEXT = (b: { project: string; notes: Note[] }) => {
   const when = (t: number) => new Date(t).toLocaleString('zh-TW', { hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
   return `# 專案公佈欄「${b.project}」（Session Office）\n同專案的 session 和使用者留給彼此的便條，最新的在最後。跟你的工作有關的要照著做或避開：\n${b.notes.map(n => `- [${when(n.at)} ${n.by}] ${n.text}`).join('\n')}\n要留話給同專案的其他 session（例如你改了共用的東西、別人接手要注意的事），用 office 的 board 工具（action: post）。`
+}
+// `/effort <level>` also saves the level as the default for new sessions, in
+// settings.json (top-level `effortLevel`, and per model under `modelSettings`).
+// A pick on the page means this session only, so the defaults are put back
+// afterwards; the running session keeps its level, which lives in memory.
+const settingsPath = () => `${home}/.claude/settings.json`
+type Json = Record<string, any>
+async function readSettings($: EngineInterface): Promise<Json | null> {
+  try { return JSON.parse(await $.fs.read(settingsPath())) as Json } catch { return null }
+}
+const effortDefaults = (s: Json) => JSON.stringify([s.effortLevel ?? null, Object.entries((s.modelSettings ?? {}) as Json).map(([m, v]) => [m, (v as Json)?.effortLevel ?? null])])
+async function restoreEffortDefaults($: EngineInterface, before: Json | null) {
+  if (!before) return
+  const after = await readSettings($)
+  if (!after || effortDefaults(before) === effortDefaults(after)) return
+  if (before.effortLevel === undefined) delete after.effortLevel
+  else after.effortLevel = before.effortLevel
+  const models: Json = { ...(after.modelSettings ?? {}) }
+  const wasModels: Json = before.modelSettings ?? {}
+  for (const m of new Set([...Object.keys(models), ...Object.keys(wasModels)])) {
+    const was = wasModels[m]?.effortLevel
+    if (was !== undefined) { models[m] = { ...(models[m] ?? {}), effortLevel: was }; continue }
+    const rest: Json = { ...(models[m] ?? {}) }
+    delete rest.effortLevel
+    if (Object.keys(rest).length) models[m] = rest
+    else delete models[m]
+  }
+  if (Object.keys(models).length) after.modelSettings = models
+  else delete after.modelSettings
+  await $.fs.write(settingsPath(), JSON.stringify(after, null, 2) + '\n')
 }
 const requested = new Set<string>()
 const shellQuote = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`
