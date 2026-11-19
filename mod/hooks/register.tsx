@@ -666,7 +666,7 @@ const BOARD_CONTEXT = (b: { project: string; notes: Note[] }, includeArchived = 
   const line = (n: Note) => `- [${when(n.at)} ${n.by} · id ${n.id}${n.topic ? ` · 主題 ${n.topic}` : ''}] ${n.text}`
   const active = activeNotes(b.notes), archived = b.notes.filter(n => n.archived)
   const head = `# 專案公佈欄「${b.project}」（Session Office）\n同專案的 session 和使用者留給彼此的便條，最新的在最後。跟你的工作有關的要照著做或避開：\n`
-  const tail = `\n要留話給同專案的其他 session（例如你改了共用的東西、別人接手要注意的事），用 office 的 board 工具（action: post）。進度、狀態這類會過期的便條要帶 topic（例如「IT-2861/進度」）：同 topic 再 post 會取代舊的，舊的進封存。待辦類的便條處理完用 action: done 加它的 id 收掉。`
+  const tail = `\n要留話給同專案的其他 session（例如你改了共用的東西、別人接手要注意的事），用 office 的 board 工具（action: post）。進度、狀態這類會過期的便條要帶 topic（例如「TICKET-123/進度」）：同 topic 再 post 會取代舊的，舊的進封存。待辦類的便條處理完用 action: done 加它的 id 收掉。`
   const arc = includeArchived && archived.length ? `\n封存（被取代或已處理，只供追查）：\n${archived.map(line).join('\n')}` : ''
   return head + (active.length ? active.map(line).join('\n') : '（目前沒有現役的便條）') + arc + tail
 }
@@ -1209,7 +1209,7 @@ export const register: Register = on => {
       try {
         await $.tool.register({
           name: 'board',
-          description: "Session Office project board: notes the sessions of one project (same topic, ticket or repo) and the user leave for each other. `read` lists the active notes (`include_archived` adds the replaced and done ones); `post` adds one — use it when you changed something shared, or the next session on this project must know something. Give a status or progress note a `topic` (e.g. `IT-2861/progress`): a later post on the same topic replaces it, so readers see only the latest. `done` with a note's `id` archives a to-do note once it is handled.",
+          description: "Session Office project board: notes the sessions of one project (same topic, ticket or repo) and the user leave for each other. `read` lists the active notes (`include_archived` adds the replaced and done ones); `post` adds one — use it when you changed something shared, or the next session on this project must know something. Give a status or progress note a `topic` (e.g. `TICKET-123/progress`): a later post on the same topic replaces it, so readers see only the latest. `done` with a note's `id` archives a to-do note once it is handled.",
           inputSchema: { type: 'object', properties: { action: { type: 'string', enum: ['read', 'post', 'done'] }, text: { type: 'string', description: 'post: the note, at most 1000 characters.' }, topic: { type: 'string', description: 'post: the subject this note is the latest word on; a later post with the same topic archives this one. At most 60 characters.' }, id: { type: 'string', description: 'done: the id of the note to archive, as read shows it.' }, include_archived: { type: 'boolean', description: 'read: also list the archived notes.' } }, required: ['action'] },
           isDeferred: false,
         })
