@@ -946,7 +946,8 @@
   }
   // The breath: light gathers at the jaws while the plates light up from the
   // tail (22-23.2 s), the beam fires with a flash and a recoil (23.2-27.5 s),
-  // thin at the jaws and widening as it climbs, with frayed edges and sparks;
+  // thin at the jaws and widening as it climbs, sweeping upward, with frayed
+  // edges and sparks (deeper blues by day, so it shows against the bright sky);
   // then the plates dim (to 28.5 s). At night the plates glow the whole way.
   const sparks = [];
   let sparkAt = 0;
@@ -961,7 +962,11 @@
     const kx = Math.round(x - 150 + (w + 300) * (walked / 44)) + recoil, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
     ctx.drawImage(kaijuSprite(step, lit), kx, ky);
     const mx = kx + 132, my = ky + 45;
-    const ux = 5 / Math.hypot(5, 3.4), uy = -3.4 / Math.hypot(5, 3.4), nx = -uy, ny = ux, P = 4;
+    // the beam sweeps from near the horizon up to nearly straight up over the first 3.2 s
+    const ease = v => v < .5 ? 2 * v * v : 1 - (-2 * v + 2) ** 2 / 2;
+    const ang = -(12 + (firing ? ease(Math.min(1, (t - 23.2) / 3.2)) : 0) * 66) * Math.PI / 180;
+    const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux, P = 4;
+    const day = night <= 0.5;   // deeper, more opaque blues hold up against a bright sky
     const cell = (bx, by, size, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(bx / P) * P - size / 2, Math.round(by / P) * P - size / 2, size, size); };
     const dot = (r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.fill(); };
     if (charge) {
@@ -975,8 +980,8 @@
         const d = k * 5, bx = mx + ux * d, by = my + uy * d;
         const taper = k > reach - 14 ? (reach - k) / 14 : 1;
         const width = (5 + k * .22) * taper, jitter = Math.sin(k * .9 + age * 25) * 2.2 + wobble, ox = nx * jitter, oy = ny * jitter;
-        cell(bx + ox, by + oy, width * 2.4, `rgba(80,170,255,${.18 * taper})`);
-        cell(bx + ox, by + oy, width * 1.5, `rgba(120,210,255,${.55 * taper})`);
+        cell(bx + ox, by + oy, width * 2.4, day ? `rgba(40,130,240,${.35 * taper})` : `rgba(80,170,255,${.18 * taper})`);
+        cell(bx + ox, by + oy, width * 1.5, day ? `rgba(90,190,255,${.8 * taper})` : `rgba(120,210,255,${.55 * taper})`);
         cell(bx + ox, by + oy, width * .75, `rgba(240,252,255,${.95 * taper})`);
       }
       const mb = 10 + Math.sin(age * 50) * 2;
