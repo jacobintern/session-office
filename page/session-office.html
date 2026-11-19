@@ -1166,17 +1166,17 @@
   // session may leave a window out until its next request. A window whose
   // reset time has passed counts as unused.
   // The account's limits, from every desk: a desk reports what its own last API call
-  // saw, so an idle one lags. Within one reset window usage only climbs, so per kind
-  // take the latest window and the highest reading in it.
+  // saw, so an idle one lags. Per kind take the latest window and, in it, the reading
+  // from the latest turn (limitsAt): a usage reset zeroes a window without moving its end.
   function accountLimits() {
     const byKind = new Map();
     for (const d of desks.values()) for (const l of d.limits || []) {
-      const cur = byKind.get(l.kind), win = l.resetsAt ? Date.parse(l.resetsAt) : 0;
-      if (!cur) { byKind.set(l.kind, { ...l, win }); continue; }
-      if (win > cur.win || (win === cur.win && (l.percentUsed || 0) > (cur.percentUsed || 0))) byKind.set(l.kind, { ...l, win });
+      const cur = byKind.get(l.kind), win = l.resetsAt ? Date.parse(l.resetsAt) : 0, at = d.limitsAt || 0;
+      if (!cur) { byKind.set(l.kind, { ...l, win, at }); continue; }
+      if (win > cur.win || (win === cur.win && at > cur.at)) byKind.set(l.kind, { ...l, win, at });
     }
     const t = Date.now();
-    return [...byKind.values()].map(({ win, ...l }) => l.resetsAt && Date.parse(l.resetsAt) <= t ? { ...l, percentUsed: 0 } : l);
+    return [...byKind.values()].map(({ win, at, ...l }) => l.resetsAt && Date.parse(l.resetsAt) <= t ? { ...l, percentUsed: 0 } : l);
   }
 
   function bubble(x, y, text, align) {
