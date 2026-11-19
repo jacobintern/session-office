@@ -418,7 +418,7 @@
       working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
       codexNone: '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。', codexTitle: '**Codex 用量**',
-      codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫',
+      codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫', codexBusy: '正在工作中',
       tutor: '英文小老師', tutorHint: '中文段落翻成英文，其他翻成繁體中文',
       tutorEmpty: '貼上要翻的文字按「逐段翻譯」，會一段原文、一段譯文對照列出來。對翻譯有疑問，或想知道某句英文怎麼說，打問題按「問老師」。',
       tutorPh: '要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）', tutorGo: '逐段翻譯', tutorAsk: '問老師', tutorStop: '停止',
@@ -458,7 +458,7 @@
       working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
       codexNone: '**Codex**\n\nNo usage yet (after your next Codex call the bridge picks it up within a minute).', codexTitle: '**Codex usage**',
-      codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}',
+      codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}', codexBusy: 'Working now',
       tutor: 'English tutor', tutorHint: 'Chinese paragraphs into English, everything else into Traditional Chinese',
       tutorEmpty: 'Paste text and press “Translate” to get it back paragraph by paragraph, original beside translation. Ask about a translation, or how to say something in English, with “Ask”.',
       tutorPh: 'Text to translate, or a question (Enter for a new line, ⌘/Ctrl+Enter to translate)', tutorGo: 'Translate', tutorAsk: 'Ask', tutorStop: 'Stop',
@@ -1295,7 +1295,7 @@
       const reset = w.resetsAt && w.resetsAt <= t;
       return tt('codexLeft', { label, p: reset ? 100 : Math.round(100 - (w.usedPercent || 0)) }) + (w.resetsAt ? (reset ? tt('codexReset') : tt('codexResetsAt', { when: when(w.resetsAt) })) : '');
     };
-    return [tt('codexTitle'), '', line('5h', codex.primary), line(tt('week'), codex.secondary), '', codex.at ? tt('codexFrom', { ago: ago(codex.at) }) : ''].filter(l => l !== null).join('\n');
+    return [tt('codexTitle'), ...(codex.working ? [tt('codexBusy')] : []), '', line('5h', codex.primary), line(tt('week'), codex.secondary), '', codex.at ? tt('codexFrom', { ago: ago(codex.at) }) : ''].filter(l => l !== null).join('\n');
   }
   function npcHit(ev, at) {
     const r = canvas.getBoundingClientRect(), mx = (ev.clientX - r.left) * canvas.width / r.width, my = (ev.clientY - r.top) * canvas.height / r.height;
@@ -1313,12 +1313,16 @@
     return [['5h', codex.primary], [tt('week'), codex.secondary]].filter(r => r[1])
       .map(([label, w]) => [label, w.resetsAt && w.resetsAt <= t ? 0 : (w.usedPercent || 0)]);
   }
+  // while Codex runs (meta/codex `working`) she bobs like a working desk and shows typing dots
   function drawCodex(a) {
+    const working = !!codex?.working, t = performance.now() / 1000;
+    const y = a.y + (working && !reduced ? Math.round(Math.sin(t * 6) * 1) : 0);
     px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
-    drawSprite(CODEX_SHEET, 'down', 1, a.x, a.y + 12);
+    drawSprite(CODEX_SHEET, 'down', 1, a.x, y + 12);
     const age = codex && codex.at ? Date.now() - codex.at : null;
-    const stale = age != null && age > 30 * 60 * 1000;
-    nameTag(a.x, a.y - 48, stale ? 'Codex · ' + ago(codex.at) : 'Codex', codex ? css('--ok') : css('--idle'));
+    const stale = !working && age != null && age > 30 * 60 * 1000;
+    nameTag(a.x, a.y - 48, stale ? 'Codex · ' + ago(codex.at) : 'Codex', working ? css('--ok') : css('--idle'));
+    if (working) for (let i = 0; i < 3; i++) px(a.x + 16 + i * 5, y - 30 - (Math.floor(t * 3) % 3 === i ? 2 : 0), 3, 3, css('--screen-on'));
     const rows = codexRows();
     if (!rows.length) return;
     const top = a.y - 48 - 22 - 12 - (rows.length - 1) * 11 - 5;
