@@ -56,7 +56,6 @@ See [docs/token-cost.md](docs/token-cost.md).
 | macOS + [iTerm2](https://iterm2.com) | yes | the bridge runs in an iTerm2 tab, kept alive by launchd |
 | Claude Code with mods (tested on 2.1.311) | yes | `claude --version` |
 | A claude.ai account that can publish Artifacts | yes | you can ask Claude to publish a page |
-| Access to this repository | yes | it is private: ask the owner to add you as a collaborator, and make sure `git clone git@github.com:jacobintern/session-office.git` works |
 | Pipoya's sprite pack + node | yes, once | see *Sprites* |
 | Jira Cloud API token | no | for the Jira column |
 | Codex CLI | no | for the Codex secretary's usage limits |

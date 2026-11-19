@@ -35,7 +35,6 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 | macOS + [iTerm2](https://iterm2.com) | 是 | bridge 跑在 iTerm2 分頁裡，由 launchd 維持運作 |
 | 支援 mod 的 Claude Code（2.1.311 測試過） | 是 | `claude --version` |
 | 可以發佈 Artifact 的 claude.ai 帳號 | 是 | 能請 Claude 幫你發佈頁面就可以 |
-| 這個 repository 的存取權 | 是 | 這是私人 repo：請擁有者把你加成協作者，並確認 `git clone git@github.com:jacobintern/session-office.git` 能成功 |
 | Pipoya 人物素材包 + node | 是，只需一次 | 見〈人物圖〉 |
 | Jira Cloud API token | 否 | Jira 欄位才需要 |
 | Codex CLI | 否 | Codex 秘書顯示用量才需要 |
