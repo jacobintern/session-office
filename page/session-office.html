@@ -962,9 +962,9 @@
     const kx = Math.round(x - 150 + (w + 300) * (walked / 44)) + recoil, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
     ctx.drawImage(kaijuSprite(step, lit), kx, ky);
     const mx = kx + 132, my = ky + 45;
-    // the beam sweeps from near the horizon up to nearly straight up over the first 3.2 s
+    // the beam sweeps from a little below the horizon up to a moderate climb over the first 3.2 s
     const ease = v => v < .5 ? 2 * v * v : 1 - (-2 * v + 2) ** 2 / 2;
-    const ang = -(12 + (firing ? ease(Math.min(1, (t - 23.2) / 3.2)) : 0) * 66) * Math.PI / 180;
+    const ang = (22 - (firing ? ease(Math.min(1, (t - 23.2) / 3.2)) : 0) * 62) * Math.PI / 180;
     const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux, P = 4;
     const day = night <= 0.5;   // deeper, more opaque blues hold up against a bright sky
     const cell = (bx, by, size, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(bx / P) * P - size / 2, Math.round(by / P) * P - size / 2, size, size); };
@@ -980,6 +980,7 @@
         const d = k * 5, bx = mx + ux * d, by = my + uy * d;
         const taper = k > reach - 14 ? (reach - k) / 14 : 1;
         const width = (5 + k * .22) * taper, jitter = Math.sin(k * .9 + age * 25) * 2.2 + wobble, ox = nx * jitter, oy = ny * jitter;
+        if (by + oy > ground - 8) break;   // the beam stays in the window, above the office wall
         cell(bx + ox, by + oy, width * 2.4, day ? `rgba(40,130,240,${.35 * taper})` : `rgba(80,170,255,${.18 * taper})`);
         cell(bx + ox, by + oy, width * 1.5, day ? `rgba(90,190,255,${.8 * taper})` : `rgba(120,210,255,${.55 * taper})`);
         cell(bx + ox, by + oy, width * .75, `rgba(240,252,255,${.95 * taper})`);
@@ -993,7 +994,7 @@
       const s = sparks[i], dt = Math.max(0, Math.min(.05, t - s.t)); s.t = t;
       s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 60 * dt;
       const f = 1 - s.age / s.life;
-      if (f <= 0) sparks.splice(i, 1);
+      if (f <= 0 || s.y > ground - 4) sparks.splice(i, 1);
       else cell(s.x, s.y, f > .5 ? 3 : 2, `rgba(${f > .6 ? '255,255,255' : '140,220,255'},${f})`);
     }
     if (after > 0) dot(4 + (1 - after) * 8, `rgba(140,220,255,${after * .5})`);
@@ -1154,12 +1155,18 @@
   // Each kind from the freshest desk that reports it: right after a reset a
   // session may leave a window out until its next request. A window whose
   // reset time has passed counts as unused.
+  // The account's limits, from every desk: a desk reports what its own last API call
+  // saw, so an idle one lags. Within one reset window usage only climbs, so per kind
+  // take the latest window and the highest reading in it.
   function accountLimits() {
     const byKind = new Map();
-    for (const d of [...desks.values()].sort((x, y) => (y.limitsAt || 0) - (x.limitsAt || 0)))
-      for (const l of d.limits || []) if (!byKind.has(l.kind)) byKind.set(l.kind, l);
+    for (const d of desks.values()) for (const l of d.limits || []) {
+      const cur = byKind.get(l.kind), win = l.resetsAt ? Date.parse(l.resetsAt) : 0;
+      if (!cur) { byKind.set(l.kind, { ...l, win }); continue; }
+      if (win > cur.win || (win === cur.win && (l.percentUsed || 0) > (cur.percentUsed || 0))) byKind.set(l.kind, { ...l, win });
+    }
     const t = Date.now();
-    return [...byKind.values()].map(l => l.resetsAt && Date.parse(l.resetsAt) <= t ? { ...l, percentUsed: 0 } : l);
+    return [...byKind.values()].map(({ win, ...l }) => l.resetsAt && Date.parse(l.resetsAt) <= t ? { ...l, percentUsed: 0 } : l);
   }
 
   function bubble(x, y, text, align) {
@@ -1992,7 +1999,7 @@
   const handoffBlock = d => (/```handoff\s*\n([\s\S]*?)```/.exec(d.report || '') || [])[1]?.trim() || '';
   const handoffAsked = new Set(), codexAsked = new Set();
   function fillHandoff(d, lv) {
-    const five = (d.limits || []).find(l => l.kind === 'five_hour');
+    const five = (accountLimits() || []).find(l => l.kind === 'five_hour');   // the account's, not this desk's own lagging copy
     const left = five ? Math.max(0, 100 - Math.round(five.percentUsed)) : 100;
     const block = handoffBlock(d), live = lv === 'live';
     const low = document.getElementById('m-lowuse');
