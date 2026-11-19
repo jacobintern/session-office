@@ -66,7 +66,7 @@ cp "$here/office-hook.sh" "$office/office-hook.sh"
 chmod +x "$office/office-hook.sh"
 settings_hooks add
 
-check() { echo; echo "Checking the setup (run install.sh --check again any time):"; /bin/zsh "$here/check.sh" || true; }
+check() { echo; echo "Checking the setup (run install.sh --check again any time):"; echo "(On a first install the Bridge checks fail until the watchdog has opened the bridge tab and you have answered its prompts — README, step 5.)"; /bin/zsh "$here/check.sh" || true; }
 [ "$1" = "--no-launchd" ] && { echo "Skipped the LaunchAgent (--no-launchd)."; check; exit 0; }
 mkdir -p "${plist:h}"
 cat > "$plist" <<PLIST

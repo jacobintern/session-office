@@ -95,7 +95,7 @@ fix for anything that fails.
    $EDITOR ~/.claude/office/config.json
    ```
 
-5. Start the bridge. Within a minute the watchdog opens an iTerm2 tab running
+5. Wait for the bridge (nothing to start by hand). Within a minute the watchdog opens an iTerm2 tab running
    the bridge. The first time, macOS and Claude Code ask three things; the
    bridge stays down until all three are answered:
    - macOS: allow the watchdog to control iTerm2 (Automation);
@@ -104,6 +104,16 @@ fix for anything that fails.
 
 6. Check: `./install/install.sh --check` in a shell, or `/office doctor` in any
    session. Then open a new `claude` session: it shows up at a desk on the page.
+
+## Updating
+
+After `git pull`, each part updates on its own:
+
+| what changed | how to update |
+|---|---|
+| `mod/` (the office mod) | `claude plugin update office@session-office`, then restart your sessions and the bridge tab (close it; the watchdog reopens one within a minute). If `CLAUDE_CODE_PLUGIN_DIRS` points at this repository's `mod/`, restarting the sessions is enough |
+| `page/` (the page) | in a session started in this folder, ask it to publish `page/session-office.html` to your existing URL (`officeUrl`); the database and the sprites stay |
+| `install/` (watchdog, hook) | run `./install/install.sh` again; an existing `config.json` is kept |
 
 ## Commands
 

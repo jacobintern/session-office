@@ -71,12 +71,22 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
    $EDITOR ~/.claude/office/config.json
    ```
 
-5. 啟動 bridge。一分鐘內 watchdog 會開一個 iTerm2 分頁跑 bridge。第一次會有三個確認，全部按完 bridge 才會開始運作：
+5. 等 bridge 起來（不用自己開）。一分鐘內 watchdog 會開一個 iTerm2 分頁跑 bridge。第一次會有三個確認，全部按完 bridge 才會開始運作：
    - macOS：允許 watchdog 控制 iTerm2（自動化權限）；
    - Claude Code：接受 `--dangerously-skip-permissions`；
    - Claude Code：信任 bridge 的資料夾（`bridgeCwd`）。
 
 6. 檢查：在終端機跑 `./install/install.sh --check`，或在任一個 session 打 `/office doctor`。接著開一個新的 `claude` session，它就會出現在頁面的桌子上。
+
+## 更新
+
+`git pull` 之後，三個部分各自更新：
+
+| 改了什麼 | 怎麼更新 |
+|---|---|
+| `mod/`（office mod） | `claude plugin update office@session-office`，再重開 session 和 bridge 分頁（關掉分頁，watchdog 一分鐘內會重開）。如果你用 `CLAUDE_CODE_PLUGIN_DIRS` 指向這個 repo 的 `mod/`，只要重開 session |
+| `page/`（頁面） | 在這個資料夾開 session，請它把 `page/session-office.html` 發佈到你原本的網址（`officeUrl`），資料庫和角色圖都會保留 |
+| `install/`（watchdog、hook） | 再跑一次 `./install/install.sh`，既有的 `config.json` 不會被覆蓋 |
 
 ## 指令
 

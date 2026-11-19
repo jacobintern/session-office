@@ -3,6 +3,7 @@
   "bridgeCwd": "~",
   "jira": null,
   "codex": true,
+  "tutor": true,
   "city": {
     "lat": 25.033,
     "lng": 121.565
