@@ -373,7 +373,8 @@ async function switchModel($: EngineInterface, arg: string) {
     for (let i = 0; i < 20 && runningTurn; i++) await $.clock.sleep(250)
   }
   switching = true
-  patch($, { state: 'working', activity: `換成 ${arg} 中：用新模型接回這段對話`, switching: { to: arg, at: Date.now() }, blocked: null, ask: null, bg: null, dialog: null })
+  // not 'working': the page gives a switching desk its own look
+  patch($, { state: 'idle', activity: `換成 ${arg} 中：用新模型接回這段對話`, switching: { to: arg, at: Date.now() }, blocked: null, ask: null, bg: null, dialog: null })
   await saveDesk($)
   // the new tab waits for this process to end before resuming, so two processes never hold the session
   const command = `cd ${shellQuote(cwd)} && while kill -0 ${pid} 2>/dev/null; do sleep 0.3; done; claude --resume ${id} --model ${shellQuote(arg)}`

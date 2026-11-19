@@ -129,7 +129,7 @@
   .roster h2 { font-size: .9rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
   .roster h3 { font-size: .74rem; font-weight: 600; letter-spacing: .05em; margin: 10px 0 2px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .roster h3 .n { font-weight: 500; }
-  .roster h3.waiting { color: var(--wait); } .roster h3.working { color: var(--ok); }
+  .roster h3.waiting { color: var(--wait); } .roster h3.working { color: var(--ok); } .roster h3.switching { color: var(--wait); }
   .row { display: flex; align-items: baseline; gap: 8px; padding: 6px 8px 6px 10px; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; min-width: 0; }
   .row .label { white-space: normal; overflow-wrap: anywhere; line-height: 1.3; font-size: .88rem; }  /* the full name, wrapped, not an ellipsis */
   .row:hover { background: var(--panel); }
@@ -146,6 +146,9 @@
   .pill.switching::before { content: ''; display: inline-block; width: .6em; height: .6em; margin-right: 5px; vertical-align: -1px; border: 2px solid var(--bg); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .dup.bgwait { color: var(--ok); border-color: var(--ok); }
+  .dup.switching { color: var(--wait); border-color: var(--wait); display: inline-flex; align-items: center; gap: 4px; }
+  .dup.switching i { width: .6em; height: .6em; border: 2px solid var(--wait); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  .hicon.switching { background: var(--wait); color: var(--bg); }
   .dup.lost { color: #fff; background: #c0392b; border-color: #c0392b; }
   .dup { flex: none; font-size: .68rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 999px; padding: 0 6px; }
   .copyname { flex: none; font: inherit; font-size: .75rem; color: var(--muted); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
@@ -230,6 +233,7 @@
   .perm .ghost, .lowuse .ghost { background: none; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
   .reply .ghost { background: none; color: var(--muted); border: 1px solid var(--line); align-self: flex-start; font-weight: 500; }
   .reply .ghost:hover { color: var(--fg); border-color: var(--fg); }
+  .reply #m-pause { align-self: flex-end; }   /* beside 送出, not floating at the top of a tall textarea */
   .reply .fire { margin-left: auto; display: flex; gap: 6px; }
   .reply .model-confirm { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
   .reply.drop textarea { outline: 2px dashed var(--accent); }
@@ -372,7 +376,7 @@
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
       decide: '要你決定', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
-      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
+      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
@@ -412,7 +416,7 @@
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
       decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
-      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
+      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
@@ -499,7 +503,10 @@
   const isPending = d => { const dv = deliveryOf(d); return !!(d.instructionAt && (!(d.instructionDoneAt >= d.instructionAt) || (dv && (dv.state === 'sent' || dv.state === 'retried')))); };
   const isLost = d => deliveryOf(d)?.state === 'failed';
   const LOST_RED = '#c0392b';
-  const effState = d => liveness(d) !== 'live' ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
+  // restarting under a new model: its own look, neither working nor idle. The pick counts from the moment it is sent, before the mod has taken it.
+  const switchingOf = d => { if (d.switching && now() - d.switching.at < 120000) return d.switching; const m = /^\/office model (\S+)/.exec(d.instruction || ''); return m && isPending(d) ? { to: m[1], at: d.instructionAt } : null; };
+  const isSwitching = d => !!switchingOf(d);
+  const effState = d => liveness(d) !== 'live' ? 'idle' : isSwitching(d) ? 'idle' : isWaiting(d) ? 'reporting' : (d.state === 'working' || isPending(d) ? 'working' : 'idle');
   const STATE_TEXT = { working: tt('working'), reporting: tt('reporting'), idle: tt('idle') };
 
   // ---- layout -------------------------------------------------------------
@@ -1008,17 +1015,19 @@
     const onSpot = a.target && Math.abs(a.x - a.target.x) < 2 && Math.abs(a.y - a.target.y) < 2;
     const dir = a.walking ? (a.dir || 'down') : a.atBoss ? (a.queue === 0 && onSpot ? 'up' : 'left') : (a.slot.face || 'down');
     drawSprite(charOf(id), dir, col, x, y + 12);
-    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : isLost(d) ? LOST_RED : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
+    nameTag(x, y - 56, (st === 'working' && d.bg?.n ? '⏳ ' : '') + (d.title || d.label || ''), faded ? css('--idle') : isLost(d) ? LOST_RED : isSwitching(d) ? css('--wait') : st === 'working' ? css('--ok') : st === 'reporting' ? css('--wait') : css('--idle'));
     // health = context window still free
     if (d.ctx && typeof d.ctx.percent === 'number' && !faded) hpBar(x, y - 56 - 22 - 9, 40, 1 - d.ctx.percent / 100);
     ctx.globalAlpha = 1;
     // the last instruction never reached the conversation: a red tag, since the desk itself looks normal (at phone width it's a tappable icon instead)
-    if (isLost(d) && !faded && !narrow.matches) {
-      const label = tt('lostTag'), by = y - 108 - Math.round(Math.abs(Math.sin(a.step * 2)) * 3);
+    // (a model switch gets the same kind of tag in orange, with a turning arrow)
+    if ((isLost(d) || isSwitching(d)) && !faded && !narrow.matches) {
+      const sw = !isLost(d) && isSwitching(d);
+      const label = sw ? '↻◜◝◞◟'[1 + Math.floor(a.step * 4) % 4] + ' ' + tt('switchTag') : tt('lostTag'), by = y - 108 - Math.round(Math.abs(Math.sin(a.step * 2)) * 3);
       ctx.font = `700 11px ${css('--body')}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const w = Math.round(ctx.measureText(label).width + 12);
-      ctx.fillStyle = LOST_RED; ctx.beginPath(); ctx.roundRect(Math.round(x - w / 2), by - 9, w, 18, 9); ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.fillText(label, x, by + 0.5);
+      ctx.fillStyle = sw ? css('--wait') : LOST_RED; ctx.beginPath(); ctx.roundRect(Math.round(x - w / 2), by - 9, w, 18, 9); ctx.fill();
+      ctx.fillStyle = sw ? css('--bg') : '#fff'; ctx.fillText(label, x, by + 0.5);
     }
     // status marker
     if (st === 'working' && !a.walking) {
@@ -1230,21 +1239,21 @@
   // Everything else lives in the modal, opened from a row or from the canvas.
   function renderRoster(L) {
     const live = L.list.filter(d => liveness(d) === 'live');
-    const groups = { waiting: [], working: [], idle: [], gone: [] };
+    const groups = { waiting: [], switching: [], working: [], idle: [], gone: [] };
     for (const d of L.list) {
       const st = effState(d);
-      groups[liveness(d) !== 'live' ? 'gone' : (isWaiting(d) || d.blocked) ? 'waiting' : st === 'working' ? 'working' : 'idle'].push(d);
+      groups[liveness(d) !== 'live' ? 'gone' : isSwitching(d) ? 'switching' : (isWaiting(d) || d.blocked) ? 'waiting' : st === 'working' ? 'working' : 'idle'].push(d);
     }
     groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
-    const titles = { waiting: tt('waitingYou'), working: tt('working'), idle: tt('idle'), gone: tt('gone') };
+    const titles = { waiting: tt('waitingYou'), switching: tt('switchGroup'), working: tt('working'), idle: tt('idle'), gone: tt('gone') };
     // two live sessions with one name cannot be told apart when messaging by name
     const nameKey = d => (d.title || '').trim().toLowerCase();
     const counts = new Map();
     for (const d of live) if (nameKey(d)) counts.set(nameKey(d), (counts.get(nameKey(d)) || 0) + 1);
     dupNames = new Set([...counts].filter(([, n]) => n > 1).map(([k]) => k));
     const parts = [];
-    for (const key of ['waiting', 'working', 'idle', 'gone']) {
-      if (key === 'gone' && !groups.gone.length) continue;
+    for (const key of ['waiting', 'switching', 'working', 'idle', 'gone']) {
+      if ((key === 'gone' || key === 'switching') && !groups[key].length) continue;
       const h3 = document.createElement('h3'); h3.className = key;
       h3.innerHTML = '<span></span><span class="n"></span>'; h3.firstChild.textContent = titles[key]; h3.lastChild.textContent = groups[key].length;
       parts.push(h3);
@@ -1254,6 +1263,7 @@
         el.innerHTML = `<span class="label"></span><span class="meta"></span>`;
         el.querySelector('.label').textContent = d.title || d.label || d.id;
         if (key !== 'gone' && isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); b.title = tt('lostHint'); el.querySelector('.label').after(b); }
+        if (key === 'switching') { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(modelName((MODELS.find(([a]) => a === switchingOf(d).to) || [])[1] || switchingOf(d).to)); b.title = trMod(d.activity || ''); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
@@ -1393,7 +1403,7 @@
     const dupEl = document.getElementById('m-dup'); dupEl.hidden = lv !== 'live' || !dupNames.has((d.title || '').trim().toLowerCase());
     dupEl.textContent = tt('dupName'); dupEl.title = tt('dupHint');
     const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
-    const sw = d.switching && now() - d.switching.at < 120000 ? d.switching : null;
+    const sw = switchingOf(d);
     const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (sw ? 'switching' : lv === 'live' ? st : 'gone');
     pill.textContent = sw ? tt('modelSwitching', { m: modelName((MODELS.find(([a]) => a === sw.to) || [])[1] || sw.to) }) : lv === 'live' ? (d.blocked ? tt('blocked') : st === 'working' && d.bg?.n ? tt('bgWait') : STATE_TEXT[st]) : tt('gone');
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
@@ -1755,7 +1765,7 @@
     sel.dataset.shown = want;
     sel.replaceChildren(new Option(head, ''), ...MODELS.map(([arg, id]) => { const o = new Option((modelName(id) === cur ? '✓ ' : '') + modelName(id), arg); o.disabled = modelName(id) === cur; return o; }));
     sel.value = '';
-    sel.disabled = !canWrite || !!(d.switching && now() - d.switching.at < 120000);
+    sel.disabled = !canWrite || isSwitching(d);
   }
   // picking asks first: a switch restarts the session, and a phone's select changes on a slip of the finger
   const modelConfirm = document.getElementById('m-model-confirm'), modelSel = document.getElementById('m-model');
@@ -1953,6 +1963,7 @@
   const narrow = matchMedia('(max-width: 860px)');
   const hiconsEl = document.getElementById('hicons'), hicons = new Map();
   function iconOf(d) {
+    if (isSwitching(d)) return { cls: 'switching', text: tt('switchTag'), title: trMod(d.activity || '') };
     if (!isWaiting(d) && !d.blocked && isLost(d)) return { cls: 'lost', text: tt('lostTag'), title: tt('lostHint') };
     if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: tt('iconPerm') };
     if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: tt('iconAsk') };
@@ -1965,7 +1976,7 @@
       const k = canvas.clientWidth / canvas.width, ox = canvas.offsetLeft, oy = canvas.offsetTop;
       for (const a of actors.values()) {
         const d = a.slot.d;
-        if (liveness(d) !== 'live' || !(isWaiting(d) || d.blocked || isLost(d))) continue;
+        if (liveness(d) !== 'live' || !(isWaiting(d) || d.blocked || isLost(d) || isSwitching(d))) continue;
         want.add(d.id);
         let el = hicons.get(d.id);
         if (!el) {
@@ -1978,7 +1989,7 @@
         el.className = 'hicon ' + ic.cls; el.title = ic.title;
         el.style.left = (ox + a.x * k) + 'px'; // above the name tag and HP bar; neighbours in the queue stand closer than an icon is wide, so every other one sits a step higher
         // a lost tag sits right on top of the name tag, so it reads as that dog's and not its neighbour's
-        el.style.top = (oy + (a.y - (ic.cls === 'lost' ? 78 : 90)) * k - (a.queue > 0 && a.queue % 2 ? 22 : 0)) + 'px';
+        el.style.top = (oy + (a.y - (ic.cls === 'lost' || ic.cls === 'switching' ? 78 : 90)) * k - (a.queue > 0 && a.queue % 2 ? 22 : 0)) + 'px';
       }
     }
     for (const [id, el] of hicons) if (!want.has(id)) { el.remove(); hicons.delete(id); }
