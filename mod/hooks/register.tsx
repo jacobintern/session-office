@@ -60,6 +60,8 @@ type Desk = {
   perm?: { at: number; sid: string } | null
   /** The slash command from the page whose terminal dialog nobody has answered (`/model`, …). */
   dialog?: string | null
+  /** A model switch from the page in progress: the session restarts under the same id with `to` as its model. */
+  switching?: { to: string; at: number } | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -310,6 +312,7 @@ async function takeInstruction($: EngineInterface) {
       if (name === 'office') {
         if (rest[0] === 'name') rename($, rest.slice(1).join(' ').trim().slice(0, 60))
         else if (rest[0] === 'pause') await pause($)
+        else if (rest[0] === 'model') await switchModel($, rest[1] ?? '')
         return
       }
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
@@ -349,6 +352,50 @@ async function pause($: EngineInterface) {
   try { await $.turn.abort({ turnId: runningTurn }) } catch (error) {
     pausing = false
     report($, `pause from the office failed: ${String(error)}`)
+  }
+}
+
+// 換模型 from the page: switching mid-session makes the engine ask "Switch model?"
+// in the terminal, which nobody is there to answer. So the session ends and a new
+// tab resumes it under the same id with the model given at start, which asks nothing.
+let switching = false
+const SWITCH_GRACE_MS = 90_000
+
+async function switchModel($: EngineInterface, arg: string) {
+  if (!me) return
+  if (!/^[\w.[\]-]+$/.test(arg)) { report($, `model switch from the office refused: bad model "${arg}"`); return }
+  const { id, cwd, pid } = me
+  if (!pid) { report($, 'model switch from the office refused: own pid unknown'); return }
+  if (runningTurn) {
+    pausing = true
+    try { await $.turn.abort({ turnId: runningTurn }) } catch { /* already ending */ }
+    for (let i = 0; i < 20 && runningTurn; i++) await $.clock.sleep(250)
+  }
+  switching = true
+  patch($, { state: 'working', activity: `換成 ${arg} 中：用新模型接回這段對話`, switching: { to: arg, at: Date.now() }, blocked: null, ask: null, bg: null, dialog: null })
+  await saveDesk($)
+  // the new tab waits for this process to end before resuming, so two processes never hold the session
+  const command = `cd ${shellQuote(cwd)} && while kill -0 ${pid} 2>/dev/null; do sleep 0.3; done; claude --resume ${id} --model ${shellQuote(arg)}`
+  const script = [
+    'tell application "iTerm2"',
+    '  if (count of windows) = 0 then',
+    '    set w to (create window with default profile)',
+    '  else',
+    '    set w to current window',
+    '    tell w to create tab with default profile',
+    '  end if',
+    `  tell current session of w to write text "${asQuote(command)}"`,
+    'end tell',
+  ].join('\n')
+  const ran = await $.process.run(['osascript', '-e', script], { timeoutMs: 15_000 })
+  if (ran.exitCode !== 0) {
+    switching = false
+    patch($, { state: 'idle', activity: '換模型失敗：開不了新的 terminal 分頁', switching: null })
+    report($, `model switch: osascript failed: ${ran.stderr.trim().slice(0, 200)}`)
+    return
+  }
+  try { await $.command.run({ command: 'exit', args: '' }) } catch {
+    await $.process.run(['kill', '-TERM', String(pid)], { timeoutMs: 5000 })
   }
 }
 
@@ -744,7 +791,8 @@ async function bridgeTick($: EngineInterface) {
     const nowMs = Date.now()
     // a desk whose process is dead is gone, however fresh its file looks
     const dead = new Set<string>()
-    for (const [id, desk] of files) if (typeof desk.pid === 'number' && desk.state !== 'gone' && !(await processAlive($, desk.pid))) dead.add(id)
+    const midSwitch = (d: Desk) => !!d.switching && nowMs - d.switching.at < SWITCH_GRACE_MS
+    for (const [id, desk] of files) if (typeof desk.pid === 'number' && desk.state !== 'gone' && !midSwitch(desk) && !(await processAlive($, desk.pid))) dead.add(id)
     // one process, two desks: the session took a new id (e.g. /resume) and wrote a
     // new desk, so the older one is retired and a reply still waiting in its inbox
     // moves to the desk that process answers now
@@ -958,8 +1006,15 @@ export const register: Register = on => {
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
           else if (prev.report) Object.assign(me, { report: prev.report, reportedAt: prev.reportedAt ?? null })
+          // this process is the end of a model switch from the page: the old tab goes
+          if (prev.switching) {
+            me.switching = null
+            me.activity = `已換成 ${prev.switching.to}`
+            if (typeof prev.tty === 'string' && prev.tty !== me.tty) void closeTerminal($, prev.tty, null)
+          }
         }
       } catch { /* no desk yet */ }
+      await noteModel($)
       await refreshUsage($)
       await saveDesk($)
       if (me.title) await handTitle($, me.title)
@@ -1157,6 +1212,10 @@ export const register: Register = on => {
       // session.start: keep the desk, wipe the conversation's task and report.
       patch($, { state: 'idle', activity: e.reason === 'clear' ? '對話清空，等新任務' : '接回別的對話', task: '', title: '', report: '', reportedAt: null })
       await saveDesk($)
+    } else if (me && switching) {
+      // the desk stays: the resumed process takes it over under the same id
+      await saveDesk($)
+      me = null
     } else if (me) {
       patch($, { state: 'gone', activity: '已下線' })
       await saveDesk($)

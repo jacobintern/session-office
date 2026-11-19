@@ -141,6 +141,10 @@
   .label { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
   .pill { flex: none; font-size: .72rem; font-weight: 600; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; color: var(--bg); }
   .pill.working { background: var(--ok); } .pill.reporting { background: var(--wait); } .pill.idle, .pill.gone { background: var(--idle); }
+  /* a model switch restarts the session: the pill spins until the new process reports in */
+  .pill.switching { background: var(--wait); }
+  .pill.switching::before { content: ''; display: inline-block; width: .6em; height: .6em; margin-right: 5px; vertical-align: -1px; border: 2px solid var(--bg); border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .dup.bgwait { color: var(--ok); border-color: var(--ok); }
   .dup.lost { color: #fff; background: #c0392b; border-color: #c0392b; }
   .dup { flex: none; font-size: .68rem; font-weight: 600; color: var(--wait); border: 1px solid var(--wait); border-radius: 999px; padding: 0 6px; }
@@ -227,6 +231,7 @@
   .reply .ghost { background: none; color: var(--muted); border: 1px solid var(--line); align-self: flex-start; font-weight: 500; }
   .reply .ghost:hover { color: var(--fg); border-color: var(--fg); }
   .reply .fire { margin-left: auto; display: flex; gap: 6px; }
+  .reply .model-confirm { display: flex; align-items: center; gap: 6px; font-size: .85rem; }
   .reply.drop textarea { outline: 2px dashed var(--accent); }
   .shots { display: flex; flex-wrap: wrap; gap: 8px; padding: 10px 18px 0; border-top: 1px solid var(--line); }
   .shots .shot { position: relative; width: 72px; height: 72px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--bg); }
@@ -283,7 +288,7 @@
       <div class="shots" id="m-shots" hidden></div>
       <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button></form>
       <div class="reply-hint" id="m-reply-hint"></div>
-      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><span class="model-confirm" id="m-model-confirm" hidden><span id="m-model-ask"></span><button type="button" class="danger-solid" id="m-model-yes">確定</button><button type="button" class="ghost" id="m-model-no">取消</button></span><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
     </div>
   </div>
 
@@ -367,7 +372,7 @@
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
       decide: '要你決定', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
-      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
+      ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
@@ -407,7 +412,7 @@
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
       decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
-      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
+      ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
@@ -449,7 +454,7 @@
     [/^指令沒送到$/, 'instruction not delivered'],
     [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
     [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
-    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'], [/^卡在 terminal 的對話框$/, 'Stuck in a terminal dialog'], [/^對話框已處理$/, 'Dialog answered'], [/^已暫停$/, 'Paused'], [/^沒有在跑的工作，不用暫停$/, 'Nothing running, nothing to pause'],
+    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'], [/^換成 (.+) 中：用新模型接回這段對話$/, 'Switching to $1: resuming this conversation on the new model'], [/^已換成 (.+)$/, 'Now on $1'], [/^換模型失敗：開不了新的 terminal 分頁$/, 'Model switch failed: could not open a terminal tab'], [/^卡在 terminal 的對話框$/, 'Stuck in a terminal dialog'], [/^對話框已處理$/, 'Dialog answered'], [/^已暫停$/, 'Paused'], [/^沒有在跑的工作，不用暫停$/, 'Nothing running, nothing to pause'],
     [/^被辦公室開除，下線$/, 'Let go by the office'], [/^接回別的對話$/, 'Resumed another conversation'], [/^Bash：/, 'Bash: '], [/^子代理：/, 'Subagent: '],
     [/^### 需要你決定$/m, '### Needs your decision'], [/^### 在 terminal 等你確認權限$/m, '### Waiting for permission in the terminal'],
     [/_切到它的 terminal 分頁按允許或拒絕。_/, '_Switch to its terminal tab to allow or deny._'],
@@ -469,7 +474,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause');
+    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -1328,7 +1333,7 @@
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
     try { mReply.value = drafts[id] || ''; } catch (e) {}
-    modal.hidden = false; histEl.open = false; fireReset(); fillModal(); renderShots();
+    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); fillModal(); renderShots();
     setTimeout(() => mReply.focus(), 0);
   }
   function closeModal() {
@@ -1388,7 +1393,9 @@
     const dupEl = document.getElementById('m-dup'); dupEl.hidden = lv !== 'live' || !dupNames.has((d.title || '').trim().toLowerCase());
     dupEl.textContent = tt('dupName'); dupEl.title = tt('dupHint');
     const dot = document.getElementById('m-dot'); dot.className = 'dot ' + (lv === 'live' ? st : 'gone');
-    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (lv === 'live' ? st : 'gone'); pill.textContent = lv === 'live' ? (d.blocked ? tt('blocked') : st === 'working' && d.bg?.n ? tt('bgWait') : STATE_TEXT[st]) : tt('gone');
+    const sw = d.switching && now() - d.switching.at < 120000 ? d.switching : null;
+    const pill = document.getElementById('m-pill'); pill.className = 'pill ' + (sw ? 'switching' : lv === 'live' ? st : 'gone');
+    pill.textContent = sw ? tt('modelSwitching', { m: modelName((MODELS.find(([a]) => a === sw.to) || [])[1] || sw.to) }) : lv === 'live' ? (d.blocked ? tt('blocked') : st === 'working' && d.bg?.n ? tt('bgWait') : STATE_TEXT[st]) : tt('gone');
     const blockedEl = document.getElementById('m-blocked'); blockedEl.hidden = !d.blocked;
     blockedEl.textContent = d.blocked === 'question'
       ? (Array.isArray(d.ask) && d.ask.length ? tt('askOpts') : tt('askOld'))
@@ -1430,7 +1437,7 @@
     // 暫停 only while a round is running; the mod ends it without the terminal's interruption lock
     const pauseBtn = document.getElementById('m-pause');
     if (d.state !== 'working') delete pausingAt[d.id];
-    pauseBtn.hidden = !(d.state === 'working' && !d.bg?.n && lv === 'live' && canWrite);   // waiting on background work: no round to stop
+    pauseBtn.hidden = !(d.state === 'working' && !d.bg?.n && !sw && lv === 'live' && canWrite);   // waiting on background work: no round to stop
     pauseBtn.disabled = !!pausingAt[d.id];
     pauseBtn.textContent = tt(pausingAt[d.id] ? 'pausing' : 'pause'); pauseBtn.title = tt('pauseHint');
     mReply.placeholder = st === 'reporting' ? tt('replyPh') : tt('taskPh');
@@ -1748,12 +1755,24 @@
     sel.dataset.shown = want;
     sel.replaceChildren(new Option(head, ''), ...MODELS.map(([arg, id]) => { const o = new Option((modelName(id) === cur ? '✓ ' : '') + modelName(id), arg); o.disabled = modelName(id) === cur; return o; }));
     sel.value = '';
-    sel.disabled = !canWrite;
+    sel.disabled = !canWrite || !!(d.switching && now() - d.switching.at < 120000);
   }
-  document.getElementById('m-model').addEventListener('change', async e => {
+  // picking asks first: a switch restarts the session, and a phone's select changes on a slip of the finger
+  const modelConfirm = document.getElementById('m-model-confirm'), modelSel = document.getElementById('m-model');
+  let modelPicked = null;
+  const modelReset = () => { modelPicked = null; modelConfirm.hidden = true; modelSel.hidden = false; };
+  modelSel.addEventListener('change', e => {
     const v = e.target.value; e.target.value = '';
     const m = MODELS.find(([arg]) => arg === v);
-    if (!m || !(await instruct(modalId, '/model ' + v))) return;
+    if (!m) return;
+    modelPicked = m;
+    document.getElementById('m-model-ask').textContent = tt('modelConfirm', { m: modelName(m[1]) });
+    modelSel.hidden = true; modelConfirm.hidden = false;   // no focus on 確定: the Enter that commits a keyboard pick would press it
+  });
+  document.getElementById('m-model-no').addEventListener('click', modelReset);
+  document.getElementById('m-model-yes').addEventListener('click', async () => {
+    const m = modelPicked; modelReset();
+    if (!m || !modalId || !(await instruct(modalId, '/office model ' + m[0]))) return;
     modelSwitch[modalId] = { id: m[1], at: now() };
     const d = desks.get(modalId); if (d) fillModelPick(d);
   });
