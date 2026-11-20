@@ -390,8 +390,9 @@ async function takeInstruction($: EngineInterface) {
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
       else patch($, { activity: `執行 /${name}` })
       if (name === 'model') pageModelSwitchAt = Date.now()
-      // a command that opens a dialog in the terminal resolves only when the dialog is answered there
-      const stuck = $.clock.after(DIALOG_WAIT_MS, () => { if (me && !me.blocked) patch($, { state: 'reporting', activity: '卡在 terminal 的對話框', blocked: 'dialog', dialog: `/${name}`, reportedAt: Date.now() }) })
+      // a command that opens a dialog in the terminal resolves only when the dialog is answered there;
+      // /compact and /clear open none, but wait behind a running turn and /compact takes a while itself
+      const stuck = name === 'compact' || name === 'clear' ? { cancel() {} } : $.clock.after(DIALOG_WAIT_MS, () => { if (me && !me.blocked) patch($, { state: 'reporting', activity: '卡在 terminal 的對話框', blocked: 'dialog', dialog: `/${name}`, reportedAt: Date.now() }) })
       const settingsBefore = name === 'effort' ? await readSettings($) : null
       try { await $.command.run({ command: name, args: rest.join(' ') }) }
       finally {
