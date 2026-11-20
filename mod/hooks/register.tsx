@@ -69,6 +69,8 @@ type Desk = {
   projectManual?: string | null
   /** The project rolled up to its parent ticket (the bridge fills it from Jira); the board is kept per root. */
   projectRoot?: string | null
+  /** Set when the last turn answered a teammate who came on its own (not one this session sent for): the desk does not call the person over. */
+  relay?: string | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -100,7 +102,7 @@ const inboxPath = (id: string) => `${inboxDir()}/${id}.json`
 const hookDir = () => `${home}/.claude/office/hook`
 
 // What a /clear leaves on the desk: the conversation's task, title and report go.
-const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null }
+const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null, relay: null }
 // A prompt the engine injected (a task notification, a system reminder, a
 // local command's output) is not something the person asked for.
 const isMetaPrompt = (text: string) => /^\s*</.test(text ?? '')
@@ -420,6 +422,8 @@ const DIALOG_WAIT_MS = 10_000
 // "暫停" on the page: ends the running turn the way Esc does, but without the
 // interruption marker, so the next page instruction still gets in.
 let runningTurn: string | null = null
+let turnFrom: string | null = null          // the teammate whose message started the running turn; null when the person did
+const sentFor = new Set<string>()          // teammates this session messaged for the person: their replies are reported (kept until /clear)
 let pausing = false
 
 async function pause($: EngineInterface) {
@@ -872,6 +876,13 @@ async function syncJira($: EngineInterface) {
 
 // The heading follows `language` in config.json ("zh-TW" by default, or "en"); the page reads both.
 const DECIDE_HEADING = () => (cfg.language === 'en' ? 'Decisions for you' : '要你決定')
+// A message from another session comes in as `<cross-session-message from-name="…">`.
+// The session the person gave the work to reports to them; a teammate it
+// messages (or one that comes on its own) answers that session instead.
+const TEAMMATE_RE = /<cross-session-message\b[^>]*\bfrom-name="([^"]*)"[^>]*>\s*([\s\S]*)/
+const teammateOf = (text: string) => { const m = TEAMMATE_RE.exec(text ?? ''); return m?.[1] ? { name: m[1], body: m[2] ?? '' } : null }
+const RELAY_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis message is from the teammate session "${name}", not from the user. Do what it asks, then send your answer back to "${name}" with SendMessage. The text you end this turn with is not shown to the user as a report, so it should not be the only place the answer lives. Add a \`## ${DECIDE_HEADING()}\` section only for what the user must approve in person in this session (opening, closing or merging an MR, a destructive step, spending money, a permission); that is the only thing that calls the user over.`
+const COMMANDER_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis is a reply from "${name}", a teammate you sent work to on the user's behalf. You report to the user: put the teammates' answers together for them, and say who you are still waiting on, if anyone.`
 const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: one line per item with the question, the options and your recommendation, at most 3 items. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
 
 // Codex: every Codex call logs the account's limits in its rollout file
@@ -1184,6 +1195,8 @@ export const register: Register = on => {
         }
       } catch { /* no board yet */ }
     }
+    const mate = teammateOf(e.text)
+    if (mate) context.push(sentFor.has(mate.name) ? COMMANDER_CONTEXT(mate.name) : RELAY_CONTEXT(mate.name))
     return next({ ...e, context })
   })
   on('session.start', async ($, e, next) => {
@@ -1402,14 +1415,15 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
-    if (e.agentId === undefined) runningTurn = e.turnId
+    const mate = e.agentId === undefined ? teammateOf(e.text) : null
+    if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? null }
     if (e.agentId === undefined && me) {
-      const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null }
+      const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null, relay: null }
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
         p.delivery = { at: pendingInstruction.at, state: 'delivered' }
         pendingInstruction = null
       } else if (me.delivery?.state === 'failed') p.delivery = null    // typed in the terminal instead: the lost mark has served its purpose
-      const task = isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
+      const task = mate ? `${mate.name}：${firstLine(mate.body, 70)}` : isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
       if (task) p.task = task
       // a session renamed some way the desk missed keeps that name, not this prompt
       if (task && !me.title) p.title = (await sessionTitle($)) || firstLine(e.text, 24)
@@ -1431,6 +1445,11 @@ export const register: Register = on => {
 
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined || !me) return next(e)
+    // work sent out on the person's behalf (or passed on while gathering it): the reply comes back here to be reported
+    if (e.tool === 'SendMessage' && (turnFrom === null || sentFor.has(turnFrom))) {
+      const to = String((e as unknown as { to?: unknown }).to ?? '').replace(/\s*\[[^\]]*\]\s*$/, '').trim()
+      if (to) sentFor.add(to)
+    }
     if (e.tool === 'AskUserQuestion') {
       // The model asks the person to choose. The dog brings the question to the
       // office; it can be answered there or in the terminal, whichever is first.
@@ -1465,7 +1484,10 @@ export const register: Register = on => {
         const report = (e.answer ?? '').trim().slice(0, 4000) || (e.reason === 'error' ? errorReport(await lastApiError($)) : `_（這輪沒有文字回覆：${e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`)
         const at = Date.now()
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
-        patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
+        const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && !DECIDE_RE.test(e.answer ?? '') ? turnFrom : null
+        if (relay) patch($, { state: 'idle', activity: `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        else patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         // the Stop settings hook writes what is still running a moment later
         $.clock.after(1500, () => { void checkBackground($, at) })
       }
@@ -1475,6 +1497,7 @@ export const register: Register = on => {
   })
 
   on('session.end', async ($, e, next) => {
+    if (e.reason === 'clear' || e.reason === 'resume') sentFor.clear()
     if (me && (e.reason === 'clear' || e.reason === 'resume')) {
       // The conversation ends but the process goes on under a new id, with no
       // session.start: keep the desk, wipe the conversation's task and report.

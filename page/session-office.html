@@ -492,7 +492,7 @@
     [/^指令沒送到$/, 'instruction not delivered'],
     [/^剛上線$/, 'Just joined'], [/^執行 (\/\S+)$/, 'Running $1'], [/^對話清空，等新任務$/, 'Cleared, waiting for a task'], [/^已下線$/, 'Offline'],
     [/^思考中$/, 'Thinking'], [/^收到你的回答$/, 'Got your answer'], [/^收到辦公室的指令$/, 'Got an instruction from the office'], [/^權限已處理，繼續$/, 'Permission handled, continuing'],
-    [/^等你回覆$/, 'Waiting for your reply'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'], [/^換成 (.+) 中：用新模型接回這段對話$/, 'Switching to $1: resuming this conversation on the new model'], [/^已換成 (.+)$/, 'Now on $1'], [/^換模型失敗：開不了新的 terminal 分頁$/, 'Model switch failed: could not open a terminal tab'], [/^卡在 terminal 的對話框$/, 'Stuck in a terminal dialog'], [/^對話框已處理$/, 'Dialog answered'], [/^已暫停$/, 'Paused'], [/^沒有在跑的工作，不用暫停$/, 'Nothing running, nothing to pause'],
+    [/^等你回覆$/, 'Waiting for your reply'], [/^已回覆 (.+)$/, 'Replied to $1'], [/^等你確認權限$/, 'Waiting for permission'], [/^等你選擇$/, 'Waiting for your choice'], [/^被中斷$/, 'Interrupted'], [/^換成 (.+) 中：用新模型接回這段對話$/, 'Switching to $1: resuming this conversation on the new model'], [/^已換成 (.+)$/, 'Now on $1'], [/^換模型失敗：開不了新的 terminal 分頁$/, 'Model switch failed: could not open a terminal tab'], [/^卡在 terminal 的對話框$/, 'Stuck in a terminal dialog'], [/^對話框已處理$/, 'Dialog answered'], [/^已暫停$/, 'Paused'], [/^沒有在跑的工作，不用暫停$/, 'Nothing running, nothing to pause'],
     [/^被辦公室開除，下線$/, 'Let go by the office'], [/^接回別的對話$/, 'Resumed another conversation'], [/^Bash：/, 'Bash: '], [/^子代理：/, 'Subagent: '],
     [/^### 需要你決定$/m, '### Needs your decision'], [/^### 在 terminal 等你確認權限$/m, '### Waiting for permission in the terminal'],
     [/_切到它的 terminal 分頁按允許或拒絕。_/, '_Switch to its terminal tab to allow or deny._'],
@@ -1534,7 +1534,7 @@
     fillModelPick(d);
     fillEffortPick(d);
     fillHandoff(d, lv);
-    document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + (st === 'working' && d.activity ? '　·　' + trMod(d.activity) : '');
+    document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + ((st === 'working' || (st === 'idle' && d.relay)) && d.activity ? '　·　' + trMod(d.activity) : '');
     const { decide, rest } = splitDecide(d.report);
     const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
     document.getElementById('m-decide').hidden = !decide || asking;
