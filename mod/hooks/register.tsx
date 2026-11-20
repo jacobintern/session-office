@@ -1259,7 +1259,8 @@ export const register: Register = on => {
       await setProject($)
       await refreshUsage($)
       await saveDesk($)
-      if (me.title) await handTitle($, me.title)
+      // only a name the engine lost (kept on the desk) goes back through /rename; every save of this file reloads the mod in every session
+      if (me.title && !named) await handTitle($, me.title)
       // lets you say "rename yourself to …" in the chat or from the page
       try {
         await $.tool.register({
