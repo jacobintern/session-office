@@ -907,9 +907,9 @@
   // wanders past behind the buildings: one 50 s crossing every 150 s (#kaiju: every 50 s).
   // Halfway it stops and breathes a blue beam at the sky; at night its plates glow.
   const kaijuFrames = {};
-  // `lit`: how many back plates glow, counted from the tail (0-8)
-  function kaijuSprite(step, lit) {
-    const key = `${step}-${lit}`;
+  // `lit`: how many back plates glow, counted from the tail (0-8); `jaw`: 0 shut, 1 half open, 2 open
+  function kaijuSprite(step, lit, jaw) {
+    const key = `${step}-${lit}-${jaw}`;
     if (kaijuFrames[key]) return kaijuFrames[key];
     // drawn on a grid of 3 px cells, facing right, then outlined
     const W = 50, H = 40, U = 3, g = Array.from({ length: H }, () => Array(W).fill(''));
@@ -930,9 +930,19 @@
     ell(24 + a, 32, 5, 4.2, 's'); rect(21 + a, 35, 8, 3, 's');                        // front leg
     for (const cx of [22, 25, 28]) set(cx + a, 37, 'w');                              // toes
     ell(32, 9, 8, 6.5, 's'); ell(39, 11, 5, 3.6, 's');                                // head, snout
-    rect(35, 13, 9, 1, 'm'); rect(35, 14, 8, 3, 'r');                                 // open jaws
-    for (const tx of [36, 38, 40, 42]) set(tx, 14, 'w');
-    for (const tx of [37, 39, 41]) set(tx, 16, 'w');
+    rect(35, 13, 9, 1, 'm');                                                          // jaws
+    if (jaw === 2) {
+      rect(35, 14, 8, 3, 'r');
+      for (const tx of [36, 38, 40, 42]) set(tx, 14, 'w');
+      for (const tx of [37, 39, 41]) set(tx, 16, 'w');
+    } else if (jaw === 1) {
+      rect(35, 14, 8, 1, 'r'); rect(35, 15, 7, 1, 's');
+      for (const tx of [36, 38, 40, 42]) set(tx, 14, 'w');
+      for (const tx of [37, 39]) set(tx, 15, 'w');
+    } else {
+      rect(35, 14, 8, 1, 's');
+      for (const tx of [38, 41]) set(tx, 13, 'w');                                    // fangs over the shut mouth
+    }
     rect(33, 4, 6, 1, 'd');                                                           // brow
     rect(34, 5, 4, 3, 'y'); rect(36, 6, 2, 2, 'k'); set(34, 5, 'w');                  // eye
     ell(33, 21, 3.5, 2, 's'); rect(36, 21, 1, 2, 'w'); set(37, 22, 'w');              // arms, claws
@@ -948,38 +958,43 @@
     }
     return (kaijuFrames[key] = c);
   }
-  // The breath: light gathers at the jaws while the plates light up from the
-  // tail (22-23.2 s), the beam fires with a flash and a recoil (23.2-27.5 s),
-  // thin at the jaws and widening as it climbs, sweeping upward, with frayed
-  // edges and sparks (deeper blues by day, so it shows against the bright sky);
-  // then the plates dim (to 28.5 s). At night the plates glow the whole way.
+  // The breath: it stops with its mouth shut and charges (22-24.5 s): the
+  // plates light up from the tail, it trembles, light seeps through the shut
+  // jaws and sparks close in, and the jaws open over the last half second.
+  // The beam fires with a flash and a recoil (24.5-28.5 s), thin at the jaws
+  // and widening as it climbs, sweeping upward, with frayed edges and sparks
+  // (deeper blues by day, so it shows against the bright sky); then the plates
+  // dim and the jaws close (to 29.5 s). At night the plates glow the whole way.
   const sparks = [];
   let sparkAt = 0;
   function kaiju(x, w, ground, night) {
     const period = location.hash.includes('kaiju') ? 50 : 150, t = (now() / 1000) % period;
     if (t >= 50) return;
-    // walks 0-22 s, stands 22-28 s (charges, then breathes), walks on 28-50 s
-    const walked = t < 22 ? t : t < 28 ? 22 : t - 6, standing = t >= 22 && t < 28;
-    const charge = standing && t < 23.2 ? (t - 22) / 1.2 : 0, firing = t >= 23.2 && t < 27.5, after = t >= 27.5 && t < 28.5 ? 1 - (t - 27.5) : 0;
+    // walks 0-22 s, stands 22-29.5 s (charges, then breathes), walks on 29.5-50 s
+    const FIRE = 24.5, DONE = 28.5, LEAVE = 29.5;
+    const walked = t < 22 ? t : t < LEAVE ? 22 : t - (LEAVE - 22), standing = t >= 22 && t < LEAVE;
+    const charge = standing && t < FIRE ? (t - 22) / (FIRE - 22) : 0, firing = t >= FIRE && t < DONE, after = t >= DONE && t < LEAVE ? 1 - (t - DONE) : 0;
+    const jaw = firing || charge >= .9 || after > .6 ? 2 : charge >= .8 || after > .2 ? 1 : 0;
     const lit = night > 0.5 ? 8 : charge ? Math.min(8, Math.floor(charge * 9)) : firing ? 8 : after > 0 ? Math.ceil(after * 8) : 0;
-    const recoil = firing && t < 23.5 ? -3 : 0;
-    const kx = Math.round(x - 150 + (w + 300) * (walked / 44)) + recoil, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
-    ctx.drawImage(kaijuSprite(step, lit), kx, ky);
+    const recoil = firing && t < FIRE + .3 ? -3 : 0, shake = charge > .3 && Math.floor(t * 20) % 2 ? Math.ceil(charge * 2) : 0;
+    const kx = Math.round(x - 150 + (w + 300) * (walked / (50 - (LEAVE - 22)))) + recoil + shake, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
+    ctx.drawImage(kaijuSprite(step, lit, jaw), kx, ky);
     const mx = kx + 132, my = ky + 45;
     // the beam sweeps from a little below the horizon up to a moderate climb over the first 3.2 s
     const ease = v => v < .5 ? 2 * v * v : 1 - (-2 * v + 2) ** 2 / 2;
-    const ang = (22 - (firing ? ease(Math.min(1, (t - 23.2) / 3.2)) : 0) * 62) * Math.PI / 180;
+    const ang = (22 - (firing ? ease(Math.min(1, (t - FIRE) / 3.2)) : 0) * 62) * Math.PI / 180;
     const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux, P = 4;
     const day = night <= 0.5;   // deeper, more opaque blues hold up against a bright sky
     const cell = (bx, by, size, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(bx / P) * P - size / 2, Math.round(by / P) * P - size / 2, size, size); };
     const dot = (r, c) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(mx, my, r, 0, 7); ctx.fill(); };
     if (charge) {
-      const r = 4 + charge * 14, a = .35 + charge * .5, j = Math.floor(t * 30) % 2 ? 2 : 0;
+      // shut, only a little light leaks out; open, the full ball shows
+      const r = jaw ? 4 + charge * 14 : 2 + charge * 5, a = jaw ? .35 + charge * .5 : .2 + charge * .4, j = Math.floor(t * 30) % 2 ? 2 : 0;
       dot(r + 6 + j, `rgba(92,200,255,${a * .4})`); dot(r, `rgba(160,230,255,${a})`); dot(Math.max(1, r * .4), '#ffffff');
       for (let i = 0; i < 6; i++) { const ang = i * 1.05 + t * 3, d = 40 - charge * 36 + i * 3; cell(mx + Math.cos(ang) * d, my + Math.sin(ang) * d, 3, 'rgba(180,235,255,.8)'); }
     }
     if (firing) {
-      const age = t - 23.2, wobble = Math.sin(age * 40) * .6, reach = Math.min(1, age / .15) * 150;
+      const age = t - FIRE, wobble = Math.sin(age * 40) * .6, reach = Math.min(1, age / .15) * 150;
       for (let k = 0; k < reach; k++) {
         const d = k * 5, bx = mx + ux * d, by = my + uy * d;
         const taper = k > reach - 14 ? (reach - k) / 14 : 1;
