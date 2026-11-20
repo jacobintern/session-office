@@ -302,6 +302,12 @@ html { scroll-behavior: smooth; }
       <tr><td>從網頁回覆或派工</td><td>你打的字會送進那個 session，跟在 terminal 打字一樣，不會多</td></tr>
       <tr><td>英文小老師</td><td>只有按「逐段翻譯」或「問老師」時才用你的 claude.ai 額度；沒按就不用</td></tr>
     </tbody></table></div>
+  <h3>要哪些付費帳號</h3>
+  <div class="cards">
+    <div class="card"><h4>Claude Pro 以上</h4><p>必要。Free 方案沒有 Claude Code、沒有 artifact 資料庫、也不能從 Claude Code 發佈頁面，所以辦公室開不起來。Pro、Max、Ultra、Team、Enterprise 都可以。</p></div>
+    <div class="card"><h4>ChatGPT（含 Codex）</h4><p>選用。只有 Codex 秘書需要；沒有就在 <code>config.json</code> 設 <code>"codex": false</code>。</p></div>
+    <div class="card"><h4>Jira Cloud</h4><p>選用。只有右欄「我的票」需要；沒有就設 <code>"jira": null</code>。其他東西（iTerm2、node、字型、人物圖）都免費。</p></div>
+  </div>
 </section>
 
 <section id="faq">

@@ -49,14 +49,16 @@ See [docs/token-cost.md](docs/token-cost.md).
 
 ## Before you start
 
-| | needed | check |
-|---|---|---|
-| macOS + [iTerm2](https://iterm2.com) | yes | the bridge runs in an iTerm2 tab, kept alive by launchd |
-| Claude Code with mods (tested on 2.1.311) | yes | `claude --version` |
-| A claude.ai account that can publish Artifacts | yes | you can ask Claude to publish a page |
-| Pipoya's sprite pack + node | yes, once | see *Sprites* |
-| Jira Cloud API token | no | for the Jira column |
-| Codex CLI | no | for the Codex secretary's usage limits |
+| | needed | paid? | check |
+|---|---|---|---|
+| macOS + [iTerm2](https://iterm2.com) | yes | free | the bridge runs in an iTerm2 tab, kept alive by launchd |
+| A claude.ai plan with Claude Code: Pro, Max, Ultra, Team or Enterprise | yes | **paid** — the Free plan has no Claude Code, no artifact database (`db`), and cannot publish from Claude Code | `claude --version` (tested on 2.1.311) |
+| Pipoya's sprite pack + node | yes, once | free (the pack may not be redistributed) | see *Sprites* |
+| Jira Cloud API token | no | your own Jira account | for the Jira column |
+| Codex CLI | no | your own ChatGPT plan with Codex | for the Codex secretary |
+
+Running it costs under US$1 a month on your plan (see *Token cost*); the
+English tutor runs on the usage of whoever opens the page, never yours.
 
 `install/install.sh --check` checks all of this (and the bridge) and prints the
 fix for anything that fails.

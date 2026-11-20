@@ -30,14 +30,15 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 
 ## 行前準備
 
-| | 必要 | 怎麼確認 |
-|---|---|---|
-| macOS + [iTerm2](https://iterm2.com) | 是 | bridge 跑在 iTerm2 分頁裡，由 launchd 維持運作 |
-| 支援 mod 的 Claude Code（2.1.311 測試過） | 是 | `claude --version` |
-| 可以發佈 Artifact 的 claude.ai 帳號 | 是 | 能請 Claude 幫你發佈頁面就可以 |
-| Pipoya 人物素材包 + node | 是，只需一次 | 見〈人物圖〉 |
-| Jira Cloud API token | 否 | Jira 欄位才需要 |
-| Codex CLI | 否 | Codex 秘書顯示用量才需要 |
+| | 必要 | 要錢嗎 | 怎麼確認 |
+|---|---|---|---|
+| macOS + [iTerm2](https://iterm2.com) | 是 | 免費 | bridge 跑在 iTerm2 分頁裡，由 launchd 維持運作 |
+| 含 Claude Code 的 claude.ai 方案：Pro、Max、Ultra、Team 或 Enterprise | 是 | **付費**。Free 方案沒有 Claude Code、沒有 artifact 資料庫（`db`）、也不能從 Claude Code 發佈 | `claude --version`（2.1.311 測試過） |
+| Pipoya 人物素材包 + node | 是，只需一次 | 免費（素材包不可轉散布） | 見〈人物圖〉 |
+| Jira Cloud API token | 否 | 你自己的 Jira 帳號 | Jira 欄位才需要 |
+| Codex CLI | 否 | 你自己的 ChatGPT 方案（要含 Codex） | Codex 秘書才需要 |
+
+跑起來每月在你的方案裡花不到 US$1（見〈Token 用量〉）；英文小老師用的是打開頁面那個人自己的額度，不是發佈者的。
 
 `install/install.sh --check` 會逐項檢查上面這些（以及 bridge），失敗的項目會附上修法。
 
