@@ -7,9 +7,6 @@ a desk; when it finishes a turn it walks over to your desk to report. From the
 page you can reply, acknowledge, `/clear`, `/compact`, rename it,
 end it, or open a new session.
 
-每個 Claude Code session 是辦公室裡的一位同事。做完一輪就走到你桌前匯報；
-你可以在頁面上回覆、收到、`/clear`、`/compact`、切到它的分頁、開除，或開新 session。
-
 ## How it works
 
 ```
@@ -32,10 +29,10 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   synced, and turns red when it is down.
 - **page/** — the artifact page itself.
 - **install/** — the watchdog that keeps the bridge running, its LaunchAgent, and
-  `office-hook.sh`: a hook the installer adds to `~/.claude/settings.json`
-  (a backup is kept next to it) that tells the page when a session waits on a
-  permission dialog; a mod's own hook on that event can be cut off by other
-  plugins.
+  `office-hook.sh`: two hooks the installer adds to `~/.claude/settings.json`
+  (a backup is kept next to it) that tell the page when a session waits on a
+  permission dialog, and what background work is still running when a turn
+  ends; a mod's own hook on those events can be cut off by other plugins.
 
 ## User manual
 
@@ -46,7 +43,8 @@ updates it within minutes).
 ## Token cost
 
 Under US$1 a month: syncing and desk cards run in the mod without any model
-turn; only the short report-format note added to each prompt costs tokens.
+turn; only the short report-format note added to each prompt (~130 tokens)
+costs tokens.
 See [docs/token-cost.md](docs/token-cost.md).
 
 ## Before you start
@@ -121,6 +119,7 @@ After `git pull`, each part updates on its own:
 | `/office` | the page's link, this session's desk, and whether the setup checks pass |
 | `/office doctor` | checks the config, this session's desk card and the bridge |
 | `/office name <text>` | the desk's nameplate (empty clears it); the session title follows (it runs `/rename`, and `/rename` in turn sets the nameplate). You can also type it in the page's reply box, or ask the session to rename itself |
+| `/office project <text>` | the project / topic this desk belongs to (empty goes back to the branch ticket or the repo); sessions of one project share a board. The page's ✎ next to "Project" does the same |
 | `/office status` | the bridge's last round |
 | `/office bridge` / `/office bridge off` | make this session the bridge, or stop |
 

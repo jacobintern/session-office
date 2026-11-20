@@ -54,7 +54,7 @@ else
   if [[ "$url" =~ '^https://claude\.ai/(code/)?artifact/[A-Za-z0-9_-]+$' ]]; then
     pass "officeUrl set"
   else
-    fail "officeUrl not set" "publish the page (README, step 2) and put its URL in $office/config.json"
+    fail "officeUrl not set" "publish the page (README, Install step 3) and put its URL in $office/config.json"
   fi
   [ "$(stat -f %Lp "$office/config.json")" = "600" ] && pass "config.json is private (600)" || warn "config.json is readable by others" "chmod 600 $office/config.json"
   if [ "$(get jira)" != "" ] && [ "$(plutil -type jira -o - "$office/config.json" 2>/dev/null)" = "dictionary" ]; then
