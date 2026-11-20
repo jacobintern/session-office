@@ -771,7 +771,6 @@ async function openRequestedSessions($: EngineInterface) {
       : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`) + TAB_EXIT
     const script = [
       'tell application "iTerm2"',
-      '  activate',
       '  if (count of windows) = 0 then',
       '    set w to (create window with default profile)',
       '  else',
