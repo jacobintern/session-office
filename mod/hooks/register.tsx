@@ -246,6 +246,12 @@ async function checkPermission($: EngineInterface) {
     let settled = permSettledAt
     try { settled = Math.max(settled, Number(await $.fs.read(`${hookDir()}/settled-${sid}`)) || 0) } catch { /* none yet */ }
     const over = (at: number) => at <= settled || Date.now() - at > PERM_WAIT_MS
+    // answered on the page: back to its desk to work, and it reports when the turn is done
+    let answered = 0
+    try { answered = Number(await $.fs.read(`${hookDir()}/answered-${sid}`)) || 0 } catch { /* none yet */ }
+    if (me.blocked === 'permission' && me.perm && answered >= me.perm.at && !over(me.perm.at)) {
+      patch($, { state: 'working', activity: '權限已處理，繼續', blocked: null, perm: null })
+    }
     if (me.blocked === 'permission' && (!me.perm || over(me.perm.at))) {
       // stale: put back the last real report instead of the permission notice
       const last = me.history?.at(-1)
@@ -255,7 +261,7 @@ async function checkPermission($: EngineInterface) {
     const { at, event: e } = JSON.parse(await $.fs.read(path)) as { at?: number; event?: { agent_id?: string; tool_name?: string; tool_input?: Record<string, unknown> } }
     if (typeof at !== 'number' || at <= permSeenAt) return
     permSeenAt = at
-    if (over(at) || !e || e.agent_id) return
+    if (over(at) || answered >= at || !e || e.agent_id) return
     const what = describe({ tool: e.tool_name ?? '', ...(e.tool_input ?? {}) })
     const command = e.tool_input?.command
     const detail = typeof command === 'string' ? '\n\n```\n' + command.slice(0, 600) + '\n```' : ''

@@ -10,7 +10,7 @@
 #                              terminal dialog stays up; whichever answers first wins
 dir="${OFFICE_HOOK_DIR:-$HOME/.claude/office/hook}"   # OFFICE_HOOK_DIR: for tests
 # leftovers of sessions that have ended (title-* came from an older version)
-find "$dir" \( -name 'title-*' -o \( -name 'perm-*' -o -name 'bg-*' -o -name 'settled-*' \) -mtime +1 \) -delete 2>/dev/null
+find "$dir" \( -name 'title-*' -o \( -name 'perm-*' -o -name 'bg-*' -o -name 'settled-*' -o -name 'answered-*' \) -mtime +1 \) -delete 2>/dev/null
 input=$(cat)
 sid=$(print -r -- "$input" | grep -o '"session_id" *: *"[A-Za-z0-9-]*"' | head -1 | sed 's/.*"\([A-Za-z0-9-]*\)"$/\1/')
 [ -n "$sid" ] || exit 0
@@ -31,6 +31,7 @@ case "$1" in
       if [ -f "$answer" ] && grep -Eq "\"for\": *${started}[,} ]" "$answer"; then
         behavior=$(grep -Eo '"behavior": *"[a-z]+"' "$answer" | grep -Eo '(allow|deny)')
         rm -f "$answer"
+        print -r -- "$started" > "$dir/answered-$sid"   # the mod sends the desk back to work now, not when the call ends
         case "$behavior" in
           allow) print -r -- '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}' ;;
           deny) print -r -- '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"The user denied this in Session Office."}}}' ;;
