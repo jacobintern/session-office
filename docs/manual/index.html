@@ -228,7 +228,7 @@ html { scroll-behavior: smooth; }
   <div class="tw"><table>
     <thead><tr><th>操作</th><th>在哪裡</th><th>效果</th></tr></thead>
     <tbody>
-      <tr><td>＋ 新開 session</td><td>頁首右上</td><td>填目錄、桌牌、專案／話題、第一個任務（後三個可空），幾秒後新同事進來坐下。從沒開過的資料夾第一次會在 terminal 問「信任此資料夾嗎」，要到那個分頁按一下</td></tr>
+      <tr><td>＋ 新開 session</td><td>頁首右上</td><td>填目錄、桌牌、專案／話題、第一個任務（後三個可空），幾秒後新同事進來坐下。iTerm 分頁在背景開，不會把畫面拉走。從沒開過的資料夾第一次會在 terminal 問「信任此資料夾嗎」，要到那個分頁按一下</td></tr>
       <tr><td>暫停</td><td>匯報視窗回覆框旁，只在它工作中時出現</td><td>停掉正在跑的這一輪，像在 terminal 按 Esc，但不會像 Esc 那樣讓之後從網頁送的指令進不去</td></tr>
       <tr><td>壓縮對話</td><td>匯報視窗</td><td>送 <code>/compact</code>；context 快滿時用，血條會回升</td></tr>
       <tr><td>清空對話</td><td>匯報視窗</td><td>送 <code>/clear</code>；開始全新對話，桌牌和匯報一起清掉</td></tr>
@@ -278,7 +278,7 @@ html { scroll-behavior: smooth; }
 <section id="more">
   <h2><span class="no">10</span>其他功能</h2>
   <div class="cards">
-    <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。太久沒用 Codex 時，名牌會標資料是多久前的。不用 Codex 的話，在 <code>config.json</code> 設 <code>"codex": false</code> 就會拿掉秘書。</p></div>
+    <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。Codex 在跑時（2 分鐘內有動靜）她會上下晃、旁邊冒跳動的小點，名牌燈變綠；沒在跑是灰燈。太久沒用 Codex 時，名牌會標資料是多久前的。不用 Codex 的話，在 <code>config.json</code> 設 <code>"codex": false</code> 就會拿掉秘書。</p></div>
     <div class="card"><h4>Jira 我的票</h4><p>選用的：<code>config.json</code> 沒設 <code>jira</code> 時整欄不顯示。橋接每 2 分鐘抓一次。票號出現在某個 session 的桌牌、任務或分支名稱裡，票就會標綠框並附上那位同事，點了打開它。</p></div>
     <div class="card"><h4>中 / EN</h4><p>頁首切換介面語言，記在這台瀏覽器；各 session 自己寫的回覆不會翻譯。</p></div>
     <div class="card"><h4>窗外景色</h4><p>依所在城市的日出日落變成白天、黃昏、黑夜，預設是台北；在 <code>config.json</code> 設 <code>"city": { "lat": …, "lng": … }</code> 可以換城市。網址加 <code>#t1830</code> 可以預覽 18:30 的樣子。每 150 秒有隻怪獸從大樓後面走過，走到一半會停下來對天空吐息；加 <code>#kaiju</code> 可以 50 秒看一次。</p></div>
@@ -329,7 +329,7 @@ const PINS = {
     [72.2, 4.2, '橋接燈', '綠燈加上次同步時間；橋接掛掉會轉紅'],
     [95, 9.6, '＋ 新開 session', '填目錄和第一個任務，開一位新同事'],
     [36.4, 33.2, '你和你的用量', '頭上兩條是 5 小時和每週用量還剩多少'],
-    [19.6, 41.4, 'Codex 秘書', '頭上是 Codex 用量；太久沒更新名牌會標多久前'],
+    [19.6, 41.4, 'Codex 秘書', '頭上是 Codex 用量；Codex 在跑時會晃、名牌綠燈；太久沒更新名牌會標多久前'],
     [24.4, 58, '來匯報的同事', '在你桌前排隊，前三位在桌前，其餘在門外'],
     [44.8, 41.4, '要你決定', '排第一位的同事有要你決定的事，泡泡只列那幾件'],
     [56.6, 21, '窗外', '跟著所在城市的日出、黃昏、黑夜，預設台北'],
