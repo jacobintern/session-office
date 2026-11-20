@@ -51,3 +51,10 @@ block at the end of the page script; the board one is in `watchBoard`):
 
 How each part goes live (`page/` publish, `mod/` restart, `install/` re-run):
 README → Updating.
+
+- Every save that changes `register.tsx` reloads the mod in every running
+  session, so code on the load path must be safe to run again (no commands,
+  no prompts, unless something actually changed).
+- Several sessions often work in this repo at once: `git add` the file only
+  after `git diff` shows nothing but your own hunks, and ask the other session
+  before touching a file it is editing.
