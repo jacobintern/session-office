@@ -976,7 +976,7 @@
     const charge = standing && t < FIRE ? (t - 22) / (FIRE - 22) : 0, firing = t >= FIRE && t < DONE, after = t >= DONE && t < LEAVE ? 1 - (t - DONE) : 0;
     const jaw = firing || charge >= .9 || after > .6 ? 2 : charge >= .8 || after > .2 ? 1 : 0;
     const lit = night > 0.5 ? 8 : charge ? Math.min(8, Math.floor(charge * 9)) : firing ? 8 : after > 0 ? Math.ceil(after * 8) : 0;
-    const recoil = firing && t < FIRE + .3 ? -3 : 0, shake = charge > .3 && Math.floor(t * 20) % 2 ? Math.ceil(charge * 2) : 0;
+    const recoil = firing ? (t < FIRE + .3 ? -6 : -2) : 0, shake = charge > .3 && Math.floor(t * 20) % 2 ? Math.ceil(charge * 2) : 0;
     const kx = Math.round(x - 150 + (w + 300) * (walked / (50 - (LEAVE - 22)))) + recoil + shake, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
     ctx.drawImage(kaijuSprite(step, lit, jaw), kx, ky);
     const mx = kx + 132, my = ky + 45;
@@ -994,27 +994,32 @@
       for (let i = 0; i < 6; i++) { const ang = i * 1.05 + t * 3, d = 40 - charge * 36 + i * 3; cell(mx + Math.cos(ang) * d, my + Math.sin(ang) * d, 3, 'rgba(180,235,255,.8)'); }
     }
     if (firing) {
-      const age = t - FIRE, wobble = Math.sin(age * 40) * .6, reach = Math.min(1, age / .15) * 150;
+      const age = t - FIRE, wobble = Math.sin(age * 40) * .8, reach = Math.min(1, age / .15) * 190;
+      const pulse = 1 + Math.sin(age * 18) * .12;   // the core throbs while it pours out
+      const pts = [];
       for (let k = 0; k < reach; k++) {
-        const d = k * 5, bx = mx + ux * d, by = my + uy * d;
-        const taper = k > reach - 14 ? (reach - k) / 14 : 1;
-        const width = (5 + k * .22) * taper, jitter = Math.sin(k * .9 + age * 25) * 2.2 + wobble, ox = nx * jitter, oy = ny * jitter;
-        if (by + oy > ground - 8) break;   // the beam stays in the window, above the office wall
-        cell(bx + ox, by + oy, width * 2.4, day ? `rgba(40,130,240,${.35 * taper})` : `rgba(80,170,255,${.18 * taper})`);
-        cell(bx + ox, by + oy, width * 1.5, day ? `rgba(90,190,255,${.8 * taper})` : `rgba(120,210,255,${.55 * taper})`);
-        cell(bx + ox, by + oy, width * .75, `rgba(240,252,255,${.95 * taper})`);
+        const d = k * 5, taper = k > reach - 18 ? (reach - k) / 18 : 1;
+        const jitter = Math.sin(k * .9 + age * 25) * 3 + wobble, bx = mx + ux * d + nx * jitter, by = my + uy * d + ny * jitter;
+        if (by > ground - 8) break;   // the beam stays in the window, above the office wall
+        pts.push([bx, by, (10 + k * .4) * taper * pulse, taper]);
       }
-      const mb = 10 + Math.sin(age * 50) * 2;
-      dot(mb + 6, 'rgba(160,230,255,.6)'); dot(mb * .6, '#ffffff');
-      if (t - sparkAt > .03) { sparkAt = t; for (let i = 0; i < 2; i++) { const d = 20 + Math.random() * reach * 4.5, side = Math.random() < .5 ? -1 : 1, v = 40 + Math.random() * 60; sparks.push({ x: mx + ux * d, y: my + uy * d, vx: nx * side * v + ux * 30, vy: ny * side * v + uy * 30, life: .35 + Math.random() * .3, age: 0, t }); } }
-      if (age < .3) { ctx.fillStyle = `rgba(230,245,255,${(.3 - age) / .3 * .45})`; ctx.fillRect(x, 0, w, ground); }
+      // outer glow first, the white core last, so no later step paints over the core
+      const layers = [[3.4, a => day ? `rgba(30,110,230,${.22 * a})` : `rgba(80,170,255,${.14 * a})`],
+        [2.2, a => day ? `rgba(50,150,245,${.45 * a})` : `rgba(90,185,255,${.3 * a})`],
+        [1.4, a => day ? `rgba(110,200,255,${.85 * a})` : `rgba(130,215,255,${.6 * a})`],
+        [.7, a => `rgba(245,253,255,${.97 * a})`]];
+      for (const [f, color] of layers) for (const [bx, by, width, taper] of pts) cell(bx, by, width * f, color(taper));
+      const mb = 20 + Math.sin(age * 50) * 3;
+      dot(mb + 16, 'rgba(90,180,255,.3)'); dot(mb + 7, 'rgba(160,230,255,.65)'); dot(mb * .65, '#ffffff');
+      if (t - sparkAt > .02) { sparkAt = t; for (let i = 0; i < 4; i++) { const d = 20 + Math.random() * reach * 4.5, side = Math.random() < .5 ? -1 : 1, v = 60 + Math.random() * 90; sparks.push({ x: mx + ux * d, y: my + uy * d, vx: nx * side * v + ux * 40, vy: ny * side * v + uy * 40, life: .4 + Math.random() * .4, age: 0, t }); } }
+      if (age < .5) { ctx.fillStyle = `rgba(230,245,255,${(.5 - age) / .5 * .6})`; ctx.fillRect(x, 0, w, ground); }
     }
     for (let i = sparks.length - 1; i >= 0; i--) {
       const s = sparks[i], dt = Math.max(0, Math.min(.05, t - s.t)); s.t = t;
       s.age += dt; s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 60 * dt;
       const f = 1 - s.age / s.life;
       if (f <= 0 || s.y > ground - 4) sparks.splice(i, 1);
-      else cell(s.x, s.y, f > .5 ? 3 : 2, `rgba(${f > .6 ? '255,255,255' : '140,220,255'},${f})`);
+      else cell(s.x, s.y, f > .5 ? 5 : 3,`rgba(${f > .6 ? '255,255,255' : '140,220,255'},${f})`);
     }
     if (after > 0) dot(4 + (1 - after) * 8, `rgba(140,220,255,${after * .5})`);
   }
