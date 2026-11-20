@@ -980,9 +980,9 @@
     const kx = Math.round(x - 150 + (w + 300) * (walked / (50 - (LEAVE - 22)))) + recoil + shake, step = standing ? 0 : Math.floor(t * 2.5) % 2, ky = ground - 116 + step;
     ctx.drawImage(kaijuSprite(step, lit, jaw), kx, ky);
     const mx = kx + 132, my = ky + 45;
-    // the beam sweeps from a little below the horizon up to a moderate climb over the first 3.2 s
+    // the beam sweeps from a little below the horizon up to nearly straight up over the first 3.2 s
     const ease = v => v < .5 ? 2 * v * v : 1 - (-2 * v + 2) ** 2 / 2;
-    const ang = (22 - (firing ? ease(Math.min(1, (t - FIRE) / 3.2)) : 0) * 62) * Math.PI / 180;
+    const ang = (22 - (firing ? ease(Math.min(1, (t - FIRE) / 3.2)) : 0) * 94) * Math.PI / 180;
     const ux = Math.cos(ang), uy = Math.sin(ang), nx = -uy, ny = ux, P = 4;
     const day = night <= 0.5;   // deeper, more opaque blues hold up against a bright sky
     const cell = (bx, by, size, c) => { ctx.fillStyle = c; ctx.fillRect(Math.round(bx / P) * P - size / 2, Math.round(by / P) * P - size / 2, size, size); };
