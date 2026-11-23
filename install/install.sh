@@ -84,6 +84,14 @@ cat > "$plist" <<PLIST
 </dict>
 </plist>
 PLIST
+# an older setup's LaunchAgent (any other plist running the watchdog) would open a second bridge
+for old in "$HOME/Library/LaunchAgents/"*.plist(N); do
+  [ "$old" = "$plist" ] && continue
+  grep -q bridge-watchdog "$old" 2>/dev/null || continue
+  launchctl bootout "gui/$(id -u)/${${old:t}%.plist}" 2>/dev/null || true
+  mkdir -p "$HOME/.Trash" && mv "$old" "$HOME/.Trash/"
+  echo "Removed the older LaunchAgent ${old:t} (moved to the Trash)."
+done
 launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$plist"
 echo "LaunchAgent $label loaded; the watchdog opens a bridge tab within a minute."

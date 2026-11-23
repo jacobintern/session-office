@@ -416,6 +416,7 @@
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
       sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
       working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
+      goneEnded: '已正常結束（session 自己報了下線）', goneAll: '橋接也 {ago} 沒更新：多半是 Mac 睡著或橋接器停了，不是這個 session 的問題', goneLost: '沒有報下線就消失了（最後一次回報 {ago}：{act}）：可能是 terminal 視窗被關、session 當掉，或它所在的分頁被殺掉',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
       codexNone: '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。', codexTitle: '**Codex 用量**',
       codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫', codexBusy: '正在工作中',
@@ -457,6 +458,7 @@
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
       sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
       working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
+      goneEnded: 'Ended normally (the session reported it was leaving)', goneAll: 'The bridge has not updated for {ago} either: most likely the Mac is asleep or the bridge stopped, not this session', goneLost: 'Vanished without signing off (last report {ago}: {act}): the terminal window was closed, the session crashed, or its tab was killed',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
       codexNone: '**Codex**\n\nNo usage yet (after your next Codex call the bridge picks it up within a minute).', codexTitle: '**Codex usage**',
       codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}', codexBusy: 'Working now',
@@ -1557,6 +1559,10 @@
     fillEffortPick(d);
     fillHandoff(d, lv);
     document.getElementById('m-task').textContent = (d.task ? tt('task', { t: d.task }) : tt('noTask')) + ((st === 'working' || (st === 'idle' && d.relay)) && d.activity ? '　·　' + trMod(d.activity) : '');
+    // offline: say which kind, so the person knows whether to look at the session, the Mac, or nothing
+    if (lv !== 'live') document.getElementById('m-task').textContent += '　·　' + (d.state === 'gone' ? tt('goneEnded')
+      : now() - bridgeSeenAt > STALE_MS ? tt('goneAll', { ago: ago(bridgeSeenAt) })
+      : tt('goneLost', { ago: ago(d.seenAt || 0), act: trMod(d.activity || '—') }));
     const { decide, rest } = splitDecide(d.report);
     const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
     document.getElementById('m-decide').hidden = !decide || asking;

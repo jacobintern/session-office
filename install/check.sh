@@ -78,8 +78,10 @@ fi
 
 echo "== Bridge"
 # install.sh's label, or any LaunchAgent that runs the watchdog (an older setup)
-agent=$(grep -l bridge-watchdog "$HOME/Library/LaunchAgents/"*.plist(N) 2>/dev/null | head -1)
+agents=(${(f)"$(grep -l bridge-watchdog "$HOME/Library/LaunchAgents/"*.plist(N) 2>/dev/null)"})
+agent=${agents[(r)*/dev.session-office.bridge.plist]:-${agents[1]}}
 agent_label=${${agent:t}%.plist}
+[ ${#agents} -gt 1 ] && warn "${#agents} LaunchAgents run the watchdog (${(j:, :)${(@)agents:t}})" "each opens its own bridge: run install/install.sh again, it removes the older one"
 if [ -n "$agent_label" ] && launchctl print "gui/$(id -u)/$agent_label" >/dev/null 2>&1; then
   pass "LaunchAgent $agent_label loaded"
 else
