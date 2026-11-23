@@ -388,7 +388,7 @@ async function takeInstruction($: EngineInterface) {
       // sent from the page reached no hook and the nameplate never changed
       if (name === 'office') {
         if (rest[0] === 'name') rename($, rest.slice(1).join(' ').trim().slice(0, 60))
-        else if (rest[0] === 'pause') await pause($)
+        else if (rest[0] === 'pause') await pause($, rest[1] === 'queued')
         else if (rest[0] === 'model') await switchModel($, rest[1] ?? '')
         else if (rest[0] === 'project') { me.projectManual = rest.slice(1).join(' ').trim().slice(0, 60); await setProject($) }
         return
@@ -433,8 +433,16 @@ let turnFrom: string | null = null          // the teammate whose message starte
 const sentFor = new Set<string>()          // teammates this session messaged for the person: their replies are reported (kept until /clear)
 let pausing = false
 
-async function pause($: EngineInterface) {
-  if (!runningTurn) { patch($, { state: 'idle', activity: '沒有在跑的工作，不用暫停' }); return }
+// A pause while no round runs: the instruction the page sent may still be on its way
+// (then this pause took its slot in the inbox and it never arrives: cancelled), or already
+// handed to the engine and about to start (then that round is ended as it starts).
+let abortNextFor = 0
+async function pause($: EngineInterface, queued = false) {
+  if (!runningTurn) {
+    if (pendingInstruction) { abortNextFor = pendingInstruction.at; patch($, { activity: '指令已送進去、還沒開始：一開始就停掉' }) }
+    else patch($, { state: 'idle', activity: queued ? '排隊中的指令已取消' : '沒有在跑的工作，不用暫停', delivery: null })
+    return
+  }
   pausing = true
   try { await $.turn.abort({ turnId: runningTurn }) } catch (error) {
     pausing = false
@@ -1441,11 +1449,13 @@ export const register: Register = on => {
 
   on('turn.start', async ($, e, next) => {
     const mate = e.agentId === undefined ? teammateOf(e.text) : null
+    let stopNow = false
     if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? null }
     if (e.agentId === undefined && me) {
       const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null, relay: null }
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
         p.delivery = { at: pendingInstruction.at, state: 'delivered' }
+        if (abortNextFor === pendingInstruction.at) stopNow = true    // paused from the page before it started
         pendingInstruction = null
       } else if (me.delivery?.state === 'failed') p.delivery = null    // typed in the terminal instead: the lost mark has served its purpose
       const task = mate ? `${mate.name}：${firstLine(mate.body, 70)}` : isMetaPrompt(e.text) ? '' : firstLine(e.text, 80)
@@ -1456,7 +1466,13 @@ export const register: Register = on => {
       // an unnamed session takes its nameplate as its title, so the name on the page is the name to message it by
       if (p.title) void handTitle($, p.title)
     }
-    return next(e)
+    const started = await next(e)
+    if (stopNow) {
+      abortNextFor = 0
+      pausing = true
+      $.turn.abort({ turnId: e.turnId }).catch(error => { pausing = false; report($, `pause at the start of the round failed: ${String(error)}`) })
+    }
+    return started
   })
 
   // the model and effort each main-loop request goes out with, for the page's info line
