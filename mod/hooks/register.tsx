@@ -1351,7 +1351,6 @@ export const register: Register = on => {
     if (me && named && named !== me.title) patch($, { title: named.slice(0, 60) })
     return result
   })
-  // /compact refills the health bar: read the new fill once it is done
   // /model typed in the terminal: the page shows the new model now, not at the next turn
   on('command.run', { command: 'model' }, async ($, e, next) => {
     const result = await next(e)
@@ -1359,9 +1358,28 @@ export const register: Register = on => {
     return result
   })
 
-  on('command.run', { command: 'compact' }, async ($, e, next) => {
+  // A compaction refills the health bar now, not at the next turn: the engine's context
+  // figure moves only with the next request, so once the compacted conversation is in
+  // place the fill is estimated locally (system prompt and memory included); tokensAfter
+  // alone would read too low, the first request after a compaction adds those back.
+  on('session.compact', async ($, e, next) => {
     const result = await next(e)
-    if (me) { await refreshUsage($); await saveDesk($) }
+    if (me && e.agentId === undefined && e.trigger !== 'precompute' && !('skip' in result)) {
+      const after = result.tokensAfter
+      $.clock.after(2000, async () => {
+        if (!me) return
+        try {
+          const u = await $.session.usage({ breakdown: 'summary' })
+          const b = u.context.breakdown
+          const tokens = b ? b.categories.filter(c => c.kind === 'used').reduce((n, c) => n + c.tokens, 0) : after
+          if (typeof tokens !== 'number' || !(u.context.window > 0)) return
+          me.ctx = { tokens, window: u.context.window, percent: Math.round(tokens / u.context.window * 100) }
+          await saveDesk($)
+        } catch (error) {
+          report($, `context after compaction could not be read: ${String(error)}`)
+        }
+      })
+    }
     return result
   })
 
