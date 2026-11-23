@@ -229,7 +229,7 @@ html { scroll-behavior: smooth; }
     <thead><tr><th>操作</th><th>在哪裡</th><th>效果</th></tr></thead>
     <tbody>
       <tr><td>＋ 新開 session</td><td>頁首右上</td><td>填目錄、桌牌、專案／話題、第一個任務（後三個可空），幾秒後新同事進來坐下。iTerm 分頁在背景開，不會把畫面拉走。從沒開過的資料夾第一次會在 terminal 問「信任此資料夾嗎」，要到那個分頁按一下</td></tr>
-      <tr><td>暫停</td><td>匯報視窗回覆框旁，只在它工作中時出現</td><td>停掉正在跑的這一輪，像在 terminal 按 Esc，但不會像 Esc 那樣讓之後從網頁送的指令進不去</td></tr>
+      <tr><td>暫停</td><td>匯報視窗回覆框旁，送出指令後和它工作中時出現</td><td>停掉正在跑的這一輪，像在 terminal 按 Esc，但不會像 Esc 那樣讓之後從網頁送的指令進不去。指令還沒開始跑就按，會取消那則指令，或在它一開始就停掉</td></tr>
       <tr><td>壓縮對話</td><td>匯報視窗</td><td>送 <code>/compact</code>；context 快滿時用，血條會回升</td></tr>
       <tr><td>清空對話</td><td>匯報視窗</td><td>送 <code>/clear</code>；開始全新對話，桌牌和匯報一起清掉</td></tr>
       <tr><td>換模型</td><td>匯報視窗下方的「模型：…」選單（〈處理匯報〉截圖的第 20 號）</td><td>可選 Fable、Opus、Sonnet、Haiku，選了要再按「確定」。它會用新模型把同一段對話接回來（約 15 秒，舊分頁自動關掉），這段時間名單標「換模型中」；工作中不能換，等它匯報或先按暫停</td></tr>
