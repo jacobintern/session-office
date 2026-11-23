@@ -2,6 +2,8 @@
 
 [English](README.md)
 
+![每個 Claude Code session 都是一位坐在桌前的同事；一位正走來匯報，窗外的哥吉拉對著天際線噴光束](docs/office.gif)
+
 給 Claude Code session 用的像素辦公室。每個在跑的 session 是辦公室裡的一位同事，坐在自己的桌子前；做完一輪就走到你桌前匯報。在頁面上可以回覆、按收到、`/clear`、`/compact`、幫它改名、開除它，或開一個新 session。
 
 ## 運作方式

@@ -2,6 +2,8 @@
 
 [中文說明](README.zh-TW.md)
 
+![Every Claude Code session is a colleague at a desk; one walks over to report while a kaiju breathes at the skyline](docs/office.gif)
+
 A pixel-art office for your Claude Code sessions. Every running session sits at
 a desk; when it finishes a turn it walks over to your desk to report. From the
 page you can reply, acknowledge, `/clear`, `/compact`, rename it,
