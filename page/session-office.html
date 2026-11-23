@@ -2322,13 +2322,24 @@
     emptyEl.innerHTML = tt('noSessions');
     subscribeAll();
   })();
+  // #demo (screenshots, the README's GIF): every desk keeps its state and motion but
+  // shows made-up names and words, so nothing from the real sessions is on the picture.
+  const DEMO = location.hash.includes('demo');
+  const DEMO_NAMES = ['IT-1042', 'code review IT-1038', '寫測試', 'IT-1051', '整理文件', '查 bug', 'IT-1047', '重構 API'];
+  function demoScrub(d, i) {
+    if (!DEMO) return d;
+    const name = DEMO_NAMES[i % DEMO_NAMES.length];
+    return { ...d, title: name, label: name, task: '把登入流程的測試補齊', activity: d.state === 'working' ? '正在跑測試' : '',
+      report: '測試補齊了，12 個案例全部通過。\n\n## 要你決定\n\n1. 要不要把舊的手動測試腳本刪掉？建議刪。',
+      history: [], ask: null, perm: null, dialog: null, cwd: '~/Projects/demo', branch: 'main', project: 'demo', projectRoot: 'demo', projectBy: 'repo', relay: null, delivery: null };
+  }
   // Every live subscription, reopened together when one dies: the store retries a lost
   // network by itself, but once the host stops answering it ends the listener with one
   // `unavailable` error, and a fresh onSnapshot is the only way back (db.d.ts).
   let unsubs = [], reconnectTimer = null;
   function subscribeAll() {
     const d = db, sub = (ref, name, onNext) => unsubs.push(ref.onSnapshot(snap => { if (!snap.metadata || !snap.metadata.fromCache) linkUp(); onNext(snap); }, e => onLinkError(name, e)));
-    sub(d.doc('meta/jira'), 'jira doc', snap => { jira = snap.exists ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); });
+    sub(d.doc('meta/jira'), 'jira doc', snap => { jira = snap.exists && !DEMO ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); });
     sub(d.doc('meta/codex'), 'codex doc', snap => { codex = snap.exists ? snap.data() : null; });
     sub(d.doc('meta/config'), 'config doc', snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); });
     sub(d.doc('meta/bridge'), 'bridge heartbeat', snap => { bridgeSeenAt = snap.exists ? (snap.data().seenAt || 0) : 0; judgeBridge(); });
@@ -2336,7 +2347,7 @@
       renderRequests(snap.docs.filter(x => x.exists).map(x => ({ id: x.id, ...x.data() })));
     });
     sub(d.collection('desks'), 'desks', snap => {
-      desks = new Map(snap.docs.filter(s => s.exists).map(s => [s.id, { id: s.id, ...s.data() }]));
+      desks = new Map(snap.docs.filter(s => s.exists).map((s, i) => [s.id, demoScrub({ id: s.id, ...s.data() }, i)]));
       rosterDirty = true;
     });
     subscribeBoard();
