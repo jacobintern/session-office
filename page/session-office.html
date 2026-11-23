@@ -414,7 +414,7 @@
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
-      sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前',
+      sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前', sDur: '{n} 秒', mDur: '{n} 分鐘', hDur: '{n} 小時', dDur: '{n} 天', workingFor: '跑了 {d}', idleFor: '閒置 {d}',
       working: '工作中', reporting: '來匯報', idle: '閒置', gone: '離線', waitingYou: '等你處理', blocked: '卡住等你',
       goneEnded: '已正常結束（session 自己報了下線）', goneAll: '橋接也 {ago} 沒更新：多半是 Mac 睡著或橋接器停了，不是這個 session 的問題', goneLost: '沒有報下線就消失了（最後一次回報 {ago}：{act}）：可能是 terminal 視窗被關、session 當掉，或它所在的分頁被殺掉',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
@@ -456,7 +456,7 @@
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
-      sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago',
+      sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago', sDur: '{n}s', mDur: '{n} min', hDur: '{n} h', dDur: '{n} d', workingFor: 'running {d}', idleFor: 'idle {d}',
       working: 'Working', reporting: 'Reporting', idle: 'Idle', gone: 'Offline', waitingYou: 'Waiting for you', blocked: 'Blocked on you',
       goneEnded: 'Ended normally (the session reported it was leaving)', goneAll: 'The bridge has not updated for {ago} either: most likely the Mac is asleep or the bridge stopped, not this session', goneLost: 'Vanished without signing off (last report {ago}: {act}): the terminal window was closed, the session crashed, or its tab was killed',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
@@ -533,6 +533,14 @@
     const m = Math.round(s / 60); if (m < 60) return tt('mAgo', { n: m });
     const h = Math.round(m / 60); if (h < 24) return tt('hAgo', { n: h });
     return tt('dAgo', { n: Math.round(h / 24) });
+  };
+  const dur = t => {
+    if (!t) return '';
+    const s = Math.max(0, Math.round((now() - t) / 1000));
+    if (s < 60) return tt('sDur', { n: s });
+    const m = Math.round(s / 60); if (m < 60) return tt('mDur', { n: m });
+    const h = Math.round(m / 60); if (h < 24) return tt('hDur', { n: h });
+    return tt('dDur', { n: Math.round(h / 24) });
   };
   const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
   const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
@@ -1392,7 +1400,10 @@
         if (key === 'switching') { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(modelName((MODELS.find(([a]) => a === switchingOf(d).to) || [])[1] || switchingOf(d).to)); b.title = trMod(d.activity || ''); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
-        el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '') + ago(key === 'waiting' ? d.reportedAt || d.seenAt : d.seenAt);
+        // waiting: how long the report has sat there; working / idle: how long in that state (older mods
+        // have no stateAt, so their rows fall back to the card's last update)
+        el.querySelector('.meta').textContent = (d.seat ? tt('seatN', { n: d.seat }) : '')
+          + (key === 'waiting' ? ago(d.reportedAt || d.seenAt) : key === 'working' && d.stateAt ? tt('workingFor', { d: dur(d.stateAt) }) : key === 'idle' && d.stateAt ? tt('idleFor', { d: dur(d.stateAt) }) : ago(d.seenAt));
         el.title = d.blocked ? tt('blocked') : key === 'waiting' ? tt('reporting') : titles[key];
         el.addEventListener('click', () => openModal(d.id));
         el.addEventListener('mouseenter', () => { hoverId = d.id; });

@@ -41,6 +41,8 @@ type Desk = {
   history?: Array<{ at: number; task: string; report: string }>
   startedAt: number
   seenAt: number
+  /** When `state` last changed, so the page can say how long a session has been working or idle. */
+  stateAt?: number
   /** The `instructionAt` of the last page instruction this session ran. */
   instructionDoneAt: number | null
   /** The session's own process id, so the bridge can tell a dead session from a quiet one and can end one that does not answer. */
@@ -306,8 +308,9 @@ async function checkBackground($: EngineInterface, turnAt: number) {
 
 function patch($: EngineInterface, p: Partial<Desk>, options: { throttle?: boolean } = {}) {
   if (!me) return
-  Object.assign(me, p)
   const nowMs = Date.now()
+  if (p.state !== undefined && p.state !== me.state) p = { ...p, stateAt: nowMs }
+  Object.assign(me, p)
   if (options.throttle && nowMs - lastWriteAt < ACTIVITY_WRITE_MIN_MS) return
   lastWriteAt = nowMs
   void saveDesk($)
@@ -1279,6 +1282,7 @@ export const register: Register = on => {
         reportedAt: null,
         startedAt: Date.now(),
         seenAt: Date.now(),
+        stateAt: Date.now(),
         instructionDoneAt: null,
         pid: await ownPid($),
         tty: await ownTty($),
@@ -1302,6 +1306,8 @@ export const register: Register = on => {
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
           else if (prev.report) Object.assign(me, { report: prev.report, reportedAt: prev.reportedAt ?? null })
+          // a reload is not a state change: keep when the state began (an older desk has no stateAt, so its last report stands in)
+          if (prev.state === me.state) me.stateAt = typeof prev.stateAt === 'number' ? prev.stateAt : (prev.reportedAt ?? me.stateAt)
           // this process is the end of a model switch from the page: the old tab goes
           if (prev.switching) {
             me.switching = null
