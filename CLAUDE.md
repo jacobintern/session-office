@@ -54,7 +54,10 @@ README → Updating.
 
 - Every save that changes `register.tsx` reloads the mod in every running
   session, so code on the load path must be safe to run again (no commands,
-  no prompts, unless something actually changed).
+  no prompts, unless something actually changed). `tsc` is not the engine's
+  check: `$` may only be passed to a top-level function, so after a save grep
+  your transcript for `hooks module did not load` (a failed reload keeps the
+  old mod running and hides the break until the next new session).
 - Several sessions often work in this repo at once: `git add` the file only
   after `git diff` shows nothing but your own hunks, and ask the other session
   before touching a file it is editing.

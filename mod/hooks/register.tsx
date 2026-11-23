@@ -1205,6 +1205,32 @@ async function startupCheck($: EngineInterface) {
   if (first) $.ui.toast(`Session Office：${first.text}${failed.length > 1 ? `，另有 ${failed.length - 1} 項` : ''}。打 /office doctor 看細節`, { timeoutMs: 15_000 })
 }
 
+// A compaction refills the health bar now, not at the next turn: the engine's context
+// figure moves only with the next request, so once the compacted conversation is in
+// place the fill is estimated locally (system prompt and memory included); tokensAfter
+// alone would read too low, the first request after a compaction adds those back.
+// Two paths, because a plugin of a higher tier can `next.to` past this one on
+// session.compact (seen with cc-plugin-sec-default: the hook never ran): the hook when
+// it runs, and /compact's own command.run, which lands once the compaction is done.
+let ctxEstimatedAt = 0
+function estimateContextAfterCompaction($: EngineInterface, fallback?: number) {
+  if (Date.now() - ctxEstimatedAt < 5000) return
+  ctxEstimatedAt = Date.now()
+  $.clock.after(2000, async () => {
+    if (!me) return
+    try {
+      const u = await $.session.usage({ breakdown: 'summary' })
+      const b = u.context.breakdown
+      const tokens = b ? b.categories.filter(c => c.kind === 'used').reduce((n, c) => n + c.tokens, 0) : fallback
+      if (typeof tokens !== 'number' || !(u.context.window > 0)) return
+      me.ctx = { tokens, window: u.context.window, percent: Math.round(tokens / u.context.window * 100) }
+      await saveDesk($)
+    } catch (error) {
+      report($, `context after compaction could not be read: ${String(error)}`)
+    }
+  })
+}
+
 // ---- hooks ---------------------------------------------------------------------
 
 export const register: Register = on => {
@@ -1383,31 +1409,6 @@ export const register: Register = on => {
     return result
   })
 
-  // A compaction refills the health bar now, not at the next turn: the engine's context
-  // figure moves only with the next request, so once the compacted conversation is in
-  // place the fill is estimated locally (system prompt and memory included); tokensAfter
-  // alone would read too low, the first request after a compaction adds those back.
-  // Two paths, because a plugin of a higher tier can `next.to` past this one on
-  // session.compact (seen with cc-plugin-sec-default: the hook never ran): the hook when
-  // it runs, and /compact's own command.run, which lands once the compaction is done.
-  let ctxEstimatedAt = 0
-  function estimateContextAfterCompaction($: EngineInterface, fallback?: number) {
-    if (Date.now() - ctxEstimatedAt < 5000) return
-    ctxEstimatedAt = Date.now()
-    $.clock.after(2000, async () => {
-      if (!me) return
-      try {
-        const u = await $.session.usage({ breakdown: 'summary' })
-        const b = u.context.breakdown
-        const tokens = b ? b.categories.filter(c => c.kind === 'used').reduce((n, c) => n + c.tokens, 0) : fallback
-        if (typeof tokens !== 'number' || !(u.context.window > 0)) return
-        me.ctx = { tokens, window: u.context.window, percent: Math.round(tokens / u.context.window * 100) }
-        await saveDesk($)
-      } catch (error) {
-        report($, `context after compaction could not be read: ${String(error)}`)
-      }
-    })
-  }
   on('session.compact', async ($, e, next) => {
     if (e.agentId === undefined && e.trigger !== 'precompute') seen('session.compact')
     const result = await next(e)
