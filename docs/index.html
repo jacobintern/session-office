@@ -54,6 +54,11 @@
         const h = a.getAttribute('href');
         if (!/^(https?:|#)/.test(h)) a.href = 'https://github.com/jacobintern/session-office/blob/main/' + h;
       }
+      // images are relative to the repository root, which this site does not serve
+      for (const img of el.querySelectorAll('img[src]')) {
+        const src = img.getAttribute('src');
+        if (!/^(https?:|data:)/.test(src)) img.src = RAW + src;
+      }
     } catch (e) {
       el.innerHTML = '<p class="note">README 讀不到（' + e.message + '）。請到 <a href="https://github.com/jacobintern/session-office">GitHub</a> 看。</p>';
     }
