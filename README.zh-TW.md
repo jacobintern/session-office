@@ -16,7 +16,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 ```
 
 - **mod/**：Claude Code 的 mod。每個 session 把自己的桌卡寫成本機檔案；工作中的 session 不會呼叫任何工具，所以你用什麼權限模式都不受影響。
-- **bridge**：用 `CLAUDE_OFFICE_BRIDGE=1` 啟動的一個 session，負責把桌卡同步進頁面的資料庫，再把頁面上下的指令寫回檔案給各 session。它以 `--dangerously-skip-permissions` 執行（寫入 artifact 資料的同意沒有其他方式能預先允許），所以**不要在 bridge 分頁裡交辦任何工作**。頁面右上角的燈號顯示它最後一次同步的時間，斷線時會轉紅。
+- **bridge**：用 `CLAUDE_OFFICE_BRIDGE=1` 啟動的一個 session，負責把桌卡同步進頁面的資料庫，再把頁面上下的指令寫回檔案給各 session。它以 `--dangerously-skip-permissions` 執行（寫入 artifact 資料的同意沒有其他方式能預先允許），所以**不要在 bridge 分頁裡交辦任何工作**。頁面右上角的燈號顯示它最後一次同步的時間，斷線時會轉紅；斷的是你自己的網路時會直接寫明，網路回來頁面會自己接上。
 - **page/**：artifact 頁面本身。
 - **install/**：讓 bridge 保持運作的 watchdog、它的 LaunchAgent，以及 `office-hook.sh`：安裝程式會把兩個 hook 加進 `~/.claude/settings.json`（旁邊留一份備份），在 session 等權限確認時通知頁面，以及回合結束時告訴頁面還有哪些背景工作在跑；mod 自己的這種 hook 可能被其他外掛擋掉。
 
@@ -93,7 +93,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 | | |
 |---|---|
 | `/office` | 頁面網址、這個 session 的桌卡，以及設定檢查是否全部通過 |
-| `/office doctor` | 檢查設定、這個 session 的桌卡和 bridge |
+| `/office doctor` | 檢查設定、這個 session 的桌卡、bridge，以及這個 mod 的 hook 有沒有跑到（更高層的 plugin 可能跳過它） |
 | `/office name <文字>` | 設定桌牌（留空就清掉），session 標題會跟著換（它會執行 `/rename`；你自己打 `/rename` 桌牌也會跟著換）。也可以在頁面的回覆框打，或直接叫 session 自己改名 |
 | `/office project <文字>` | 這張桌子屬於哪個專案／話題（留空改回分支票號或 repo），同專案的 session 共用公佈欄。頁面「專案」列旁的 ✎ 也能改 |
 | `/office status` | bridge 最近一輪的狀況 |

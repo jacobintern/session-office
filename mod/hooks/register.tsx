@@ -87,6 +87,12 @@ type StoredDoc = { version?: number; data: Record<string, unknown> }
 let home = ''
 let me: Desk | null = null
 let isBridge = false
+// When each hook this mod depends on last ran in this process: a plugin of a higher tier
+// can `next.to` past the user tier, and the engine tells only the person, not the mod, so
+// `/office doctor` compares these with what the transcript says happened.
+const loadedAt = Date.now()
+const hookSeen: Record<string, number> = {}
+const seen = (name: string) => { hookSeen[name] = Date.now() }
 let lastWriteAt = 0
 let failureShown = false
 
@@ -1170,6 +1176,16 @@ async function runChecks($: EngineInterface): Promise<Check[]> {
     ok(age < 60_000, `橋接最近一輪：${ago(age)}`, '橋接沒在跑：看 ~/.claude/office/bridge-watchdog.log，第一次啟動要在 iTerm 點掉權限與信任資料夾的確認')
     ok(status.ok, `橋接狀態：${status.note}`)
   }
+  if (me && !isBridge) {
+    const when = (name: string) => hookSeen[name] ? ago(Date.now() - hookSeen[name]) : '沒跑過'
+    ok(true, `hook 最後跑到：prompt.submit ${when('prompt.submit')}、turn.start ${when('turn.start')}、turn.complete ${when('turn.complete')}、session.compact ${when('session.compact')}（mod 載入 ${ago(Date.now() - loadedAt)}）`)
+    // a compaction the transcript recorded after this mod loaded, that session.compact never saw
+    const ran = await $.process.run(['sh', '-c', `grep -h '"compact_boundary"' "$HOME"/.claude/projects/*/${me.id}.jsonl | grep -o '"timestamp":"[^"]*"' | tail -1`], { timeoutMs: 5000 }).catch(() => null)
+    const lastCompact = ran?.stdout ? Date.parse(ran.stdout.trim().slice(13, -1)) : NaN
+    if (lastCompact > loadedAt && !hookSeen['session.compact'])
+      ok(false, `session.compact hook 被跳過：transcript 在 ${ago(Date.now() - lastCompact)} 有壓縮，hook 沒跑到`, '更高一層的 plugin 用 next.to 略過了使用者層的 hook；壓縮後的血條改靠 /compact 指令本身更新，自動壓縮則等回合結束。要查是誰：看引擎的通知（"… runs first and sent the event on past it"）')
+    else if (lastCompact > loadedAt) ok(true, 'session.compact hook 跑得到（最近一次壓縮有看到）')
+  }
   return checks
 }
 
@@ -1198,6 +1214,7 @@ export const register: Register = on => {
   // the project board rides along with the next prompt whenever it changed since it was last shown
   let boardShown = ''
   on('prompt.submit', async ($, e, next) => {
+    seen('prompt.submit')
     const context = [...(e.context ?? []), REPORT_FORMAT()]
     if (me) {
       try {
@@ -1392,6 +1409,7 @@ export const register: Register = on => {
     })
   }
   on('session.compact', async ($, e, next) => {
+    if (e.agentId === undefined && e.trigger !== 'precompute') seen('session.compact')
     const result = await next(e)
     if (me && e.agentId === undefined && e.trigger !== 'precompute' && !('skip' in result)) estimateContextAfterCompaction($, result.tokensAfter)
     return result
@@ -1459,6 +1477,7 @@ export const register: Register = on => {
   })
 
   on('turn.start', async ($, e, next) => {
+    if (e.agentId === undefined) seen('turn.start')
     const mate = e.agentId === undefined ? teammateOf(e.text) : null
     let stopNow = false
     if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? null }
@@ -1528,7 +1547,7 @@ export const register: Register = on => {
     return result
   })
   on('turn.complete', async ($, e, next) => {
-    if (e.agentId === undefined) runningTurn = null
+    if (e.agentId === undefined) { runningTurn = null; seen('turn.complete') }
     if (e.agentId === undefined && me) {
       await refreshUsage($, true)
       if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })

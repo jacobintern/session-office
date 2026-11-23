@@ -26,7 +26,8 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
   back as files. It runs with `--dangerously-skip-permissions` (the
   artifact-data consent cannot be pre-approved otherwise), so **never type work
   into the bridge tab**. The light in the page's header shows when it last
-  synced, and turns red when it is down.
+  synced, and turns red when it is down; when it is your own network that is
+  down, it says so instead, and the page reconnects by itself.
 - **page/** — the artifact page itself.
 - **install/** — the watchdog that keeps the bridge running, its LaunchAgent, and
   `office-hook.sh`: two hooks the installer adds to `~/.claude/settings.json`
@@ -119,7 +120,7 @@ After `git pull`, each part updates on its own:
 | | |
 |---|---|
 | `/office` | the page's link, this session's desk, and whether the setup checks pass |
-| `/office doctor` | checks the config, this session's desk card and the bridge |
+| `/office doctor` | checks the config, this session's desk card, the bridge, and whether this mod's hooks ran (a plugin of a higher tier can skip them) |
 | `/office name <text>` | the desk's nameplate (empty clears it); the session title follows (it runs `/rename`, and `/rename` in turn sets the nameplate). You can also type it in the page's reply box, or ask the session to rename itself |
 | `/office project <text>` | the project / topic this desk belongs to (empty goes back to the branch ticket or the repo); sessions of one project share a board. The page's ✎ next to "Project" does the same |
 | `/office status` | the bridge's last round |
