@@ -226,7 +226,7 @@
   .tpair .note { font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
   .tpair .copy, .tq .copy { justify-self: start; font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 8px; cursor: pointer; }
   .tq { display: grid; gap: 6px; }
-  #t-form textarea { flex-basis: 100%; }
+  #t-form textarea, #u-form textarea { flex-basis: 100%; }
   @media (max-width: 700px) { .tpair { grid-template-columns: 1fr; } .tpair .src { grid-row: auto; } }
   .ask { display: grid; gap: 14px; }
   .ask .q { display: grid; gap: 8px; }
@@ -294,6 +294,8 @@
     .pusage .track { width: 90px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
     .pusage .fill { display: block; height: 100%; background: var(--hp-hi); }
     .pusage .fill.mid { background: var(--hp-mid); } .pusage .fill.low { background: var(--hp-low); }
+    .pnpcs { display: flex; gap: 8px; }
+    .pnpcs button { flex: 1; font: inherit; font-size: .85rem; font-weight: 600; min-height: 40px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); cursor: pointer; }
     .pgroup { display: flex; flex-direction: column; gap: 8px; }
     .pgroup h2 { margin: 0; font-size: .76rem; font-weight: 700; letter-spacing: .05em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
     .pgroup h2 .n { font-weight: 500; }
@@ -422,7 +424,7 @@
         <div class="tpairs" id="u-chat"></div>
         <div class="sent" id="u-state" hidden></div>
       </div>
-      <form class="reply" id="u-form"><textarea id="u-text" rows="3" maxlength="4000" placeholder="問分析師，例如「哪個 session 最燒」「要不要先交接」（⌘/Ctrl+Enter 送出）"></textarea><button type="submit" id="u-go">問分析師</button><button type="button" class="ghost" id="u-stop" hidden>停止</button></form>
+      <form class="reply" id="u-form"><textarea id="u-text" rows="3" maxlength="4000" placeholder="問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）"></textarea><button type="submit" id="u-go">問分析師</button><button type="button" class="ghost" id="u-stop" hidden>停止</button></form>
     </div>
   </div>
   </main>
@@ -501,9 +503,9 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
-      analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（⌘/Ctrl+Enter 送出）', analystAsk: '問分析師',
+      analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）', analystAsk: '問分析師',
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
-      anUsed: '- {label}：已用 {p}%', anRate: '，近 {span} 每小時 +{r}%', anEta: '，預估 **{when} 用完**（比重置早 {early}）', anSafe: '，重置（{when}）前用不完，到時約 {q}%', anIdle: '，最近沒有在消耗', anFew: '，紀錄還太少、先不預估', anResetNow: '- {label}：已重置',
+      anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
       project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByTitle: '桌名票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號、桌名票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有人貼卡。每位成員一張卡：你和同專案的每個 session 各一則，再貼就換掉自己那則；session 下一句開始前會自動讀到。', boardPh: '你的卡：要給同專案所有 session 知道的事…（Enter 送出，會換掉你上一則）', boardPost: '貼上去', boardDel: '刪除', boardArchived: '封存（{n}）：被新的卡換掉，或那位已離開', boardTopic: '主題 {t}', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
@@ -513,7 +515,7 @@
       dialogWait: '{cmd} 在它的 terminal 開了一個對話框，網頁回答不了：請切到它的分頁回答。回答之前，頁面送的指令會排隊。', permWait: '這個 session 在等你確認權限：在下面按允許或拒絕，或到它的 terminal 分頁回答。確認之前，頁面送的回覆會排隊。', permAllow: '允許', permDeny: '拒絕', permSent: '已送出，等它繼續…',
       ctx: 'context 剩 {p}%', ctxUsed: '（已用 {used} / {win}）', cost: '花費 ${c}', seat: '座位 {n}', task: '任務：{t}', noTask: '還沒有任務',
       sent: '已送出「{text}」，等 session 接手（{ago}）', sentRetried: '「{text}」第一次沒進到對話，已重送（{ago}）', sentLost: '「{text}」沒送到：{why}。請再傳一次，或到它的 terminal 輸入。', lostHint: '上一則指令沒送到，點開看原因', lostTag: '沒送到', reportedAgo: '匯報 {ago}', updatedAgo: '最後更新 {ago}',
-      histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。', seeFile: '請看附件。', pastedText: '貼上的文字 #{n}', pastedLen: '{n} 字', fileTooBig: '「{name}」超過 10MB，沒有附上', fileFailed: '「{name}」讀不到，沒有附上',
+      histN: '之前的回覆（{n}）', noContent: '（沒有內容）', question: '問題', multi: '（可複選）', sendAnswer: '送出答案', image: '附圖 {n}', remove: '移除', seeImage: '請看附圖。', seeFile: '請看附件。', phoneReset: '・{at} 重置', pastedText: '貼上的文字 #{n}', pastedLen: '{n} 字', fileTooBig: '「{name}」超過 10MB，沒有附上', fileFailed: '「{name}」讀不到，沒有附上',
       bridgeDown: '橋接視窗沒在跑（最後一次 {ago}），辦公室不會更新，指令也送不出去。watchdog 每分鐘會自動重開一個；要手動開就在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions，原因可以用 install/install.sh --check 查。',
       bridgeNone: '還沒有橋接視窗。跑 install/install.sh 讓 watchdog 自動開，或在新分頁跑 CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions。',
       bridgeOk: '橋接 {ago}', bridgeOff: '橋接斷線', bridgeWait: '橋接 連線中…', bridgeTip: '橋接視窗最後一次同步：{ago}',
@@ -548,9 +550,9 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
-      analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (⌘/Ctrl+Enter sends)', analystAsk: 'Ask',
+      analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (Enter sends, Shift+Enter for a new line)', analystAsk: 'Ask',
       anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
-      anUsed: '- {label}: {p}% used', anRate: ', +{r}% an hour over the last {span}', anEta: ', runs out **at {when}** ({early} before the reset)', anSafe: ', lasts until the reset ({when}) at about {q}%', anIdle: ', not moving lately', anFew: ', too few readings to forecast yet', anResetNow: '- {label}: reset',
+      anUsed: '- {label}: {p}% used', anResets: ' (resets {when})', anAvg: ', {a}% an hour on average this window', anRecent: ' (last hour: {r}%)', anEta: ', at the average rate runs out **at {when}** ({early} before the reset)', anSafe: ', at the average rate lasts until the reset at about {q}%', anIdle: ', nothing used this window yet', anFew: ', the window just started; no forecast yet', anResetNow: '- {label}: reset',
       anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
       project: 'Project: ', projectNone: 'none (press ✎ to type a topic; sessions of one topic share a board)', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByTitle: 'name ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket, name ticket or repo)', mates: 'Teammates: ', matesNone: 'no one else', boardSum: 'Board: {p} ({n})', boardEmpty: 'No cards yet. One card per member: you and each session of this project; posting again replaces your own. A session reads the board before its next turn.', boardPh: 'Your card: what every session of this project should know… (Enter sends and replaces your earlier one)', boardPost: 'Post', boardDel: 'Delete', boardArchived: 'Archived ({n}): replaced by a newer card, or that member left', boardTopic: 'topic {t}', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', effortPick: 'Effort: {e}', effortHint: 'Takes effect on the next turn, no restart; this session only, the default for new sessions stays', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
@@ -560,7 +562,7 @@
       dialogWait: '{cmd} opened a dialog in its terminal that the page cannot answer: switch to its tab. Page instructions queue until it is answered.', permWait: 'This session is waiting for your permission: allow or deny below, or answer in its terminal tab. Replies from the page wait until then.', permAllow: 'Allow', permDeny: 'Deny', permSent: 'Sent; waiting for it to go on…',
       ctx: 'context {p}% left', ctxUsed: ' ({used} / {win} used)', cost: 'cost ${c}', seat: 'desk {n}', task: 'Task: {t}', noTask: 'No task yet',
       sent: 'Sent “{text}”, waiting for the session to pick it up ({ago})', sentRetried: '“{text}” did not reach the conversation; sent again ({ago})', sentLost: '“{text}” was not delivered: {why}. Send it again, or type it in its terminal.', lostHint: 'The last instruction was not delivered; open it to see why', lostTag: 'Not delivered', reportedAgo: 'reported {ago}', updatedAgo: 'updated {ago}',
-      histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.', seeFile: 'See the attached file.', pastedText: 'Pasted text #{n}', pastedLen: '{n} chars', fileTooBig: '“{name}” is over 10MB and was not attached', fileFailed: '“{name}” could not be read and was not attached',
+      histN: 'Earlier replies ({n})', noContent: '(empty)', question: 'Question', multi: ' (pick any)', sendAnswer: 'Send answer', image: 'Image {n}', remove: 'Remove', seeImage: 'See the attached image.', seeFile: 'See the attached file.', phoneReset: ' · resets {at}', pastedText: 'Pasted text #{n}', pastedLen: '{n} chars', fileTooBig: '“{name}” is over 10MB and was not attached', fileFailed: '“{name}” could not be read and was not attached',
       bridgeDown: 'The bridge is not running (last seen {ago}): the office will not update and instructions cannot go out. The watchdog reopens one every minute; to start one yourself, run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab, and install/install.sh --check shows why it stopped.',
       bridgeNone: 'No bridge yet. Run install/install.sh so the watchdog opens one, or run CLAUDE_OFFICE_BRIDGE=1 claude --dangerously-skip-permissions in a new tab.',
       bridgeOk: 'Bridge {ago}', bridgeOff: 'Bridge down', bridgeWait: 'Bridge connecting…', bridgeTip: 'Last bridge sync: {ago}',
@@ -1610,7 +1612,7 @@
     groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
     // rebuilt only when something it shows changed (the time labels every 5 s are cheap; the cards are not)
     const lim = accountLimits() || [];
-    const key = JSON.stringify([lim.map(l => [l.kind, Math.round(l.percentUsed)]), ...['waiting', 'working', 'idle'].map(k => groups[k].map(d => [d.id, d.title, d.blocked, d.perm?.at, d.permFor, d.report, d.activity, d.bg?.n, d.stateAt, d.reportedAt, d.seenAt, projectOf(d)?.name]))]);
+    const key = JSON.stringify([lim.map(l => [l.kind, Math.round(l.percentUsed), l.resetsAt]), officeCfg?.tutor, officeCfg?.analyst, ...['waiting', 'working', 'idle'].map(k => groups[k].map(d => [d.id, d.title, d.blocked, d.perm?.at, d.permFor, d.report, d.activity, d.bg?.n, d.stateAt, d.reportedAt, d.seenAt, projectOf(d)?.name]))]);
     if (key === phoneKey) return;
     phoneKey = key;
     const parts = [];
@@ -1620,10 +1622,19 @@
       const left = Math.max(0, Math.round(100 - (l.percentUsed || 0)));
       const b = document.createElement('span'); b.className = 'bar';
       const t = document.createElement('span'); t.className = 'track'; const f = document.createElement('span'); f.className = 'fill' + (left < 20 ? ' low' : left < 50 ? ' mid' : ''); f.style.width = left + '%'; t.append(f);
-      b.append(label, t, left + '%'); usage.append(b);
+      const end = l.resetsAt ? Date.parse(l.resetsAt) : 0, d = new Date(end);
+      const at = end > Date.now() ? (label === '5h' ? '' : (d.getMonth() + 1) + '/' + d.getDate() + ' ') + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') : '';
+      b.append(label, t, left + '%' + (at ? tt('phoneReset', { at }) : '')); usage.append(b);
     }
     const count = document.createElement('span'); count.textContent = tt('rosterHead', { n: L.list.length, live: live.length }); usage.append(count);
     parts.push(usage);
+    // the tutor and the analyst have no desk to tap on a phone: two buttons open their panels
+    const npcs = document.createElement('div'); npcs.className = 'pnpcs';
+    for (const [show, label, open] of [[officeCfg?.tutor !== false, tt('tutor'), () => openTutor()], [officeCfg?.analyst !== false, tt('analyst'), () => openAnalyst()]]) {
+      if (!show) continue;
+      const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.addEventListener('click', open); npcs.append(btn);
+    }
+    if (npcs.childElementCount) parts.push(npcs);
     const titles = { waiting: tt('waitingYou'), working: tt('working'), idle: tt('idle') };
     const stripe = d => { const pr = projectOf(d); return pr ? projectColor(pr.name) : ''; };
     const meta = (d, key) => (d.seat ? tt('seatN', { n: d.seat }) : '') + (key === 'waiting' ? ago(d.reportedAt || d.seenAt) : key === 'working' && d.stateAt ? tt('workingFor', { d: dur(d.stateAt) }) : key === 'idle' && d.stateAt ? tt('idleFor', { d: dur(d.stateAt) }) : ago(d.seenAt));
@@ -2501,12 +2512,11 @@
   document.getElementById('u-close').addEventListener('click', closeAnalyst);
   closeOnBackdrop(analyst, closeAnalyst);
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !analyst.hidden) closeAnalyst(); });
-  uText.addEventListener('keydown', ev => {
-    if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey) && !ev.isComposing) { ev.preventDefault(); uForm.requestSubmit(); }
-  });
+  submitOnEnter(uText, 'u-form');
   const analystSay = msg => { uState.hidden = !msg; uState.textContent = msg || ''; };
-  // one window: the rate over the last `lookback` of the current window, and when 100% is reached at that rate
-  function forecastLine(label, key, endKey, lookback) {
+  // one window: the average rate since the window began (used % over the time since its start,
+  // steady across breaks), with the last hour's rate beside it for reference
+  function forecastLine(label, key, endKey, windowMs) {
     const s = (usageDoc?.samples || []).filter(x => typeof x[key] === 'number');
     const last = s[s.length - 1];
     if (!last) return null;
@@ -2514,19 +2524,20 @@
     if (end && end <= t) return tt('anResetNow', { label });
     const when = ms => new Date(ms).toLocaleString(LANG === 'zh' ? 'zh-TW' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
     const dur = ms => ms >= 3_600_000 ? (Math.round(ms / 360_000) / 10) + (LANG === 'zh' ? ' 小時' : ' h') : Math.round(ms / 60_000) + (LANG === 'zh' ? ' 分鐘' : ' min');
-    const win = s.filter(x => x[endKey] === end && x.t >= last.t - lookback), first = win[0];
-    let line = tt('anUsed', { label, p: Math.round(last[key]) });
-    const span = last.t - first.t;
-    if (win.length < 2 || span < 10 * 60_000) return line + tt('anFew');
-    const rate = (last[key] - first[key]) / span;   // % per ms
-    if (rate <= 0) return line + tt('anIdle');
-    line += tt('anRate', { span: dur(span), r: Math.round(rate * 3_600_000 * 10) / 10 });
-    const eta = last.t + (100 - last[key]) / rate;
-    if (end && eta >= end) return line + tt('anSafe', { when: when(end), q: Math.round(last[key] + rate * (end - last.t)) });
-    return line + tt('anEta', { when: when(eta), early: end ? dur(end - eta) : '?' });
+    const perHour = r => Math.round(r * 3_600_000 * 10) / 10;
+    let line = tt('anUsed', { label, p: Math.round(last[key]) }) + (end ? tt('anResets', { when: when(end) }) : '');
+    const elapsed = end ? last.t - (end - windowMs) : 0;
+    if (!end || elapsed < 10 * 60_000) return line + tt('anFew');
+    const avg = last[key] / elapsed;   // % per ms
+    const hour = s.filter(x => x[endKey] === end && x.t >= last.t - 3_600_000), first = hour[0], span = last.t - first.t;
+    line += tt('anAvg', { a: perHour(avg) }) + (hour.length > 1 && span >= 10 * 60_000 ? tt('anRecent', { r: perHour(Math.max(0, (last[key] - first[key]) / span)) }) : '');
+    if (avg <= 0) return line + tt('anIdle');
+    const eta = last.t + (100 - last[key]) / avg;
+    if (eta >= end) return line + tt('anSafe', { q: Math.min(100, Math.round(last[key] + avg * (end - last.t))) });
+    return line + tt('anEta', { when: when(eta), early: dur(end - eta) });
   }
   function analystText() {
-    const fc = [forecastLine('5h', 'f', 'fe', 3_600_000), forecastLine(tt('week'), 'w', 'we', 86_400_000)].filter(Boolean);
+    const fc = [forecastLine('5h', 'f', 'fe', 5 * 3_600_000), forecastLine(tt('week'), 'w', 'we', 7 * 86_400_000)].filter(Boolean);
     const live = [...desks.values()].filter(d => liveness(d) === 'live').sort((a, b) => (b.cost || 0) - (a.cost || 0));
     const rows = live.map(d => `| ${(d.title || d.label || d.id).replace(/\|/g, '/')} | ${typeof d.cost === 'number' ? '$' + d.cost.toFixed(2) : '—'} | ${typeof d.ctx?.percent === 'number' ? (100 - d.ctx.percent) + '%' : '—'} |`);
     return [tt('anForecast'), '', ...(fc.length ? fc : [tt('anNoData')]), '', tt('anRank'), '', ...(rows.length ? [tt('anCols'), ...rows] : [tt('anNoDesk')])].join('\n');
@@ -2539,6 +2550,7 @@
     if (!q || analystBusy) return;
     const recent = (usageDoc?.samples || []).slice(-60).map(x => `${new Date(x.t).toISOString()} 5h=${x.f ?? '-'}% week=${x.w ?? '-'}%`).join('\n');
     const rules = tt('anRole') + ' Answer in Traditional Chinese as used in Taiwan, briefly, in Markdown. Base every number on the data below and say when it is too thin to tell.'
+      + ' The forecast uses the average rate since each window began (used % divided by the time since the window started, i.e. its reset time minus 5 hours or 7 days); the last hour is shown only for reference. The reset times are in the analysis.'
       + '\n\nCurrent analysis (now ' + new Date().toISOString() + '):\n\n' + analystText() + '\n\nRecent readings (oldest first):\n' + recent;
     analystTurns.push({ role: 'user', content: q });
     const item = document.createElement('div'); item.className = 'tq';
