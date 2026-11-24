@@ -375,7 +375,8 @@
   const TUTOR_DESK_ROW = WALL_H + OFFICE.h + 3.5; // the English tutor's desk, on the floor below your office
   // The office's bottom wall and, outside it, the corridor new colleagues arrive by: they
   // appear at its left end, walk to the door at the right and in; leaving, the same way out.
-  const ENTRY_WALL_H = 1.0, CORRIDOR_H = 1.5, ENTRY_ROWS = ENTRY_WALL_H + CORRIDOR_H;
+  // thin where the window is tight (the floor cannot give up more), wider when the office has room to spare
+  const ENTRY_TIGHT = { wall: 1.0, corridor: 1.5 }, ENTRY_ROOMY = { wall: 1.3, corridor: 2.6 };
   const ARRIVE_ALL = location.hash.includes('arrive');   // #arrive: every desk walks in on load (to look at the walk; add #slow)
   const SEATS_PER_BENCH = 6;
   const canvas = document.getElementById('c');
@@ -616,11 +617,14 @@
     // (a free seat in them is where the next session sits); two at least
     const top = Math.max(0, ...seatNo.values()), pods = Math.ceil(top / 6), spare = list.length >= pods * 6 ? 1 : 0;
     while (capacity < Math.max(12, (pods + spare) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
-    const FLOOR_ROWS = Math.max(FIT_ROWS - ENTRY_ROWS, MIN_ROWS, benches[benches.length - 1].y / TILE + 1.6, TUTOR_DESK_ROW + 1.6);
+    const floorNeeded = Math.max(MIN_ROWS, benches[benches.length - 1].y / TILE + 1.6, TUTOR_DESK_ROW + 1.6);
+    const sizes = FIT_ROWS - floorNeeded >= ENTRY_ROOMY.wall + ENTRY_ROOMY.corridor + 2 ? ENTRY_ROOMY : ENTRY_TIGHT;
+    const ENTRY_ROWS = sizes.wall + sizes.corridor;
+    const FLOOR_ROWS = Math.max(FIT_ROWS - ENTRY_ROWS, floorNeeded);
     const ROWS = FLOOR_ROWS + ENTRY_ROWS;
     const W = COLS * TILE, H = Math.round(ROWS * TILE);
     // the entrance: the floor's last lane, the door in the bottom wall near the right, the corridor beyond
-    const entry = { floorBottom: FLOOR_ROWS * TILE, laneY: (FLOOR_ROWS - 0.6) * TILE, doorX: W - TILE * 2.2, corrY: (FLOOR_ROWS + ENTRY_WALL_H + 0.85) * TILE, spawnX: -TILE };
+    const entry = { floorBottom: FLOOR_ROWS * TILE, laneY: (FLOOR_ROWS - 0.6) * TILE, doorX: W - TILE * 2.2, wallH: sizes.wall, corrY: (FLOOR_ROWS + sizes.wall + sizes.corridor * 0.55) * TILE, spawnX: -TILE };
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     const seatList = benches.flatMap(b => b.seats.map(x => ({ bench: b, x })));
     const slots = list.map(d => {
@@ -834,8 +838,15 @@
     px(doorL, o.bottom - 4, doorR - doorL, 4, shadeHex(css('--desk'), .9));
     drawClock(TILE * 0.6, wallBottomCapY + cap + 5, TILE * 4.6, face - 10);
     // the office's bottom wall, full width, with the entrance door near the right; the corridor is the floor beyond it
-    const e = L.entry, eCap = Math.round(TILE * 0.25), eFace = Math.round(TILE * (ENTRY_WALL_H - 0.25));
+    const e = L.entry, eCap = Math.round(TILE * 0.25), eFace = Math.round(TILE * (e.wallH - 0.25));
     const eDoorL = e.doorX - TILE * 0.6, eDoorR = e.doorX + TILE * 0.6;
+    // the corridor: a lighter stone floor in big slabs, so it reads as outside the office
+    const cTop = e.floorBottom + eCap + eFace, slab = TILE * 2;
+    px(0, cTop, L.W, L.H - cTop, shadeHex(fa, 1.55));
+    for (let r = 0, y = cTop; y < L.H; r++, y += TILE) for (let x = -(r % 2) * TILE; x < L.W; x += slab) {
+      px(x + 1, y + 1, slab - 2, TILE - 2, shadeHex(fa, r % 2 ? 1.48 : 1.62));
+    }
+    px(0, L.H - 3, L.W, 3, shadeHex(fa, 1.2));
     px(0, e.floorBottom, L.W, 6, 'rgba(0,0,0,.25)');
     capAt(0, e.floorBottom, eDoorL, eCap); faceAt(0, e.floorBottom + eCap, eDoorL, eFace);
     capAt(eDoorR, e.floorBottom, L.W - eDoorR, eCap); faceAt(eDoorR, e.floorBottom + eCap, L.W - eDoorR, eFace);
