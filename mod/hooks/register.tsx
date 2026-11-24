@@ -620,34 +620,38 @@ function docsIn(result: unknown): StoredDoc[] {
 }
 const wroteOk = (result: unknown) => /"version"\s*:\s*\d+|version \d+/.test(JSON.stringify(result))
 
-// Images pasted on the page arrive as `attachments` documents holding base64,
-// split in parts (a document holds at most 256KB): the desk lists each image as
-// `<id>#<parts>`, stored at <id>-p0 … <id>-p<parts-1>. The bridge joins them into
-// images/<id>.<ext>, deletes the documents, and the session's prompt names the files.
+// Images and files pasted on the page arrive as `attachments` documents holding base64,
+// split in parts (a document holds at most 256KB): the desk lists each one as
+// `<id>#<parts>` (images in `images`, other files and long pasted text in `files`),
+// stored at <id>-p0 … <id>-p<parts-1>. The bridge joins them into images/<id>.<ext>,
+// or attachments/<id>-<name> for a file (its parts carry `name`), deletes the
+// documents, and the session's prompt names the files.
 const ATTACHMENTS = 'attachments'
 const imagesDir = () => `${home}/.claude/office/images`
-async function saveImages($: EngineInterface, refs: string[]): Promise<string[]> {
+const filesDir = () => `${home}/.claude/office/attachments`
+const safeName = (name: string) => name.replace(/[^\w.\-\u4e00-\u9fff]+/g, '_').replace(/^\.+/, '').slice(-80) || 'file'
+async function saveAttachments($: EngineInterface, refs: string[]): Promise<string[]> {
   const out: string[] = []
-  await $.process.run(['mkdir', '-p', imagesDir()])
+  await $.process.run(['mkdir', '-p', imagesDir(), filesDir()])
   for (const ref of refs) {
     const [docId = '', n = '1'] = ref.split('#')
     try {
-      let b64 = '', mime: unknown = null
+      let b64 = '', mime: unknown = null, name: unknown = null
       const got: { id: string; version?: number }[] = []
       for (let k = 0; k < Number(n); k++) {
         const partId = `${docId}-p${k}`
         const doc = docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'get', url: OFFICE_URL, collection: ATTACHMENTS, doc_id: partId }))[0]
         if (typeof doc?.data.b64 !== 'string') throw new Error(`part ${k} missing`)
-        b64 += doc.data.b64; mime = doc.data.mime
+        b64 += doc.data.b64; mime = doc.data.mime; name = doc.data.name
         got.push({ id: partId, version: doc.version })
       }
       const ext = mime === 'image/png' ? 'png' : mime === 'image/webp' ? 'webp' : mime === 'image/gif' ? 'gif' : 'jpg'
-      const path = `${imagesDir()}/${docId}.${ext}`
-      await $.process.run(['base64', '-D', '-o', path], { stdin: b64, timeoutMs: 15_000 })
+      const path = typeof name === 'string' ? `${filesDir()}/${docId}-${safeName(name)}` : `${imagesDir()}/${docId}.${ext}`
+      await $.process.run(['base64', '-D', '-o', path], { stdin: b64, timeoutMs: 60_000 })
       out.push(path)
       for (const g of got) await $.tool.call({ tool: 'ArtifactData', action: 'delete', url: OFFICE_URL, collection: ATTACHMENTS, doc_id: g.id, ...(typeof g.version === 'number' ? { if_version: g.version } : {}) })
     } catch (error) {
-      report($, `image ${docId} could not be saved: ${String(error)}`)
+      report($, `attachment ${docId} could not be saved: ${String(error)}`)
     }
   }
   return out
@@ -1052,7 +1056,7 @@ async function bridgeTick($: EngineInterface) {
     if (tickCount % 2 === 1) await heartbeat($)
     if (tickCount === 2 || tickCount % JIRA_EVERY === 0) { lastTick.note = '抓 Jira'; await syncJira($) }
     if (tickCount === 3 || tickCount % 2 === 0) await syncCodex($, tickCount === 3 || tickCount % CODEX_EVERY === 0)
-    if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
+    if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), filesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
     lastTick.note = '讀資料庫'
     const listResult = await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: COLLECTION, query: { limit: 200 } })
     const listed = docsIn(listResult)
@@ -1154,9 +1158,13 @@ async function bridgeTick($: EngineInterface) {
       const at = typeof doc.data.instructionAt === 'number' ? doc.data.instructionAt : 0
       const done = typeof doc.data.instructionDoneAt === 'number' ? doc.data.instructionDoneAt : 0
       if (instruction && at > done && inboxWritten[id] !== at) {
-        const images = Array.isArray(doc.data.images) ? doc.data.images.filter((x): x is string => typeof x === 'string') : []
-        const paths = images.length ? await saveImages($, images) : []
-        const text = paths.length ? `${instruction}\n\n（附圖已存在本機，請用 Read 讀取）\n${paths.map(p => `- ${p}`).join('\n')}` : instruction
+        const refsOf = (v: unknown) => Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : []
+        const images = refsOf(doc.data.images), attached = refsOf(doc.data.files)
+        const paths = images.length ? await saveAttachments($, images) : []
+        const filePaths = attached.length ? await saveAttachments($, attached) : []
+        let text = instruction
+        if (paths.length) text += `\n\n（附圖已存在本機，請用 Read 讀取）\n${paths.map(p => `- ${p}`).join('\n')}`
+        if (filePaths.length) text += `\n\n（附件已存在本機，請用 Read 讀取；貼上的長文字也在這裡）\n${filePaths.map(p => `- ${p}`).join('\n')}`
         await $.fs.write(inboxPath(id), JSON.stringify({ instruction: text, instructionAt: at }))
         inboxWritten[id] = at
       }
