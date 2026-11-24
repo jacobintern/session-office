@@ -116,6 +116,12 @@ const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '',
 // local command's output) is not something the person asked for.
 const isMetaPrompt = (text: string) => /^\s*</.test(text ?? '')
 
+// A turn's answer on the desk card: up to REPORT_MAX characters; a longer one keeps its
+// head and its last REPORT_TAIL, so the closing `## 要你決定` survives the cut.
+const REPORT_MAX = 12000, REPORT_TAIL = 4000
+const clipReport = (text: string) => text.length <= REPORT_MAX ? text
+  : text.slice(0, REPORT_MAX - REPORT_TAIL) + '\n\n…（中間略）…\n\n' + text.slice(-REPORT_TAIL)
+
 const firstLine = (text: string, max: number) => {
   const line = (text ?? '').split('\n').map(s => s.trim()).find(s => s.length > 0) ?? ''
   return line.length > max ? line.slice(0, max - 1) + '…' : line
@@ -1619,7 +1625,7 @@ export const register: Register = on => {
       await refreshUsage($, true)
       if (e.reason === 'aborted') patch($, { state: 'idle', activity: pausing ? '已暫停' : '被中斷', blocked: null, ask: null, bg: null })
       else {
-        const report = (e.answer ?? '').trim().slice(0, 4000) || (e.reason === 'error' ? errorReport(await lastApiError($)) : `_（這輪沒有文字回覆：${e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`)
+        const report = clipReport((e.answer ?? '').trim()) || (e.reason === 'error' ? errorReport(await lastApiError($)) : `_（這輪沒有文字回覆：${e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`)
         const at = Date.now()
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
         // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
