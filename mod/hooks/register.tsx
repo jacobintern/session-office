@@ -5,12 +5,13 @@ import type { Register, EngineInterface } from 'claude-code'
 // the artifact's database and brings instructions typed on the page back as
 // files. Workers never call a tool, so they run under auto mode untouched.
 // Everything about the person running it lives in ~/.claude/office/config.json:
-// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, tutor?, city?: { lat, lng }, newSessionDirs?, language? }
+// { officeUrl, jira?: { site, email, jql?, tokenFile? }, codex?, tutor?, analyst?, city?: { lat, lng }, newSessionDirs?, language? }
 type OfficeConfig = {
   officeUrl?: string
   jira?: { site: string; email: string; jql?: string; tokenFile?: string } | null
   codex?: boolean
   tutor?: boolean
+  analyst?: boolean
   city?: { lat: number; lng: number }
   newSessionDirs?: string[]
   language?: 'zh-TW' | 'en'
@@ -841,7 +842,7 @@ async function putMeta($: EngineInterface, docId: string, data: Record<string, u
 async function heartbeat($: EngineInterface) {
   await putMeta($, 'bridge', { seenAt: Date.now(), sessionId: await $.session.id() })
   // what the page needs from the config (never the Jira email or token)
-  const pub = JSON.stringify({ jiraSite: cfg.jira?.site ?? null, codex: cfg.codex !== false, tutor: cfg.tutor !== false, city: cfg.city ?? null, newSessionDirs: (cfg.newSessionDirs ?? []).map(d => d.replace(/^~(?=\/|$)/, home)) })
+  const pub = JSON.stringify({ jiraSite: cfg.jira?.site ?? null, codex: cfg.codex !== false, tutor: cfg.tutor !== false, analyst: cfg.analyst !== false, city: cfg.city ?? null, newSessionDirs: (cfg.newSessionDirs ?? []).map(d => d.replace(/^~(?=\/|$)/, home)) })
   if (pub !== configPublished && (await putMeta($, 'config', JSON.parse(pub)))) configPublished = pub
 }
 let configPublished = ''
@@ -944,6 +945,47 @@ async function syncCodex($: EngineInterface, full: boolean) {
   }
 }
 
+// Usage history for the usage analyst on the page: the account's 5-hour and weekly
+// readings, taken the way the page's accountLimits does (per kind the latest window,
+// in it the latest turn), one sample a minute when it moved, kept 8 days in the store;
+// older than 6 hours they thin to one per 30 minutes. Published as meta/usage.
+type UsageSample = { t: number; f: number | null; fe: number | null; w: number | null; we: number | null }
+let usageHistory: UsageSample[] | null = null
+let usageLast = ''
+async function recordUsage($: EngineInterface, files: Map<string, Desk>) {
+  try {
+    if (!usageHistory) usageHistory = ((await $.store.get('usageHistory')) as UsageSample[] | undefined) ?? []
+    const byKind = new Map<string, { pct: number; win: number; at: number }>()
+    for (const d of files.values()) for (const l of d.limits ?? []) {
+      const win = l.resetsAt ? Date.parse(l.resetsAt) || 0 : 0, at = d.limitsAt ?? 0, cur = byKind.get(l.kind)
+      if (!cur || win > cur.win || (win === cur.win && at > cur.at)) byKind.set(l.kind, { pct: l.percentUsed, win, at })
+    }
+    const now = Date.now()
+    const pick = (re: RegExp) => [...byKind.entries()].find(([k]) => re.test(k) && !/opus|sonnet/i.test(k))?.[1]
+    const read = (r?: { pct: number; win: number }) => r ? { p: r.win && r.win <= now ? 0 : Math.round(r.pct * 10) / 10, e: r.win || null } : { p: null, e: null }
+    const five = read(pick(/five_hour/)), week = read(pick(/seven_day/))
+    if (five.p === null && week.p === null) return
+    const sample: UsageSample = { t: now, f: five.p, fe: five.e, w: week.p, we: week.e }
+    const prev = usageHistory[usageHistory.length - 1]
+    const moved = !prev || prev.f !== sample.f || prev.w !== sample.w || prev.fe !== sample.fe || prev.we !== sample.we
+    if (!moved && prev && now - prev.t < 5 * 60_000) return
+    usageHistory.push(sample)
+    const thinned: UsageSample[] = []
+    for (const x of usageHistory) {
+      if (now - x.t > 8 * 86_400_000) continue
+      const last = thinned[thinned.length - 1]
+      if (last && now - x.t > 6 * 3_600_000 && x.t - last.t < 30 * 60_000) continue
+      thinned.push(x)
+    }
+    usageHistory = thinned
+    await $.store.set('usageHistory', usageHistory)
+    const key = JSON.stringify(usageHistory)
+    if (key !== usageLast && await putMeta($, 'usage', { samples: usageHistory, at: now })) usageLast = key
+  } catch (error) {
+    report($, `usage history: ${String(error).slice(0, 200)}`)
+  }
+}
+
 // Seats: the bridge hands each session a fixed seat number (lowest free one),
 // kept across bridge restarts in the store, so a dog never changes desk while
 // others come and go. The number rides on the desk document as `seat`.
@@ -1031,6 +1073,7 @@ async function bridgeTick($: EngineInterface) {
         if (desk && typeof desk.id === 'string') files.set(desk.id, desk)
       } catch { /* half-written file; next tick */ }
     }
+    if (tickCount === 3 || tickCount % CODEX_EVERY === 0) await recordUsage($, files)
 
     const nowMs = Date.now()
     // a desk whose process is dead is gone, however fresh its file looks

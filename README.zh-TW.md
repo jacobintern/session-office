@@ -114,11 +114,12 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 | `jira` | `null`，或 `{ "site", "email", "jql"?, "tokenFile"? }`。token 從 `tokenFile`（預設 `~/.jira_api_token`）讀取，透過 stdin 交給 curl，不會出現在指令參數裡；沒設 `jira` 時 Jira 欄位會隱藏 |
 | `codex` | 設成 `false` 會隱藏 Codex 秘書 |
 | `tutor` | 設成 `false` 會隱藏英文小老師 |
+| `analyst` | 設成 `false` 會隱藏用量分析師 |
 | `city` | `{ "lat", "lng" }`，用來計算窗外的日出日落 |
 | `newSessionDirs` | 從頁面開新 session 時可選的資料夾 |
 | `language` | `"zh-TW"`（預設）或 `"en"`：session 列出待決事項時用的標題（`## 要你決定` / `## Decisions for you`）。頁面本身跟隨瀏覽器語言，右上角可以切換中 / EN |
 
-只有 `jira.site`、`codex`、`tutor`、`city`、`newSessionDirs` 會送到頁面（存在 `meta/config`）；Jira 的 email 和 token 只留在你的電腦上。
+只有 `jira.site`、`codex`、`tutor`、`analyst`、`city`、`newSessionDirs` 會送到頁面（存在 `meta/config`）；Jira 的 email 和 token 只留在你的電腦上。
 
 ## 人物圖
 
@@ -127,6 +128,10 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 ## 英文小老師
 
 坐在你辦公室外左下、有自己桌子的老師會把你貼上的文字逐段翻譯，原文和譯文對照列出：中文翻成英文，其他翻成繁體中文。對翻譯有疑問、或想知道某句話英文怎麼說，按「問老師」。她是從頁面直接問 Claude（`sample` 權限，用你自己的 claude.ai 用量），所以不需要橋接視窗；第一次用時 claude.ai 會問你要不要允許。
+
+## 用量分析師
+
+點你自己會看到 5 小時和一週額度還剩多少、各自什麼時候重置。英文小老師隔壁桌的分析師看得更多：她用橋接視窗記的用量歷史（`meta/usage`，每分鐘一筆、保留 8 天），照最近的消耗速度預估每個額度什麼時候用完、列出在線上的 session 依花費排行，也能回答相關問題（跟小老師一樣從頁面問 Claude）。
 
 ## 匯報格式
 

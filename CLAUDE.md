@@ -19,6 +19,7 @@ block at the end of the page script; the board one is in `watchBoard`):
 | `meta/jira` | `fetchJira` / `syncJira` | `renderJira` (right column `#feed`) |
 | `meta/config` | `loadConfig` | `applyConfig` (hides the Jira column when no site) |
 | `meta/codex` | `syncCodex` | `codexCard`, `drawCodex` |
+| `meta/usage` | `recordUsage` | `forecastLine`, `analystText` (usage analyst) |
 | `meta/bridge` | `heartbeat`, `writeBridgeStatus` | `judgeBridge` (header light) |
 | `desks` | `bridgeTick` (from desk files) | `renderRoster`, `draw`, `fillModal` |
 | `requests` | `openRequestedSessions` | `openSpawn` form |
@@ -45,7 +46,7 @@ block at the end of the page script; the board one is in `watchBoard`):
   (the `## 要你決定` block), `renderHistory`, `renderAsk`/`answer`, `send`,
   `instruct`, `fillProject`, `fillModelPick`, `fillEffortPick`, `fillHandoff`.
 - **Side panels** — roster `renderRoster`, Jira `renderJira`, new session
-  `openSpawn`, English tutor `openTutor`/`tutorRun`, pairs `renderPairs`.
+  `openSpawn`, English tutor `openTutor`/`tutorRun`, usage analyst `openAnalyst`; your own limits `bossCard`, pairs `renderPairs`.
 
 ## Shipping a change
 

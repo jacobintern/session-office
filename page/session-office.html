@@ -410,6 +410,18 @@
       <form class="reply" id="t-form"><textarea id="t-text" rows="4" maxlength="20000" placeholder="要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）"></textarea><button type="submit" id="t-go">逐段翻譯</button><button type="button" class="ghost" id="t-ask">問老師</button><button type="button" class="ghost" id="t-stop" hidden>停止</button><button type="button" class="ghost" id="t-copy" hidden>複製全部譯文</button></form>
     </div>
   </div>
+
+  <div class="modal" id="analyst" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="u-title">
+      <header><span class="label" id="u-title">用量分析師</span><span class="meta" id="u-hint">照最近的消耗速度預估額度，數字由橋接每分鐘記一次</span><button type="button" class="close" id="u-close" aria-label="關閉">×</button></header>
+      <div class="body">
+        <div class="report" id="u-report"></div>
+        <div class="tpairs" id="u-chat"></div>
+        <div class="sent" id="u-state" hidden></div>
+      </div>
+      <form class="reply" id="u-form"><textarea id="u-text" rows="3" maxlength="4000" placeholder="問分析師，例如「哪個 session 最燒」「要不要先交接」（⌘/Ctrl+Enter 送出）"></textarea><button type="submit" id="u-go">問分析師</button><button type="button" class="ghost" id="u-stop" hidden>停止</button></form>
+    </div>
+  </div>
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
@@ -486,6 +498,10 @@
       tutorThinking: '老師想一下…', tutorRow: '翻譯中…', tutorMissing: '有幾段沒翻到，可以把那幾段再貼一次。', tutorTrunc: '太長被截斷了，後面的段落請分批貼。',
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
+      analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（⌘/Ctrl+Enter 送出）', analystAsk: '問分析師',
+      anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
+      anUsed: '- {label}：已用 {p}%', anRate: '，近 {span} 每小時 +{r}%', anEta: '，預估 **{when} 用完**（比重置早 {early}）', anSafe: '，重置（{when}）前用不完，到時約 {q}%', anIdle: '，最近沒有在消耗', anFew: '，紀錄還太少、先不預估', anResetNow: '- {label}：已重置',
+      anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
       project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByTitle: '桌名票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號、桌名票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有人貼卡。每位成員一張卡：你和同專案的每個 session 各一則，再貼就換掉自己那則；session 下一句開始前會自動讀到。', boardPh: '你的卡：要給同專案所有 session 知道的事…（Enter 送出，會換掉你上一則）', boardPost: '貼上去', boardDel: '刪除', boardArchived: '封存（{n}）：被新的卡換掉，或那位已離開', boardTopic: '主題 {t}', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
@@ -529,6 +545,10 @@
       tutorThinking: 'Thinking…', tutorRow: 'Translating…', tutorMissing: 'Some paragraphs came back empty; paste them again.', tutorTrunc: 'Cut short: paste the rest in a second batch.',
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
+      analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (⌘/Ctrl+Enter sends)', analystAsk: 'Ask',
+      anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
+      anUsed: '- {label}: {p}% used', anRate: ', +{r}% an hour over the last {span}', anEta: ', runs out **at {when}** ({early} before the reset)', anSafe: ', lasts until the reset ({when}) at about {q}%', anIdle: ', not moving lately', anFew: ', too few readings to forecast yet', anResetNow: '- {label}: reset',
+      anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
       project: 'Project: ', projectNone: 'none (press ✎ to type a topic; sessions of one topic share a board)', projectByManual: 'set by you', projectByTicket: 'branch ticket', projectByTitle: 'name ticket', projectByRepo: 'repo', projectByParent: 'parent ticket', projectHint: 'Enter saves, Esc cancels; empty goes back to automatic (branch ticket, name ticket or repo)', mates: 'Teammates: ', matesNone: 'no one else', boardSum: 'Board: {p} ({n})', boardEmpty: 'No cards yet. One card per member: you and each session of this project; posting again replaces your own. A session reads the board before its next turn.', boardPh: 'Your card: what every session of this project should know… (Enter sends and replaces your earlier one)', boardPost: 'Post', boardDel: 'Delete', boardArchived: 'Archived ({n}): replaced by a newer card, or that member left', boardTopic: 'topic {t}', rename: 'Rename', renameHint: 'Enter saves, Esc cancels; empty goes back to the first task', bgWait: 'Waiting on background work', replyHint: 'You can also just say: 回顧一下 (retrospective), 幫我 code review, 驗收一下 (verify), 交接 (hand off)', modelPick: 'Model: {m}', modelSwitching: 'Switching to {m}…', effortLabel: 'effort {e}', effortPick: 'Effort: {e}', effortHint: 'Takes effect on the next turn, no restart; this session only, the default for new sessions stays', lowUse: 'Only {p}% of your 5-hour usage is left. Once it runs out the session cannot write a handoff, so hand off now.', handoff: 'Ask it to hand off', handoffSent: 'Asked it to hand off; it reports back when done', codexReady: 'The handoff is written; Codex can take over', codexGo: 'Open Codex to take over', codexSent: 'Asked the bridge to open Codex in a new tab', copyName: 'Copy message name', copyNameHint: 'Other sessions message this one by this name', dupName: 'same name', dupHint: 'Another colleague has the same name, so messages by name are ambiguous; rename with /office name',
       seatN: '#{n} · ', rosterHead: '{n} sessions, {live} online', rosterNone: 'No sessions yet',
       jiraMeta: '{n} · {ago}', jiraStale: 'Not updated for over 10 minutes; check the bridge (/office status).', jiraEmpty: 'No open tickets assigned to you.',
@@ -582,6 +602,7 @@
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
     set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
+    set('#u-title', 'analyst'); set('#u-hint', 'analystHint'); set('#u-text', 'analystPh', 'placeholder'); set('#u-go', 'analystAsk'); set('#u-stop', 'tutorStop');
     set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
@@ -1224,10 +1245,11 @@
   const POOL_SIZE = sheets.length - 1;
   const CODEX_SHEET = sheets.push({ im: load('chars/k00.png'), y: 0 }) - 1; // Codex, your secretary
   const TUTOR_SHEET = 1 + 91 + 128; // the blonde teacher in the school pack: your English tutor, never a session
+  const ANALYST_SHEET = 1 + 91 + 130; // also from the school pack: the usage analyst beside her, never a session
   // Enemy sheets 14-29 are orbs whose back view is a plain ball: seated in the lower
   // row (back to us) they would read as an empty seat, so such a draw is drawn again
   const ORB_FIRST = 1 + 91 + 134 + 14, ORB_LAST = ORB_FIRST + 15;
-  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; (k >= ORB_FIRST && k <= ORB_LAST) || k === TUTOR_SHEET; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
+  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; (k >= ORB_FIRST && k <= ORB_LAST) || k === TUTOR_SHEET || k === ANALYST_SHEET; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
   function drawSprite(sheet, dir, col, x, feetY) {
     const { im, y: y0 } = sheets[sheet];
     if (!im || !im.complete || !im.naturalWidth) { px(x - 10, feetY - 44, 20, 44, 'rgba(0,0,0,.08)'); return; }
@@ -1402,6 +1424,14 @@
       items.push({ y: tutorDesk.y, draw: () => drawDesk(tutorDesk.x, tutorDesk.y, '', tutorBusy, false) });
       items.push({ y: tutorAt.y + 12, draw: () => drawTutor(tutorAt) });
     }
+    // the usage analyst has the desk next to the tutor's
+    analystDesk = { x: TILE * 7.3, y: TUTOR_DESK_ROW * TILE };
+    analystAt = { x: analystDesk.x, y: analystDesk.y - TILE * 0.85 };
+    if (officeCfg?.analyst === false) analystAt = { x: -999, y: -999 };   // config.json turned the analyst off
+    else {
+      items.push({ y: analystDesk.y, draw: () => drawDesk(analystDesk.x, analystDesk.y, '', analystBusy, false) });
+      items.push({ y: analystAt.y + 12, draw: () => drawAnalyst(analystAt) });
+    }
     for (const a of actors.values()) items.push({ y: a.y + 12, draw: () => drawActor(a, L) });
     items.sort((p, q) => p.y - q.y).forEach(i => i.draw());
     if (codexOpenUntil > Date.now()) bubbleWanted = { id: 'codex', x: codexAt.x, y: codexAt.y - 76, side: 'side', text: codexCard() };
@@ -1432,6 +1462,8 @@
   let bossAt = { x: -999, y: -999 }, bossOpenUntil = 0;
   // The English tutor sits at her own desk below your office (her popup is further down).
   let tutorAt = { x: -999, y: -999 }, tutorDesk = { x: -999, y: -999 }, tutorBusy = false;
+  // The usage analyst sits next to her; her popup reads meta/usage, the bridge's usage history.
+  let analystAt = { x: -999, y: -999 }, analystDesk = { x: -999, y: -999 }, analystBusy = false, usageDoc = null;
   // The page-facing part of ~/.claude/office/config.json, published by the bridge
   // (meta/config): Jira site (null hides the column), Codex on/off, the city for
   // the sky, and the folders offered for a new session.
@@ -1469,6 +1501,12 @@
     return Math.abs(mx - at.x) < 26 && my > at.y - 64 && my < at.y + 26;
   }
   const codexHit = ev => npcHit(ev, codexAt), bossHit = ev => npcHit(ev, bossAt), tutorHit = ev => npcHit(ev, tutorAt) || npcHit(ev, { x: tutorDesk.x, y: tutorDesk.y + 20 });
+  const analystHit = ev => npcHit(ev, analystAt) || npcHit(ev, { x: analystDesk.x, y: analystDesk.y + 20 });
+  function drawAnalyst(a) {
+    px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
+    drawSprite(ANALYST_SHEET, 'down', 1, a.x, a.y + 12);
+    nameTag(a.x, a.y - 48, tt('analyst'), analystBusy ? css('--wait') : css('--ok'));
+  }
   function drawTutor(a) {
     px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
     drawSprite(TUTOR_SHEET, 'down', 1, a.x, a.y + 12);
@@ -2406,6 +2444,77 @@
       tutorTurns.push({ role: 'assistant', content: text });
     });
   });
+  // ---- the usage analyst: burn-rate forecast of your limits, cost per session, and questions about them ----
+  // The history is meta/usage (the bridge's samples: f/w = 5-hour/weekly % used,
+  // fe/we = when that window resets); questions go to Claude like the tutor's.
+  const analyst = document.getElementById('analyst'), uForm = document.getElementById('u-form'), uText = document.getElementById('u-text');
+  const uReport = document.getElementById('u-report'), uChat = document.getElementById('u-chat'), uState = document.getElementById('u-state');
+  const uGo = document.getElementById('u-go'), uStop = document.getElementById('u-stop');
+  let analystCtl = null, analystTurns = [], analystTimer = 0;
+  function openAnalyst() { analyst.hidden = false; renderAnalyst(); analystTimer = setInterval(renderAnalyst, 30_000); setTimeout(() => uText.focus(), 0); }
+  function closeAnalyst() { analyst.hidden = true; clearInterval(analystTimer); }
+  document.getElementById('u-close').addEventListener('click', closeAnalyst);
+  closeOnBackdrop(analyst, closeAnalyst);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !analyst.hidden) closeAnalyst(); });
+  uText.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey) && !ev.isComposing) { ev.preventDefault(); uForm.requestSubmit(); }
+  });
+  const analystSay = msg => { uState.hidden = !msg; uState.textContent = msg || ''; };
+  // one window: the rate over the last `lookback` of the current window, and when 100% is reached at that rate
+  function forecastLine(label, key, endKey, lookback) {
+    const s = (usageDoc?.samples || []).filter(x => typeof x[key] === 'number');
+    const last = s[s.length - 1];
+    if (!last) return null;
+    const t = Date.now(), end = last[endKey];
+    if (end && end <= t) return tt('anResetNow', { label });
+    const when = ms => new Date(ms).toLocaleString(LANG === 'zh' ? 'zh-TW' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    const dur = ms => ms >= 3_600_000 ? (Math.round(ms / 360_000) / 10) + (LANG === 'zh' ? ' 小時' : ' h') : Math.round(ms / 60_000) + (LANG === 'zh' ? ' 分鐘' : ' min');
+    const win = s.filter(x => x[endKey] === end && x.t >= last.t - lookback), first = win[0];
+    let line = tt('anUsed', { label, p: Math.round(last[key]) });
+    const span = last.t - first.t;
+    if (win.length < 2 || span < 10 * 60_000) return line + tt('anFew');
+    const rate = (last[key] - first[key]) / span;   // % per ms
+    if (rate <= 0) return line + tt('anIdle');
+    line += tt('anRate', { span: dur(span), r: Math.round(rate * 3_600_000 * 10) / 10 });
+    const eta = last.t + (100 - last[key]) / rate;
+    if (end && eta >= end) return line + tt('anSafe', { when: when(end), q: Math.round(last[key] + rate * (end - last.t)) });
+    return line + tt('anEta', { when: when(eta), early: end ? dur(end - eta) : '?' });
+  }
+  function analystText() {
+    const fc = [forecastLine('5h', 'f', 'fe', 3_600_000), forecastLine(tt('week'), 'w', 'we', 86_400_000)].filter(Boolean);
+    const live = [...desks.values()].filter(d => liveness(d) === 'live').sort((a, b) => (b.cost || 0) - (a.cost || 0));
+    const rows = live.map(d => `| ${(d.title || d.label || d.id).replace(/\|/g, '/')} | ${typeof d.cost === 'number' ? '$' + d.cost.toFixed(2) : '—'} | ${typeof d.ctx?.percent === 'number' ? (100 - d.ctx.percent) + '%' : '—'} |`);
+    return [tt('anForecast'), '', ...(fc.length ? fc : [tt('anNoData')]), '', tt('anRank'), '', ...(rows.length ? [tt('anCols'), ...rows] : [tt('anNoDesk')])].join('\n');
+  }
+  function renderAnalyst() { renderReport(uReport, analystText()); }
+  uStop.addEventListener('click', () => analystCtl?.abort());
+  uForm.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const q = uText.value.trim();
+    if (!q || analystBusy) return;
+    const recent = (usageDoc?.samples || []).slice(-60).map(x => `${new Date(x.t).toISOString()} 5h=${x.f ?? '-'}% week=${x.w ?? '-'}%`).join('\n');
+    const rules = tt('anRole') + ' Answer in Traditional Chinese as used in Taiwan, briefly, in Markdown. Base every number on the data below and say when it is too thin to tell.'
+      + '\n\nCurrent analysis (now ' + new Date().toISOString() + '):\n\n' + analystText() + '\n\nRecent readings (oldest first):\n' + recent;
+    analystTurns.push({ role: 'user', content: q });
+    const item = document.createElement('div'); item.className = 'tq';
+    const asked = document.createElement('div'); asked.className = 'line'; asked.textContent = tt('tutorYouAsked') + q;
+    const ans = document.createElement('div'); ans.className = 'report';
+    item.append(asked, ans); uChat.append(item); uText.value = '';
+    item.scrollIntoView({ block: 'nearest' });
+    (async () => {
+      const sample = await getSample();
+      if (!sample) { analystSay(tt('tutorOff')); return; }
+      analystBusy = true; analystCtl = new AbortController();
+      uGo.disabled = true; uStop.hidden = false; analystSay(tt('tutorThinking'));
+      try {
+        const { text } = await sample([{ role: 'user', content: rules }, ...analystTurns.slice(-12)], {
+          signal: analystCtl.signal, cache: false, onText: ({ text }) => { analystSay(''); renderReport(ans, text); },
+        });
+        analystTurns.push({ role: 'assistant', content: text });
+      } catch (e) { analystTurns.pop(); if (e?.code !== 'cancelled') analystSay(tutorError(e)); else analystSay(''); }
+      finally { analystBusy = false; analystCtl = null; uGo.disabled = false; uStop.hidden = true; }
+    })();
+  });
   // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
   let bridgeSeenAt = 0;
   const bannerEl = document.getElementById('banner');
@@ -2461,7 +2570,7 @@
     }
     return best;
   }
-  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || bossHit(ev) || tutorHit(ev)); });
+  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || bossHit(ev) || tutorHit(ev) || analystHit(ev)); });
   canvas.addEventListener('pointerleave', () => { hover = null; });
   // Clicking a worker (or its bubble) opens the full report with the reply box.
   const speak = {};
@@ -2469,6 +2578,7 @@
     if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; bossOpenUntil = 0; return; }
     if (bossHit(ev)) { bossOpenUntil = bossOpenUntil > Date.now() ? 0 : Date.now() + 10_000; codexOpenUntil = 0; return; }
     if (tutorHit(ev)) { openTutor(); return; }
+    if (analystHit(ev)) { openAnalyst(); return; }
     const a = actorAt(ev) || bubbleAt(ev); if (!a) return;
     openModal(a.slot.d.id);
   });
@@ -2585,6 +2695,7 @@
     const d = db, sub = (ref, name, onNext) => unsubs.push(ref.onSnapshot(snap => { if (!snap.metadata || !snap.metadata.fromCache) linkUp(); onNext(snap); }, e => onLinkError(name, e)));
     sub(d.doc('meta/jira'), 'jira doc', snap => { jira = snap.exists && !DEMO ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); });
     sub(d.doc('meta/codex'), 'codex doc', snap => { codex = snap.exists ? snap.data() : null; });
+    sub(d.doc('meta/usage'), 'usage doc', snap => { usageDoc = snap.exists ? snap.data() : null; if (!analyst.hidden) renderAnalyst(); });
     sub(d.doc('meta/config'), 'config doc', snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); });
     sub(d.doc('meta/bridge'), 'bridge heartbeat', snap => { bridgeSeenAt = snap.exists ? (snap.data().seenAt || 0) : 0; judgeBridge(); });
     sub(d.collection('requests').orderBy('at', 'desc').limit(10), 'requests', snap => {

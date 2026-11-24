@@ -143,11 +143,12 @@ one-line notice only when one fails.
 | `jira` | `null`, or `{ "site", "email", "jql"?, "tokenFile"? }` — the token is read from `tokenFile` (default `~/.jira_api_token`) and passed to curl on stdin, never on argv; without `jira` the column is hidden |
 | `codex` | `false` hides the Codex secretary |
 | `tutor` | `false` hides the English tutor |
+| `analyst` | `false` hides the usage analyst |
 | `city` | `{ "lat", "lng" }` for sunrise and sunset outside the window |
 | `newSessionDirs` | folders offered when opening a new session from the page |
 | `language` | `"zh-TW"` (default) or `"en"`: the heading sessions use for decisions (`## 要你決定` / `## Decisions for you`). The page itself follows the browser's language, with a 中 / EN switch in the header |
 
-Only `jira.site`, `codex`, `tutor`, `city` and `newSessionDirs` reach the page (as
+Only `jira.site`, `codex`, `tutor`, `analyst`, `city` and `newSessionDirs` reach the page (as
 `meta/config`); the Jira email and token stay on your machine.
 
 ## Sprites
@@ -167,6 +168,14 @@ anything else into Traditional Chinese. Ask her about a translation, or how to
 say something, with “Ask”. She asks Claude from the page itself (the `sample`
 capability, on your own claude.ai usage), so she works without the bridge; the
 first time, claude.ai asks you to allow it.
+
+## Usage analyst
+
+Click yourself to see what is left of your 5-hour and weekly limits and when
+each resets. The analyst at the desk next to the tutor's goes further: from the
+bridge's usage history (`meta/usage`, a reading a minute, kept 8 days) she
+forecasts when each limit runs out at the recent rate, lists the live sessions
+by cost, and answers questions about it, asking Claude the same way the tutor does.
 
 ## Report format
 
