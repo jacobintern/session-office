@@ -372,7 +372,11 @@
   let COLS = MIN_COLS, FIT_ROWS = MIN_ROWS;   // set by fitOffice()
   // Your office: a small room top-left behind the glass; the dogs sit at two long benches of six.
   const OFFICE = { w: 12, h: 9, doorX: 10.3 }; // tiles; door is a gap in the bottom partition
-  const TUTOR_DESK_ROW = WALL_H + OFFICE.h + 4.5; // the English tutor's desk, on the floor below your office
+  const TUTOR_DESK_ROW = WALL_H + OFFICE.h + 3.5; // the English tutor's desk, on the floor below your office
+  // The office's bottom wall and, outside it, the corridor new colleagues arrive by: they
+  // appear at its left end, walk to the door at the right and in; leaving, the same way out.
+  const ENTRY_WALL_H = 1.0, CORRIDOR_H = 1.5, ENTRY_ROWS = ENTRY_WALL_H + CORRIDOR_H;
+  const ARRIVE_ALL = location.hash.includes('arrive');   // #arrive: every desk walks in on load (to look at the walk; add #slow)
   const SEATS_PER_BENCH = 6;
   const canvas = document.getElementById('c');
   const ctx = canvas.getContext('2d');
@@ -612,8 +616,11 @@
     // (a free seat in them is where the next session sits); two at least
     const top = Math.max(0, ...seatNo.values()), pods = Math.ceil(top / 6), spare = list.length >= pods * 6 ? 1 : 0;
     while (capacity < Math.max(12, (pods + spare) * 6)) { const b = benchGeometry(benches.length); b.first = capacity + 1; benches.push(b); capacity += b.seats.length; }
-    const ROWS = Math.max(FIT_ROWS, benches[benches.length - 1].y / TILE + 1.6, TUTOR_DESK_ROW + 1.6);
+    const FLOOR_ROWS = Math.max(FIT_ROWS - ENTRY_ROWS, MIN_ROWS, benches[benches.length - 1].y / TILE + 1.6, TUTOR_DESK_ROW + 1.6);
+    const ROWS = FLOOR_ROWS + ENTRY_ROWS;
     const W = COLS * TILE, H = Math.round(ROWS * TILE);
+    // the entrance: the floor's last lane, the door in the bottom wall near the right, the corridor beyond
+    const entry = { floorBottom: FLOOR_ROWS * TILE, laneY: (FLOOR_ROWS - 0.6) * TILE, doorX: W - TILE * 2.2, corrY: (FLOOR_ROWS + ENTRY_WALL_H + 0.85) * TILE, spawnX: -TILE };
     if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
     const seatList = benches.flatMap(b => b.seats.map(x => ({ bench: b, x })));
     const slots = list.map(d => {
@@ -626,7 +633,7 @@
     const aisleY = office.bottom + TILE * 0.45;
     // the corridor between the first two pod rows, and where it meets the aisle below your office
     const corrY = (WALL_H + 2 * POD_GAP_Y + POD_H - POD_GAP_Y / 2) * TILE, junctionX = (OFFICE.w + 0.6) * TILE;
-    return { list, slots, benches, office, boss, visitorY, aisleY, corrY, junctionX, W, H, ROWS };
+    return { list, slots, benches, office, boss, visitorY, aisleY, corrY, junctionX, entry, W, H, ROWS };
   }
 
   // ---- actors (positions + walking) -------------------------------------
@@ -648,7 +655,17 @@
     L.slots.forEach(s => {
       seen.add(s.d.id);
       let a = actors.get(s.d.id);
-      if (!a) { a = { x: s.seatX, y: s.seatY, path: [], facing: 1, step: 0 }; actors.set(s.d.id, a); }
+      if (!a) {
+        a = { x: s.seatX, y: s.seatY, path: [], facing: 1, step: 0 }; actors.set(s.d.id, a);
+        // a session that just started walks in from the corridor; one the page only now learned of is already at its desk
+        if (!reduced && (ARRIVE_ALL || now() - (s.d.startedAt || 0) < 2 * 60 * 1000)) {
+          // several at once start one step apart, so they walk in as a line and not as one sprite
+          const behind = [...actors.values()].filter(o => o.arriving && o.x < 0).length;
+          a.x = L.entry.spawnX - behind * TILE * 1.2; a.y = L.entry.corrY; a.arriving = true; a.target = { x: s.seatX, y: s.seatY }; a.path = entryPath(s, L);
+        }
+      }
+      delete a.leaving;
+      if (a.arriving) { if (a.path.length) { a.slot = s; a.atBoss = false; a.queue = -1; return; } delete a.arriving; }
       const qi = waiting.indexOf(s);
       // three wait inside your office in a row in front of the desk; the rest line up outside the door
       const target = qi < 0 ? { x: s.seatX, y: s.seatY }
@@ -688,7 +705,33 @@
       }
       a.slot = s; a.atBoss = qi >= 0; a.queue = qi;
     });
-    for (const id of [...actors.keys()]) if (!seen.has(id)) actors.delete(id);
+    // a desk that is gone: its colleague walks out through the door and along the corridor, then is dropped
+    for (const [id, a] of actors) {
+      if (seen.has(id) || a.leaving) continue;
+      if (reduced || !a.slot) { actors.delete(id); continue; }
+      a.leaving = true; a.atBoss = false; a.queue = -1; delete a.queueNo;
+      a.path = exitPath(a, L); delete a.arriving;
+    }
+    for (const [id, a] of actors) if (a.leaving && !a.path.length) actors.delete(id);
+  }
+  // from the corridor's left end to the door, in, along the floor's last lane to the bench's end, up it and to the seat
+  function entryPath(s, L) {
+    const b = s.bench, endX = s.seatX > (b.xStart + b.xEnd) / 2 ? b.xEnd + TILE * 0.5 : b.xStart - TILE * 0.5, e = L.entry;
+    return [{ x: e.doorX, y: e.corrY }, { x: e.doorX, y: e.laneY }, { x: endX, y: e.laneY }, { x: endX, y: s.seatY }, { x: s.seatX, y: s.seatY }];
+  }
+  // the way out: back to the desk first when away from it (the usual route), then the entry path backwards
+  function exitPath(a, L) {
+    const s = a.slot, b = s.bench, endX = s.seatX > (b.xStart + b.xEnd) / 2 ? b.xEnd + TILE * 0.5 : b.xStart - TILE * 0.5, e = L.entry;
+    // gone while still walking in: turn round where it is
+    if (a.arriving) return a.y > e.floorBottom ? [{ x: e.spawnX - TILE, y: e.corrY }] : [{ x: endX, y: a.y }, { x: endX, y: e.laneY }, { x: e.doorX, y: e.laneY }, { x: e.doorX, y: e.corrY }, { x: e.spawnX - TILE, y: e.corrY }];
+    const door = L.office.doorX, insideOffice = a.y < L.office.bottom && a.x < L.office.w;
+    const laneY = Math.min(L.visitorY + TILE * 0.9, L.office.bottom - TILE * 0.3);
+    const toAisle = [{ x: endX, y: L.corrY }, { x: L.junctionX, y: L.corrY }, { x: L.junctionX, y: L.aisleY }];
+    const atSeat = Math.abs(a.x - s.seatX) < 2 && Math.abs(a.y - s.seatY) < 2;
+    const home = atSeat ? [] : a.atBoss || insideOffice || a.y < L.office.bottom + TILE
+      ? [...(insideOffice ? [{ x: a.x, y: Math.max(a.y, laneY) }, { x: door, y: Math.max(a.y, laneY) }] : []), { x: door, y: L.aisleY }, ...[...toAisle].reverse(), { x: endX, y: s.seatY }, { x: s.seatX, y: s.seatY }]
+      : [{ x: endX, y: a.y }, { x: endX, y: s.seatY }, { x: s.seatX, y: s.seatY }];
+    return [...home, { x: endX, y: s.seatY }, { x: endX, y: e.laneY }, { x: e.doorX, y: e.laneY }, { x: e.doorX, y: e.corrY }, { x: e.spawnX - TILE, y: e.corrY }];
   }
 
   // A dog in the queue never walks closer than GAP to a dog ahead of it in the line, so
@@ -790,6 +833,14 @@
     px(doorL - 4, wallBottomCapY, 4, cap + face, edgeCol); px(doorR, wallBottomCapY, 4, cap + face, edgeCol);
     px(doorL, o.bottom - 4, doorR - doorL, 4, shadeHex(css('--desk'), .9));
     drawClock(TILE * 0.6, wallBottomCapY + cap + 5, TILE * 4.6, face - 10);
+    // the office's bottom wall, full width, with the entrance door near the right; the corridor is the floor beyond it
+    const e = L.entry, eCap = Math.round(TILE * 0.25), eFace = Math.round(TILE * (ENTRY_WALL_H - 0.25));
+    const eDoorL = e.doorX - TILE * 0.6, eDoorR = e.doorX + TILE * 0.6;
+    px(0, e.floorBottom, L.W, 6, 'rgba(0,0,0,.25)');
+    capAt(0, e.floorBottom, eDoorL, eCap); faceAt(0, e.floorBottom + eCap, eDoorL, eFace);
+    capAt(eDoorR, e.floorBottom, L.W - eDoorR, eCap); faceAt(eDoorR, e.floorBottom + eCap, L.W - eDoorR, eFace);
+    px(eDoorL - 4, e.floorBottom, 4, eCap + eFace, edgeCol); px(eDoorR, e.floorBottom, 4, eCap + eFace, edgeCol);
+    px(eDoorL, e.floorBottom + eCap + eFace - 4, eDoorR - eDoorL, 4, shadeHex(css('--desk'), .9));
   }
   // ---- time of day ---------------------------------------------------------
   // The sun's real elevation for the office's city (Taipei until the bridge
@@ -2223,7 +2274,7 @@
     // overlapping dogs: a standing one beats one walking past, then the nearest
     let best = null, bestScore = Infinity;
     for (const a of actors.values()) {
-      if (!(Math.abs(mx - a.x) < 30 && my > a.y - 76 && my < a.y + 16)) continue;
+      if (a.leaving || !(Math.abs(mx - a.x) < 30 && my > a.y - 76 && my < a.y + 16)) continue;
       const score = (a.walking ? 1000 : 0) + Math.hypot(mx - a.x, my - (a.y - 30));
       if (score < bestScore) { best = a; bestScore = score; }
     }
@@ -2314,7 +2365,7 @@
   { const ro = new ResizeObserver(fitOffice); ro.observe(canvas.parentElement); ro.observe(canvas.parentElement.parentElement); }  // the main column shrinks when the header or banner grows
   let last = performance.now(), L = layout(), rosterDirty = true;
   function frame(t) {
-    const dt = Math.min(0.1, (t - last) / 1000) * (location.hash === '#slow' ? 0.08 : 1); last = t;
+    const dt = Math.min(0.1, (t - last) / 1000) * (location.hash.includes('slow') ? 0.08 : 1); last = t;
     L = layout(); syncActors(L); tick(dt); draw(L); placeBubble();
     if (rosterDirty) { renderRoster(L); rosterDirty = false; }
     requestAnimationFrame(frame);
