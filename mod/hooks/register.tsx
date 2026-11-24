@@ -66,7 +66,7 @@ type Desk = {
   switching?: { to: string; at: number } | null
   /** The project this desk belongs to: the name typed by the person, else the ticket key in the branch name, else the repo; none outside git. */
   project?: string | null
-  projectBy?: 'manual' | 'ticket' | 'repo' | null
+  projectBy?: 'manual' | 'ticket' | 'title' | 'repo' | null
   /** The name typed with `/office project` (or given to a new session from the page), kept across a resume; empty means automatic. */
   projectManual?: string | null
   /** The project rolled up to its parent ticket (the bridge fills it from Jira); the board is kept per root. */
@@ -189,15 +189,18 @@ async function setProject($: EngineInterface) {
   if (!me) return
   const manual = (me.projectManual ?? '').trim()
   const ticket = TICKET_RE.exec(me.branch ?? '')?.[1] ?? null
-  const repo = manual || ticket ? null : await repoOf($, me.cwd)
+  // a session opened outside a ticket branch and named after the ticket (/rename IT-123)
+  const titled = TICKET_RE.exec(me.title ?? '')?.[1] ?? null
+  const repo = manual || ticket || titled ? null : await repoOf($, me.cwd)
   const p: Partial<Desk> = manual ? { project: manual, projectBy: 'manual' }
     : ticket ? { project: ticket, projectBy: 'ticket' }
+    : titled ? { project: titled, projectBy: 'title' }
     : repo ? { project: repo, projectBy: 'repo' }
     : { project: null, projectBy: null }
   patch($, p)
 }
 const projectText = () => !me ? '' : me.project
-  ? `專案「${me.project}」（${me.projectBy === 'manual' ? '你指定的' : me.projectBy === 'ticket' ? '分支票號' : 'repo'}）。`
+  ? `專案「${me.project}」（${me.projectBy === 'manual' ? '你指定的' : me.projectBy === 'ticket' ? '分支票號' : me.projectBy === 'title' ? '桌名票號' : 'repo'}）。`
   : '沒有專案：這個資料夾不在 git 裡，要跟別的 session 共用公佈欄就 `/office project <話題>` 指定一個。'
 
 // The session's name as the engine last recorded it. A rename that took some other
@@ -227,6 +230,7 @@ const errorReport = (raw: string) => /went to sleep/i.test(raw)
 
 function rename($: EngineInterface, title: string) {
   patch($, { title })
+  void setProject($)
   if (title) void handTitle($, title)
 }
 // the session title follows the nameplate through the built-in /rename, which is
@@ -1355,7 +1359,7 @@ export const register: Register = on => {
         me.branch = await branchOf($, me.cwd)
         const named = await sessionTitle($)
         if (handingTitle && (named === handingTitle.title || Date.now() - handingTitle.at > 30 * 60_000)) handingTitle = null
-        if (named && !handingTitle && named !== me.title) me.title = named
+        if (named && !handingTitle && named !== me.title) { me.title = named; await setProject($) }
         await refreshUsage($)
         await saveDesk($)
       }
