@@ -1356,7 +1356,12 @@ export const register: Register = on => {
       if (isBridge) return bridgeTick($)
       if (!me) return
       if (tick % HEARTBEAT_EVERY === 0) {
-        me.branch = await branchOf($, me.cwd)
+        // the session's directory moves with /cd and the host (a session opened above its repos)
+        const cwd = await $.session.cwd().catch(() => me!.cwd)
+        const moved = !!cwd && cwd !== me.cwd
+        if (moved) { me.cwd = cwd; me.label = basename(cwd) }
+        const branch = await branchOf($, me.cwd)
+        if (moved || branch !== me.branch) { me.branch = branch; await setProject($) }
         const named = await sessionTitle($)
         if (handingTitle && (named === handingTitle.title || Date.now() - handingTitle.at > 30 * 60_000)) handingTitle = null
         if (named && !handingTitle && named !== me.title) { me.title = named; await setProject($) }
