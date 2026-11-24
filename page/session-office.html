@@ -279,6 +279,58 @@
   .help { font-size: .78rem; line-height: 1.5; color: var(--muted); margin: 8px 0 0; border-top: 1px solid var(--line); padding-top: 10px; }
   .help code { font-family: var(--mono); font-size: .85em; }
   @media (prefers-reduced-motion: reduce) { .card { transition: none; } }
+  /* Phone (860px and narrower): no office, the page is a to-do list built from the same desks;
+     the report window fills the screen and its secondary actions fold behind ⋯ */
+  #phone { display: none; }
+  #m-more { display: none; }
+  @media (max-width: 860px) {
+    .office, .side .roster, .sub { display: none; }
+    #phone { display: flex; flex-direction: column; gap: 18px; }
+    .pusage { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: .78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .pusage .bar { display: inline-flex; align-items: center; gap: 6px; }
+    .pusage .track { width: 90px; height: 8px; background: var(--line); border-radius: 4px; overflow: hidden; }
+    .pusage .fill { display: block; height: 100%; background: var(--hp-hi); }
+    .pusage .fill.mid { background: var(--hp-mid); } .pusage .fill.low { background: var(--hp-low); }
+    .pgroup { display: flex; flex-direction: column; gap: 8px; }
+    .pgroup h2 { margin: 0; font-size: .76rem; font-weight: 700; letter-spacing: .05em; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .pgroup h2 .n { font-weight: 500; }
+    .pgroup.waiting h2 { color: var(--wait); } .pgroup.working h2 { color: var(--ok); }
+    .pcard { background: var(--panel); border: 1px solid var(--line); border-left: 4px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .pcard .head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+    .pcard .head .name { font-weight: 700; font-size: 1rem; overflow-wrap: anywhere; }
+    .pcard .head .meta { margin-left: auto; white-space: nowrap; }
+    .pcard .dot { align-self: center; }
+    .pcard .tag { font-size: .7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--wait); color: var(--wait); flex: none; }
+    .pcard .excerpt { position: relative; max-height: 9.5em; overflow: hidden; font-size: .9rem; }
+    .pcard .excerpt.clipped { -webkit-mask-image: linear-gradient(#000 75%, transparent); mask-image: linear-gradient(#000 75%, transparent); }
+    .pcard .excerpt .report { padding: 10px 12px; font-size: .9rem; line-height: 1.55; }
+    .pcard .excerpt .decide { padding: 8px 12px 10px; font-size: .9rem; }
+    .pcard .btns { display: flex; gap: 8px; }
+    .pcard .btns button { flex: 1; font: inherit; font-size: .9rem; font-weight: 600; min-height: 44px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; }
+    .pcard .btns button.ghost { background: none; color: var(--fg); border: 1px solid var(--muted); font-weight: 500; }
+    .pcard .btns button.ok { background: var(--ok); }
+    .pcard .btns button:disabled { opacity: .5; }
+    .prow { font: inherit; text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 10px 14px; border: 0; border-left: 4px solid var(--line); border-radius: 6px; background: var(--panel); color: inherit; min-height: 44px; cursor: pointer; min-width: 0; }
+    .prow .top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+    .prow .name { font-weight: 700; font-size: .95rem; overflow-wrap: anywhere; }
+    .prow .meta { margin-left: auto; white-space: nowrap; }
+    .prow .act { font-size: .82rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .prow .dup { align-self: center; }
+    .prow .go { margin-left: 8px; font-size: .75rem; font-weight: 600; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--muted); color: var(--fg); align-self: center; white-space: nowrap; }
+    .pnote { font-size: .72rem; color: var(--muted); margin: 0; }
+    /* the report window fills the phone */
+    .modal { padding: 0; align-items: stretch; }
+    .panel { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; border: 0; }
+    .panel header { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
+    .panel .close { order: -1; margin-left: 0; margin-right: 2px; font-size: 1.1rem; }
+    .panel .close::before { content: '‹'; font-size: 1.6rem; line-height: 1; }
+    .panel .close { font-size: 0; }
+    .panel .reply { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+    .panel .reply.ops { display: none; }
+    .panel.more .reply.ops { display: flex; }
+    #m-more { display: inline-block; align-self: flex-end; min-width: 44px; }
+    #m-send, #m-pause { min-height: 44px; }
+  }
 </style>
 
 <div class="wrap">
@@ -296,6 +348,7 @@
   </aside>
 
   <main class="main">
+  <section id="phone" hidden aria-label="待辦"></section>
   <div class="office">
     <canvas id="c" width="960" height="560" aria-label="辦公室平面圖，每張桌子是一個 session"></canvas>
     <div class="hbubble report" id="hbubble" hidden><div class="clip"></div><div class="more">點開看全文、回覆</div></div>
@@ -323,9 +376,9 @@
         <details class="board" id="m-board" open hidden><summary id="m-board-sum"></summary><div class="notes" id="m-board-list"></div><form class="board-form" id="m-board-form"><textarea id="m-board-text" rows="2" maxlength="1000"></textarea><button type="submit" id="m-board-post"></button></form></details>
       </div>
       <div class="shots" id="m-shots" hidden></div>
-      <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button></form>
+      <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button><button type="button" class="ghost" id="m-more" aria-label="更多">⋯</button></form>
       <div class="reply-hint" id="m-reply-hint"></div>
-      <div class="reply" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><select class="model-pick" id="m-effort"></select><span class="model-confirm" id="m-model-confirm" hidden><span id="m-model-ask"></span><button type="button" class="danger-solid" id="m-model-yes">確定</button><button type="button" class="ghost" id="m-model-no">取消</button></span><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+      <div class="reply ops" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><select class="model-pick" id="m-effort"></select><span class="model-confirm" id="m-model-confirm" hidden><span id="m-model-ask"></span><button type="button" class="danger-solid" id="m-model-yes">確定</button><button type="button" class="ghost" id="m-model-no">取消</button></span><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
     </div>
   </div>
 
@@ -386,6 +439,7 @@
   const nOnline = document.getElementById('n-online');
   const nWaiting = document.getElementById('n-waiting');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const narrow = matchMedia('(max-width: 860px)');   // phone width: the to-do list instead of the office
 
   const STALE_MS = 2 * 60 * 1000, GONE_MS = 30 * 60 * 1000;
   let desks = new Map();      // id -> doc data
@@ -449,6 +503,7 @@
       iconPerm: '在 terminal 等你確認權限', iconAsk: '在等你回答', iconReport: '來匯報',
       dbFail: '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。', needLogin: '需要登入 claude.ai 才能看到即時狀態。',
       noSessions: '還沒有 session 進來。裝好 <code>office</code> mod 的 session 啟動後會自己走進來坐下。', liveBroken: '即時更新中斷（{code}），請重新整理。',
+      phoneNone: '沒有人在等你。', phoneNote: '辦公室畫面在手機上不顯示；在電腦上開同一個網址就有。', phonePerm: '等權限', phoneAsk: '等你回答', phoneDialog: '卡在 terminal', phoneReply: '回覆', phoneAnswer: '回答', phoneAssign: '派工',
     },
     en: {
       sub: 'One desk per Claude Code session. When one finishes a turn it walks over to your desk to report; click it or its bubble for the full text, and reply or press “Got it” to send it back to its desk.',
@@ -491,6 +546,7 @@
       iconPerm: 'Waiting for a permission prompt in the terminal', iconAsk: 'Waiting for your answer', iconReport: 'Reporting',
       dbFail: 'Cannot reach the database. Reload the page, or check that you are signed in to claude.ai.', needLogin: 'Sign in to claude.ai to see live status.',
       noSessions: 'No sessions yet. A session with the <code>office</code> mod walks in and takes a desk when it starts.', liveBroken: 'Live updates stopped ({code}); please reload.',
+      phoneNone: 'Nobody is waiting for you.', phoneNote: 'The office is not drawn on a phone; open the same address on a computer for it.', phonePerm: 'permission', phoneAsk: 'your answer', phoneDialog: 'terminal dialog', phoneReply: 'Reply', phoneAnswer: 'Answer', phoneAssign: 'Assign',
     },
   };
   const tt = (key, vars) => (I18N[LANG][key] ?? I18N.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars && vars[k] != null ? vars[k] : '');
@@ -1481,7 +1537,103 @@
     document.title = (nWaiting.textContent !== '0' ? `(${nWaiting.textContent}) ` : '') + 'Session Office';
     if (modalId) fillModal();
     renderJira();
+    renderPhone(L);
   }
+  // The phone's page: the same desks as a to-do list. Waiting ones are cards with the
+  // decisions (or the permission it wants) and the buttons; the rest are rows that open the window.
+  const phoneEl = document.getElementById('phone');
+  let phoneKey = '';
+  function renderPhone(L) {
+    if (!narrow.matches) { phoneEl.hidden = true; phoneKey = ''; return; }
+    phoneEl.hidden = false;
+    const live = L.list.filter(d => liveness(d) === 'live');
+    const groups = { waiting: [], working: [], idle: [] };
+    for (const d of live) groups[(isWaiting(d) || d.blocked) ? 'waiting' : effState(d) === 'working' ? 'working' : 'idle'].push(d);
+    groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
+    // rebuilt only when something it shows changed (the time labels every 5 s are cheap; the cards are not)
+    const lim = accountLimits() || [];
+    const key = JSON.stringify([lim.map(l => [l.kind, Math.round(l.percentUsed)]), ...['waiting', 'working', 'idle'].map(k => groups[k].map(d => [d.id, d.title, d.blocked, d.perm?.at, d.permFor, d.report, d.activity, d.bg?.n, d.stateAt, d.reportedAt, d.seenAt, projectOf(d)?.name]))]);
+    if (key === phoneKey) return;
+    phoneKey = key;
+    const parts = [];
+    const usage = document.createElement('div'); usage.className = 'pusage';
+    for (const [label, l] of [['5h', lim.find(l => /five_hour/.test(l.kind))], [tt('week'), lim.find(l => /seven_day/.test(l.kind) && !/opus|sonnet/i.test(l.kind))]]) {
+      if (!l) continue;
+      const left = Math.max(0, Math.round(100 - (l.percentUsed || 0)));
+      const b = document.createElement('span'); b.className = 'bar';
+      const t = document.createElement('span'); t.className = 'track'; const f = document.createElement('span'); f.className = 'fill' + (left < 20 ? ' low' : left < 50 ? ' mid' : ''); f.style.width = left + '%'; t.append(f);
+      b.append(label, t, left + '%'); usage.append(b);
+    }
+    const count = document.createElement('span'); count.textContent = tt('rosterHead', { n: L.list.length, live: live.length }); usage.append(count);
+    parts.push(usage);
+    const titles = { waiting: tt('waitingYou'), working: tt('working'), idle: tt('idle') };
+    const stripe = d => { const pr = projectOf(d); return pr ? projectColor(pr.name) : ''; };
+    const meta = (d, key) => (d.seat ? tt('seatN', { n: d.seat }) : '') + (key === 'waiting' ? ago(d.reportedAt || d.seenAt) : key === 'working' && d.stateAt ? tt('workingFor', { d: dur(d.stateAt) }) : key === 'idle' && d.stateAt ? tt('idleFor', { d: dur(d.stateAt) }) : ago(d.seenAt));
+    for (const key of ['waiting', 'working', 'idle']) {
+      if (!groups[key].length && key !== 'waiting') continue;
+      const sec = document.createElement('section'); sec.className = 'pgroup ' + key;
+      const h = document.createElement('h2'); h.innerHTML = '<span></span><span class="n"></span>'; h.firstChild.textContent = titles[key]; h.lastChild.textContent = groups[key].length; sec.append(h);
+      for (const d of groups[key]) sec.append(key === 'waiting' ? phoneCard(d) : phoneRow(d, key, meta(d, key)));
+      if (key === 'waiting' && !groups.waiting.length) { const n = document.createElement('p'); n.className = 'pnote'; n.textContent = tt('phoneNone'); sec.append(n); }
+      parts.push(sec);
+    }
+    const note = document.createElement('p'); note.className = 'pnote'; note.textContent = tt('phoneNote');
+    parts.push(note);
+    phoneEl.replaceChildren(...parts);
+    function phoneCard(d) {
+      const card = document.createElement('article'); card.className = 'pcard'; card.style.borderLeftColor = stripe(d) || 'var(--line)';
+      const head = document.createElement('div'); head.className = 'head';
+      const dot = document.createElement('span'); dot.className = 'dot reporting';
+      const name = document.createElement('span'); name.className = 'name'; name.textContent = d.title || d.label || d.id;
+      head.append(dot, name);
+      if (d.blocked) { const t = document.createElement('span'); t.className = 'tag'; t.textContent = d.blocked === 'permission' ? tt('phonePerm') : d.blocked === 'question' ? tt('phoneAsk') : tt('phoneDialog'); head.append(t); }
+      const m = document.createElement('span'); m.className = 'meta'; m.textContent = meta(d, 'waiting'); head.append(m);
+      card.append(head);
+      const ex = document.createElement('div'); ex.className = 'excerpt';
+      const { decide, rest } = splitDecide(d.report);
+      const box = document.createElement('div');
+      if (decide && d.blocked !== 'question') { box.className = 'decide'; box.innerHTML = '<div class="dh"></div><div class="report"></div>'; box.firstChild.textContent = tt('decideN', { n: decideCount(decide) }); renderReport(box.lastChild, decide); }
+      else { box.className = 'report'; renderReport(box, trMod(d.blocked === 'question' ? (Array.isArray(d.ask) && d.ask.length ? d.ask.map(q => q.question).join('\n\n') : tt('askOld')) : (d.report || tt('noReport')))); }
+      ex.append(box); card.append(ex);
+      requestAnimationFrame(() => ex.classList.toggle('clipped', ex.scrollHeight > ex.clientHeight + 2));
+      const btns = document.createElement('div'); btns.className = 'btns';
+      const permOpen = d.blocked === 'permission' && d.perm, sent = permOpen && d.permFor === d.perm.at;
+      if (permOpen) {
+        const allow = document.createElement('button'); allow.type = 'button'; allow.className = 'ok'; allow.textContent = sent ? tt('permSent') : tt('permAllow'); allow.disabled = sent || !canWrite;
+        const deny = document.createElement('button'); deny.type = 'button'; deny.className = 'ghost'; deny.textContent = tt('permDeny'); deny.disabled = sent || !canWrite;
+        allow.addEventListener('click', () => answerPerm(d, 'allow')); deny.addEventListener('click', () => answerPerm(d, 'deny'));
+        btns.append(allow, deny);
+      } else {
+        const reply = document.createElement('button'); reply.type = 'button'; reply.textContent = d.blocked === 'question' ? tt('phoneAnswer') : tt('phoneReply'); reply.addEventListener('click', () => openModal(d.id));
+        btns.append(reply);
+        if (isWaiting(d) && !d.blocked && canWrite) { const ok = document.createElement('button'); ok.type = 'button'; ok.className = 'ghost'; ok.textContent = tt('ack'); ok.addEventListener('click', () => ack(d.id)); btns.append(ok); }
+      }
+      card.append(btns);
+      return card;
+    }
+    function phoneRow(d, key, metaText) {
+      const row = document.createElement('button'); row.type = 'button'; row.className = 'prow'; row.style.borderLeftColor = stripe(d) || 'var(--line)';
+      row.addEventListener('click', () => openModal(d.id));
+      const top = document.createElement('span'); top.className = 'top';
+      const name = document.createElement('span'); name.className = 'name'; name.textContent = d.title || d.label || d.id; top.append(name);
+      if (isSwitching(d)) { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(tt('switchTag')); top.append(b); }
+      else if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; top.append(b); }
+      if (isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); top.append(b); }
+      const m = document.createElement('span'); m.className = 'meta'; m.textContent = metaText; top.append(m);
+      if (key === 'idle') { const g = document.createElement('span'); g.className = 'go'; g.textContent = tt('phoneAssign'); top.append(g); }
+      row.append(top);
+      const act = isSwitching(d) ? trMod(d.activity || '') : key === 'working' ? trMod(d.activity || '') : (d.task ? tt('task', { t: d.task }) : '');
+      if (act) { const a = document.createElement('span'); a.className = 'act'; a.textContent = act; row.append(a); }
+      return row;
+    }
+  }
+  async function answerPerm(d, answer) {
+    if (!d?.perm || !db || !canWrite) return;
+    try { await db.doc('desks/' + d.id).update({ permAnswer: answer, permAnswerAt: now(), permFor: d.perm.at }); d.permFor = d.perm.at; rosterDirty = true; }
+    catch (e) { console.warn('permission answer failed', e); }
+  }
+  narrow.addEventListener('change', () => { rosterDirty = true; phoneKey = ''; });
+  document.getElementById('m-more').addEventListener('click', () => document.querySelector('#modal .panel').classList.toggle('more'));
   // The right-hand column: the viewer's open Jira tickets, as the bridge last
   // fetched them (meta/jira). A ticket whose key appears in a session's title
   // is marked, and that badge opens the session's window.
@@ -1545,7 +1697,7 @@
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
     try { mReply.value = drafts[id] || ''; } catch (e) {}
-    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; fillModal(); renderShots(); watchBoard(desks.get(id));
+    modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; document.querySelector('#modal .panel').classList.remove('more'); fillModal(); renderShots(); watchBoard(desks.get(id));
     setTimeout(() => mReply.focus(), 0);
   }
   function closeModal() {
@@ -2311,7 +2463,6 @@
   // gets a small icon instead (❗ with the number of decisions, 💬 a report,
   // 🔒 a permission prompt in the terminal, a red tag an instruction that never arrived), and tapping it opens the report.
   // Codex's card stays a bubble.
-  const narrow = matchMedia('(max-width: 860px)');
   const hiconsEl = document.getElementById('hicons'), hicons = new Map();
   function iconOf(d) {
     if (isSwitching(d)) return { cls: 'switching', text: tt('switchTag'), title: trMod(d.activity || '') };
@@ -2377,7 +2528,8 @@
   let last = performance.now(), L = layout(), rosterDirty = true;
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000) * (location.hash.includes('slow') ? 0.08 : 1); last = t;
-    L = layout(); syncActors(L); tick(dt); draw(L); placeBubble();
+    L = layout(); syncActors(L); tick(dt);
+    if (narrow.matches) { bubbleWanted = null; placeBubble(); } else { draw(L); placeBubble(); }
     if (rosterDirty) { renderRoster(L); rosterDirty = false; }
     requestAnimationFrame(frame);
   }
