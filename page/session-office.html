@@ -285,7 +285,7 @@
   /* Phone (860px and narrower): no office, the page is a to-do list built from the same desks;
      the report window fills the screen and its secondary actions fold behind ⋯ */
   #phone { display: none; }
-  #m-more, #m-back { display: none; }
+  #m-more, #m-back, .panel-back { display: none; }
   @media (max-width: 860px) {
     .office, .side .roster, .sub { display: none; }
     #phone { display: flex; flex-direction: column; gap: 18px; }
@@ -329,7 +329,11 @@
     .panel header { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
     .panel .close { display: none; }
     .panel .reply { padding-bottom: 12px; }
-    #m-back { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px; margin: 0; padding-bottom: max(0px, env(safe-area-inset-bottom, 0px)); font: inherit; font-size: .95rem; font-weight: 600; color: var(--fg); background: var(--bg); border: 0; border-top: 1px solid var(--line); border-radius: 0; cursor: pointer; }
+    #t-hint, #u-hint { display: none; }
+    /* nothing in a window may push it sideways: the column never grows past the screen, and a wide table scrolls on its own */
+    .panel .body { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
+    .report table { display: block; max-width: 100%; overflow-x: auto; }
+    #m-back, .panel-back { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px; margin: 0; padding-bottom: max(0px, env(safe-area-inset-bottom, 0px)); font: inherit; font-size: .95rem; font-weight: 600; color: var(--fg); background: var(--bg); border: 0; border-top: 1px solid var(--line); border-radius: 0; cursor: pointer; }
     .panel .reply.ops { display: none; }
     .panel.more .reply.ops { display: flex; }
     #m-more { display: inline-block; align-self: flex-end; min-width: 44px; }
@@ -413,6 +417,7 @@
         <div class="sent" id="t-state" hidden></div>
       </div>
       <form class="reply" id="t-form"><textarea id="t-text" rows="4" maxlength="20000" placeholder="要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）"></textarea><button type="submit" id="t-go">逐段翻譯</button><button type="button" class="ghost" id="t-ask">問老師</button><button type="button" class="ghost" id="t-stop" hidden>停止</button><button type="button" class="ghost" id="t-copy" hidden>複製全部譯文</button></form>
+      <button type="button" class="panel-back" id="t-back">‹ 回清單</button>
     </div>
   </div>
 
@@ -425,6 +430,7 @@
         <div class="sent" id="u-state" hidden></div>
       </div>
       <form class="reply" id="u-form"><textarea id="u-text" rows="3" maxlength="4000" placeholder="問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）"></textarea><button type="submit" id="u-go">問分析師</button><button type="button" class="ghost" id="u-stop" hidden>停止</button></form>
+      <button type="button" class="panel-back" id="u-back">‹ 回清單</button>
     </div>
   </div>
   </main>
@@ -602,7 +608,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#t-back', 'backToList'); set('#u-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-project', 'spawnProject'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -2166,6 +2172,7 @@
   function openTutor() { tutor.hidden = false; setTimeout(() => tText.focus(), 0); }
   function closeTutor() { tutor.hidden = true; }
   document.getElementById('t-close').addEventListener('click', closeTutor);
+  document.getElementById('t-back').addEventListener('click', closeTutor);
   closeOnBackdrop(tutor, closeTutor);
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !tutor.hidden) closeTutor(); });
   tText.addEventListener('keydown', ev => {
@@ -2510,6 +2517,7 @@
   function openAnalyst() { analyst.hidden = false; renderAnalyst(); analystTimer = setInterval(renderAnalyst, 30_000); setTimeout(() => uText.focus(), 0); }
   function closeAnalyst() { analyst.hidden = true; clearInterval(analystTimer); }
   document.getElementById('u-close').addEventListener('click', closeAnalyst);
+  document.getElementById('u-back').addEventListener('click', closeAnalyst);
   closeOnBackdrop(analyst, closeAnalyst);
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !analyst.hidden) closeAnalyst(); });
   submitOnEnter(uText, 'u-form');
