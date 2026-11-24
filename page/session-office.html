@@ -478,7 +478,7 @@
       goneEnded: '已正常結束（session 自己報了下線）', goneAll: '橋接也 {ago} 沒更新：多半是 Mac 睡著或橋接器停了，不是這個 session 的問題', goneLost: '沒有報下線就消失了（最後一次回報 {ago}：{act}）：可能是 terminal 視窗被關、session 當掉，或它所在的分頁被殺掉',
       noSummary: '（沒有摘要）', noReport: '（還沒有匯報過）', you: '你', week: '週',
       codexNone: '**Codex**\n\n還沒有用量資料（用過一次 Codex 後，橋接會在一分鐘內讀到）。', codexTitle: '**Codex 用量**',
-      codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫', codexBusy: '正在工作中',
+      codexLeft: '- {label}：剩 {p}%', codexReset: '（已重置）', codexResetsAt: '，{when} 重置', codexFrom: '數字來自 {ago}的 Codex 呼叫', bossTitle: '**你的 Claude 用量**', bossNone: '**你的 Claude 用量**\n\n還沒有數字（任一個 session 跑完一輪就會回報）。', bossFrom: '數字來自 {ago}結束的那一輪', codexBusy: '正在工作中',
       tutor: '英文小老師', tutorHint: '中文段落翻成英文，其他翻成繁體中文',
       tutorEmpty: '貼上要翻的文字按「逐段翻譯」，會一段原文、一段譯文對照列出來。對翻譯有疑問，或想知道某句英文怎麼說，打問題按「問老師」。',
       tutorPh: '要翻譯的文字或問題（Enter 換行，⌘/Ctrl+Enter 逐段翻譯）', tutorGo: '逐段翻譯', tutorAsk: '問老師', tutorStop: '停止',
@@ -521,7 +521,7 @@
       goneEnded: 'Ended normally (the session reported it was leaving)', goneAll: 'The bridge has not updated for {ago} either: most likely the Mac is asleep or the bridge stopped, not this session', goneLost: 'Vanished without signing off (last report {ago}: {act}): the terminal window was closed, the session crashed, or its tab was killed',
       noSummary: '(no summary)', noReport: '(no report yet)', you: 'You', week: 'wk',
       codexNone: '**Codex**\n\nNo usage yet (after your next Codex call the bridge picks it up within a minute).', codexTitle: '**Codex usage**',
-      codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}', codexBusy: 'Working now',
+      codexLeft: '- {label}: {p}% left', codexReset: ' (reset)', codexResetsAt: ', resets {when}', codexFrom: 'From a Codex call {ago}', bossTitle: '**Your Claude usage**', bossNone: '**Your Claude usage**\n\nNo numbers yet (any session reports them when a turn ends).', bossFrom: 'From a turn that ended {ago}', codexBusy: 'Working now',
       tutor: 'English tutor', tutorHint: 'Chinese paragraphs into English, everything else into Traditional Chinese',
       tutorEmpty: 'Paste text and press “Translate” to get it back paragraph by paragraph, original beside translation. Ask about a translation, or how to say something in English, with “Ask”.',
       tutorPh: 'Text to translate, or a question (Enter for a new line, ⌘/Ctrl+Enter to translate)', tutorGo: 'Translate', tutorAsk: 'Ask', tutorStop: 'Stop',
@@ -1389,7 +1389,8 @@
     L.benches.forEach(b => items.push({ y: b.y, draw: () => drawBench(b, L.slots) }));
     items.push({ y: L.boss.y, draw: () => drawDesk(L.boss.x, L.boss.y, '', true, true) });
     const bossY = L.boss.y - TILE * 0.85;
-    items.push({ y: bossY + 12, draw: () => drawBoss({ x: L.boss.x, y: bossY }) });
+    bossAt = { x: L.boss.x, y: bossY };
+    items.push({ y: bossY + 12, draw: () => drawBoss(bossAt) });
     codexAt = { x: TILE * 2.3, y: L.boss.y - TILE * 0.85 };
     if (officeCfg?.codex === false) codexAt = { x: -999, y: -999 };   // config.json turned the Codex secretary off
     else items.push({ y: codexAt.y + 12, draw: () => drawCodex(codexAt) });
@@ -1404,6 +1405,7 @@
     for (const a of actors.values()) items.push({ y: a.y + 12, draw: () => drawActor(a, L) });
     items.sort((p, q) => p.y - q.y).forEach(i => i.draw());
     if (codexOpenUntil > Date.now()) bubbleWanted = { id: 'codex', x: codexAt.x, y: codexAt.y - 76, side: 'side', text: codexCard() };
+    if (bossOpenUntil > Date.now()) bubbleWanted = { id: 'boss', x: bossAt.x, y: bossAt.y - 76, side: 'side', text: bossCard() };
   }
   function drawBoss(a) {
     px(a.x - 14, a.y + 10, 28, 5, 'rgba(0,0,0,.18)');
@@ -1426,6 +1428,8 @@
   // Codex, the secretary standing beside you: its account limits come from the bridge
   // (meta/codex, read from Codex's own rollout logs, so they move only when Codex is used).
   let codex = null, codexAt = { x: 0, y: 0 }, codexOpenUntil = 0;
+  // Clicking yourself shows what is left of your own 5-hour and weekly limits and when each resets.
+  let bossAt = { x: -999, y: -999 }, bossOpenUntil = 0;
   // The English tutor sits at her own desk below your office (her popup is further down).
   let tutorAt = { x: -999, y: -999 }, tutorDesk = { x: -999, y: -999 }, tutorBusy = false;
   // The page-facing part of ~/.claude/office/config.json, published by the bridge
@@ -1447,11 +1451,24 @@
     };
     return [tt('codexTitle'), ...(codex.working ? [tt('codexBusy')] : []), '', line('5h', codex.primary), line(tt('week'), codex.secondary), '', codex.at ? tt('codexFrom', { ago: ago(codex.at) }) : ''].filter(l => l !== null).join('\n');
   }
+  function bossCard() {
+    const lim = accountLimits() || [];
+    const five = lim.find(l => /five_hour/.test(l.kind)), week = lim.find(l => /seven_day/.test(l.kind) && !/opus|sonnet/i.test(l.kind));
+    if (!five && !week) return tt('bossNone');
+    const t = Date.now(), when = ms => new Date(ms).toLocaleString(LANG === 'zh' ? 'zh-TW' : 'en-US', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+    const line = (label, l) => {
+      if (!l) return null;
+      const end = l.resetsAt ? Date.parse(l.resetsAt) : 0;
+      return tt('codexLeft', { label, p: Math.max(0, Math.round(100 - (l.percentUsed || 0))) }) + (end ? (end <= t ? tt('codexReset') : tt('codexResetsAt', { when: when(end) })) : '');
+    };
+    const at = Math.max(0, ...[...desks.values()].filter(d => d.limits?.length).map(d => d.limitsAt || 0));
+    return [tt('bossTitle'), '', line('5h', five), line(tt('week'), week), '', at ? tt('bossFrom', { ago: ago(at) }) : ''].filter(l => l !== null).join('\n');
+  }
   function npcHit(ev, at) {
     const r = canvas.getBoundingClientRect(), mx = (ev.clientX - r.left) * canvas.width / r.width, my = (ev.clientY - r.top) * canvas.height / r.height;
     return Math.abs(mx - at.x) < 26 && my > at.y - 64 && my < at.y + 26;
   }
-  const codexHit = ev => npcHit(ev, codexAt), tutorHit = ev => npcHit(ev, tutorAt) || npcHit(ev, { x: tutorDesk.x, y: tutorDesk.y + 20 });
+  const codexHit = ev => npcHit(ev, codexAt), bossHit = ev => npcHit(ev, bossAt), tutorHit = ev => npcHit(ev, tutorAt) || npcHit(ev, { x: tutorDesk.x, y: tutorDesk.y + 20 });
   function drawTutor(a) {
     px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
     drawSprite(TUTOR_SHEET, 'down', 1, a.x, a.y + 12);
@@ -2444,12 +2461,13 @@
     }
     return best;
   }
-  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || tutorHit(ev)); });
+  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || bossHit(ev) || tutorHit(ev)); });
   canvas.addEventListener('pointerleave', () => { hover = null; });
   // Clicking a worker (or its bubble) opens the full report with the reply box.
   const speak = {};
   canvas.addEventListener('click', ev => {
-    if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; return; }
+    if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; bossOpenUntil = 0; return; }
+    if (bossHit(ev)) { bossOpenUntil = bossOpenUntil > Date.now() ? 0 : Date.now() + 10_000; codexOpenUntil = 0; return; }
     if (tutorHit(ev)) { openTutor(); return; }
     const a = actorAt(ev) || bubbleAt(ev); if (!a) return;
     openModal(a.slot.d.id);
@@ -2459,7 +2477,7 @@
   let bubbleWanted = null;
   const hb = document.getElementById('hbubble'), hbClip = hb.querySelector('.clip');
   const hbMore = hb.querySelector('.more');
-  hb.addEventListener('click', () => { if (hb.dataset.id === 'codex') codexOpenUntil = 0; else if (hb.dataset.id) openModal(hb.dataset.id); });
+  hb.addEventListener('click', () => { if (hb.dataset.id === 'codex') codexOpenUntil = 0; else if (hb.dataset.id === 'boss') bossOpenUntil = 0; else if (hb.dataset.id) openModal(hb.dataset.id); });
   // At phone width the canvas is too small for a bubble: each dog waiting for you
   // gets a small icon instead (❗ with the number of decisions, 💬 a report,
   // 🔒 a permission prompt in the terminal, a red tag an instruction that never arrived), and tapping it opens the report.
@@ -2499,11 +2517,11 @@
   }
   function placeBubble() {
     placeIcons();
-    if (narrow.matches && bubbleWanted && bubbleWanted.id !== 'codex') bubbleWanted = null;
+    if (narrow.matches && bubbleWanted && bubbleWanted.id !== 'codex' && bubbleWanted.id !== 'boss') bubbleWanted = null;
     if (!bubbleWanted) { hb.hidden = true; hb.dataset.id = ''; return; }
     const { id, x, y, side, text } = bubbleWanted;
     hb.dataset.id = id;
-    hbMore.hidden = id === 'codex';
+    hbMore.hidden = id === 'codex' || id === 'boss';
     if (text.startsWith('#decide\n')) {
       const body = text.slice(8);
       renderReport(hbClip, '<div class="dh">' + tt('decideN', { n: decideCount(body) }) + '</div>\n\n' + body);
@@ -2519,7 +2537,7 @@
       left = x * k - bw / 2; top = y * k - bh - 10; cls = 'above';
     }
     left = Math.max(6, Math.min(W - bw - 6, left)); top = Math.max(6, Math.min(H - bh - 6, top));
-    hb.className = 'hbubble report ' + cls + (id === 'codex' ? ' whole' : '');
+    hb.className = 'hbubble report ' + cls + (id === 'codex' || id === 'boss' ? ' whole' : '');
     hb.style.left = (ox + left) + 'px'; hb.style.top = (oy + top) + 'px';
   }
 
