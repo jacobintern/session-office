@@ -399,7 +399,7 @@
           <label class="field">目錄<input id="s-cwd" list="dirs" required placeholder="/path/to/repo" autocomplete="off"><datalist id="dirs"></datalist></label>
           <label class="field">桌牌（可空，空的話用第一句任務）<input id="s-name" maxlength="40" autocomplete="off"></label>
           <label class="field">專案／話題（可空；同話題的 session 共用公佈欄）<input id="s-project" list="projects" maxlength="60" autocomplete="off"><datalist id="projects"></datalist></label>
-          <label class="field">第一個任務（可空）<textarea id="s-task" rows="3" maxlength="4000" placeholder="Enter 送出，Shift+Enter 換行"></textarea></label>
+          <label class="field">第一個任務（可空）<textarea id="s-task" rows="3" maxlength="20000" placeholder="Enter 送出，Shift+Enter 換行"></textarea></label>
           <div class="line">橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。</div>
         </div>
         <div class="reply"><button type="submit" id="s-send">開</button></div>
