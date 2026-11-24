@@ -104,6 +104,9 @@ fix for anything that fails.
    - Claude Code: accept `--dangerously-skip-permissions`;
    - Claude Code: trust the bridge's folder (`bridgeCwd`).
 
+   From then on the watchdog keeps the bridge up without you: it launches iTerm2 when it is not
+   running (after a reboot), and replaces a bridge that has not synced for 3 minutes (stuck on a dialog).
+
 6. Check: `./install/install.sh --check` in a shell, or `/office doctor` in any
    session. Then open a new `claude` session: it shows up at a desk on the page.
 

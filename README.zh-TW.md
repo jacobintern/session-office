@@ -78,6 +78,8 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
    - Claude Code：接受 `--dangerously-skip-permissions`；
    - Claude Code：信任 bridge 的資料夾（`bridgeCwd`）。
 
+   之後 watchdog 會自己把 bridge 顧好：iTerm2 沒開（例如重開機後）會先把它開起來；bridge 超過 3 分鐘沒同步（卡在確認視窗）會把它換掉。
+
 6. 檢查：在終端機跑 `./install/install.sh --check`，或在任一個 session 打 `/office doctor`。接著開一個新的 `claude` session，它就會出現在頁面的桌子上。
 
 ## 更新
