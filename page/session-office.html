@@ -282,7 +282,7 @@
   /* Phone (860px and narrower): no office, the page is a to-do list built from the same desks;
      the report window fills the screen and its secondary actions fold behind ⋯ */
   #phone { display: none; }
-  #m-more { display: none; }
+  #m-more, #m-back { display: none; }
   @media (max-width: 860px) {
     .office, .side .roster, .sub { display: none; }
     #phone { display: flex; flex-direction: column; gap: 18px; }
@@ -322,10 +322,9 @@
     .modal { padding: 0; align-items: stretch; }
     .panel { width: 100%; max-width: none; height: 100%; max-height: none; border-radius: 0; border: 0; }
     .panel header { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
-    .panel .close { order: -1; margin-left: 0; margin-right: 2px; font-size: 1.1rem; }
-    .panel .close::before { content: '‹'; font-size: 1.6rem; line-height: 1; }
-    .panel .close { font-size: 0; }
-    .panel .reply { padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+    .panel .close { display: none; }
+    .panel .reply { padding-bottom: 12px; }
+    #m-back { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 48px; margin: 0; padding-bottom: max(0px, env(safe-area-inset-bottom, 0px)); font: inherit; font-size: .95rem; font-weight: 600; color: var(--fg); background: var(--bg); border: 0; border-top: 1px solid var(--line); border-radius: 0; cursor: pointer; }
     .panel .reply.ops { display: none; }
     .panel.more .reply.ops { display: flex; }
     #m-more { display: inline-block; align-self: flex-end; min-width: 44px; }
@@ -379,6 +378,7 @@
       <form class="reply" id="m-form"><textarea id="m-reply" rows="2" maxlength="4000" placeholder="回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）"></textarea><button type="submit" id="m-send">送出</button><button type="button" class="ghost" id="m-pause" hidden>暫停</button><button type="button" class="ghost" id="m-more" aria-label="更多">⋯</button></form>
       <div class="reply-hint" id="m-reply-hint"></div>
       <div class="reply ops" style="border-top:0;padding-top:0"><button type="button" class="ghost" id="m-ack" hidden>收到，回座位</button><button type="button" class="ghost" id="m-compact">壓縮對話（/compact）</button><button type="button" class="ghost" id="m-clear">清空對話（/clear）</button><select class="model-pick" id="m-model"></select><select class="model-pick" id="m-effort"></select><span class="model-confirm" id="m-model-confirm" hidden><span id="m-model-ask"></span><button type="button" class="danger-solid" id="m-model-yes">確定</button><button type="button" class="ghost" id="m-model-no">取消</button></span><span class="fire" id="m-fire-wrap"><button type="button" class="ghost danger" id="m-fire">開除（結束 session）</button><button type="button" class="danger-solid" id="m-fire-yes" hidden>確定開除</button><button type="button" class="ghost" id="m-fire-no" hidden>取消</button></span></div>
+      <button type="button" id="m-back">‹ 回清單</button>
     </div>
   </div>
 
@@ -503,7 +503,7 @@
       iconPerm: '在 terminal 等你確認權限', iconAsk: '在等你回答', iconReport: '來匯報',
       dbFail: '連不上資料庫。請重新整理頁面，或確認你已登入 claude.ai。', needLogin: '需要登入 claude.ai 才能看到即時狀態。',
       noSessions: '還沒有 session 進來。裝好 <code>office</code> mod 的 session 啟動後會自己走進來坐下。', liveBroken: '即時更新中斷（{code}），請重新整理。',
-      phoneNone: '沒有人在等你。', phoneNote: '辦公室畫面在手機上不顯示；在電腦上開同一個網址就有。', phonePerm: '等權限', phoneAsk: '等你回答', phoneDialog: '卡在 terminal', phoneReply: '回覆', phoneAnswer: '回答', phoneAssign: '派工',
+      phoneNone: '沒有人在等你。', phoneNote: '辦公室畫面在手機上不顯示；在電腦上開同一個網址就有。', phonePerm: '等權限', phoneAsk: '等你回答', phoneDialog: '卡在 terminal', phoneReply: '回覆', phoneAnswer: '回答', phoneAssign: '派工', backToList: '‹ 回清單',
     },
     en: {
       sub: 'One desk per Claude Code session. When one finishes a turn it walks over to your desk to report; click it or its bubble for the full text, and reply or press “Got it” to send it back to its desk.',
@@ -546,7 +546,7 @@
       iconPerm: 'Waiting for a permission prompt in the terminal', iconAsk: 'Waiting for your answer', iconReport: 'Reporting',
       dbFail: 'Cannot reach the database. Reload the page, or check that you are signed in to claude.ai.', needLogin: 'Sign in to claude.ai to see live status.',
       noSessions: 'No sessions yet. A session with the <code>office</code> mod walks in and takes a desk when it starts.', liveBroken: 'Live updates stopped ({code}); please reload.',
-      phoneNone: 'Nobody is waiting for you.', phoneNote: 'The office is not drawn on a phone; open the same address on a computer for it.', phonePerm: 'permission', phoneAsk: 'your answer', phoneDialog: 'terminal dialog', phoneReply: 'Reply', phoneAnswer: 'Answer', phoneAssign: 'Assign',
+      phoneNone: 'Nobody is waiting for you.', phoneNote: 'The office is not drawn on a phone; open the same address on a computer for it.', phonePerm: 'permission', phoneAsk: 'your answer', phoneDialog: 'terminal dialog', phoneReply: 'Reply', phoneAnswer: 'Answer', phoneAssign: 'Assign', backToList: '‹ Back to the list',
     },
   };
   const tt = (key, vars) => (I18N[LANG][key] ?? I18N.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => vars && vars[k] != null ? vars[k] : '');
@@ -577,7 +577,7 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-project', 'spawnProject'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
@@ -1834,6 +1834,7 @@
     }));
   }
   document.getElementById('m-close').addEventListener('click', closeModal);
+  document.getElementById('m-back').addEventListener('click', closeModal);
   // Close on a click on the backdrop only when the press started there too: a text
   // selection dragged out of the box ends with a click on the backdrop as well.
   function closeOnBackdrop(el, close) {
