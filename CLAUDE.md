@@ -53,6 +53,9 @@ block at the end of the page script; the board one is in `watchBoard`):
 
 How each part goes live: README → Updating. Saving `register.tsx` reloads the
 mod in every running session, so the load path must be safe to run again.
+The process environment survives the reload: a value read from it (such as
+`CLAUDE_OFFICE_PROJECT`, the topic a page-opened session started with) must not
+override what the desk saved since (a549790).
 Before saving, parse it: `npx --yes esbuild@0.24.0 mod/hooks/register.tsx
 --loader:.tsx=tsx --format=esm >/dev/null`. A file that does not parse keeps
 the old mod in the running sessions and leaves every new session (the bridge
@@ -60,6 +63,9 @@ too) with none; the error shows only in a new session's terminal, not in your
 transcript (e47cd64 shipped one that way). `tsc` is not the engine's check
 either (`$` may only be passed to a top-level function), so after a save also
 confirm the bridge took it: its tick count in `~/.claude/office/bridge.json`
-starts again from 1.
+starts again from 1. Only a change to the file's content reloads it (`touch`
+does not), and the reload can take a minute to reach every session.
+To check the page, look at it in the browser with screenshots and zoom: it runs
+in a cross-origin frame, so page JavaScript from the browser tool cannot reach it.
 Several sessions work here at once: `git add` only after `git diff` shows
 nothing but your own hunks, and ask before touching a file another is editing.
