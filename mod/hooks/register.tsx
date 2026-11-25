@@ -955,6 +955,76 @@ async function syncCodex($: EngineInterface, full: boolean) {
   }
 }
 
+// Questions for Codex from the page: the page writes a `codexAsks` document
+// ({ q, cwd, thread }), the bridge runs `codex exec` read-only in that folder in
+// the background (`resume <thread>` for a follow-up) and writes the answer back.
+// One question at a time; 停止 on the page sets `cancel` and the bridge kills it.
+const CODEX_ASKS = 'codexAsks'
+const CODEX_ASK_MS = 600_000                   // process.run allows at most 10 minutes
+const CODEX_ASK_KEEP_MS = 3 * 86_400_000
+const codexAskDir = () => `${home}/.claude/office/codex`
+let codexAsk: { id: string; pidFile: string } | null = null
+async function serveCodexAsks($: EngineInterface) {
+  if (cfg.codex === false) return
+  const found = docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'query', url: OFFICE_URL, collection: CODEX_ASKS, query: { where: [['status', 'in', ['pending', 'running']]], limit: 20 } }))
+  const put = (doc: StoredDoc, data: Record<string, unknown>) =>
+    $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: CODEX_ASKS, doc_id: String(doc.data.id), data, ...(doc.version !== undefined ? { if_version: doc.version } : {}) })
+  for (const doc of found) {
+    const id = String(doc.data.id)
+    if (doc.data.status !== 'running') continue
+    if (codexAsk?.id === id) {
+      if (doc.data.cancel === true) await $.process.run(['sh', '-c', `kill -TERM $(cat ${shellQuote(codexAsk.pidFile)}) 2>/dev/null`], { timeoutMs: 5000 }).catch(() => {})
+    } else {
+      // running before the mod reloaded: its process is no longer ours to wait for
+      await put(doc, { status: 'failed', error: '橋接重新載入，這題中斷了，請再問一次', doneAt: Date.now() })
+    }
+  }
+  if (codexAsk) return
+  const next = found.filter(d => d.data.status === 'pending').sort((a, b) => Number(a.data.at ?? 0) - Number(b.data.at ?? 0))[0]
+  if (!next) return
+  const id = String(next.data.id)
+  const q = typeof next.data.q === 'string' ? next.data.q.trim() : ''
+  const cwd = (typeof next.data.cwd === 'string' ? next.data.cwd.trim() : '').replace(/^~(?=\/|$)/, home) || home
+  const thread = typeof next.data.thread === 'string' && /^[\w-]{8,64}$/.test(next.data.thread) ? next.data.thread : null
+  let isDir = false
+  try { isDir = (await $.fs.stat(cwd)).kind === 'dir' } catch { isDir = false }
+  if (!q || !isDir) { await put(next, { status: 'failed', error: q ? `資料夾不存在：${cwd}` : '問題是空的', doneAt: Date.now() }); return }
+  if (!wroteOk(await put(next, { status: 'running', startedAt: Date.now() }))) return
+  await $.process.run(['mkdir', '-p', codexAskDir()])
+  const base = `${codexAskDir()}/${id}`, pidFile = `${base}.pid`, outFile = `${base}.txt`
+  const prompt = `${q}\n\n（從 Session Office 頁面問的：唯讀模式，只查不改檔；請用繁體中文回答。）`
+  const args = [...(thread ? ['resume', thread] : []), '--json', '--skip-git-repo-check', '-c', 'sandbox_mode="read-only"', '-o', outFile, prompt]
+  codexAsk = { id, pidFile }
+  void (async () => {
+    let data: Record<string, unknown>
+    try {
+      const ran = await $.process.run(['sh', '-c', `echo $$ > ${shellQuote(pidFile)}; exec codex exec "$@" < /dev/null`, 'sh', ...args], { cwd, timeoutMs: CODEX_ASK_MS })
+      const answer = (await $.fs.read(outFile).catch(() => '')).trim()
+      const started = /"thread_id"\s*:\s*"([\w-]+)"/.exec(ran.stdout)?.[1] ?? thread
+      data = answer
+        ? { status: 'done', answer: clipReport(answer), thread: started, doneAt: Date.now() }
+        : { status: 'failed', error: (ran.stderr.trim().split('\n').filter(l => !/rmcp::transport/.test(l)).slice(-3).join('\n') || `codex exit ${ran.exitCode}`).slice(0, 500), doneAt: Date.now() }
+    } catch (error) {
+      data = { status: 'failed', error: String(error).slice(0, 500), doneAt: Date.now() }
+    }
+    try {
+      const cur = docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'get', url: OFFICE_URL, collection: CODEX_ASKS, doc_id: id }))[0]
+      if (cur?.data.cancel === true && data.status === 'failed') data = { status: 'cancelled', doneAt: Date.now() }
+      if (cur) await put(cur, data)
+    } catch (error) {
+      report($, `Codex ask ${id}: ${String(error).slice(0, 200)}`)
+    } finally {
+      await $.process.run(['rm', '-f', pidFile, outFile]).catch(() => {})
+      codexAsk = null
+    }
+  })()
+}
+// answered questions older than three days leave the page's list
+async function pruneCodexAsks($: EngineInterface) {
+  const old = docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'query', url: OFFICE_URL, collection: CODEX_ASKS, query: { where: [['at', '<', Date.now() - CODEX_ASK_KEEP_MS]], limit: 50 } }))
+  for (const doc of old) await $.tool.call({ tool: 'ArtifactData', action: 'delete', url: OFFICE_URL, collection: CODEX_ASKS, doc_id: String(doc.data.id), ...(doc.version !== undefined ? { if_version: doc.version } : {}) })
+}
+
 // Usage history for the usage analyst on the page: the account's 5-hour and weekly
 // readings, taken the way the page's accountLimits does (per kind the latest window,
 // in it the latest turn), one sample a minute when it moved, kept 8 days in the store;
@@ -1063,6 +1133,8 @@ async function bridgeTick($: EngineInterface) {
     if (tickCount === 2 || tickCount % JIRA_EVERY === 0) { lastTick.note = '抓 Jira'; await syncJira($) }
     if (tickCount === 3 || tickCount % 2 === 0) await syncCodex($, tickCount === 3 || tickCount % CODEX_EVERY === 0)
     if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), filesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
+    if (tickCount % 2 === 0) { lastTick.note = '問 Codex'; await serveCodexAsks($) }
+    if (tickCount % (JIRA_EVERY * 30) === 0 && cfg.codex !== false) await pruneCodexAsks($)
     lastTick.note = '讀資料庫'
     const listResult = await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: COLLECTION, query: { limit: 200 } })
     const listed = docsIn(listResult)

@@ -226,7 +226,11 @@
   .tpair .note { font-size: .8rem; color: var(--muted); overflow-wrap: anywhere; }
   .tpair .copy, .tq .copy { justify-self: start; font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 8px; cursor: pointer; }
   .tq { display: grid; gap: 6px; }
-  #t-form textarea, #u-form textarea { flex-basis: 100%; }
+  #t-form textarea, #u-form textarea, #c-form textarea { flex-basis: 100%; }
+  #c-form .cwd { display: flex; align-items: center; gap: 6px; flex-basis: 100%; min-width: 0; font-size: .8rem; color: var(--muted); }
+  #c-form .cwd input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); font-size: .8rem; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+  .tq .cxs { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); }
+  .tq .cxs button { font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 8px; cursor: pointer; }
   @media (max-width: 700px) { .tpair { grid-template-columns: 1fr; } .tpair .src { grid-row: auto; } }
   .ask { display: grid; gap: 14px; }
   .ask .q { display: grid; gap: 8px; }
@@ -258,7 +262,7 @@
   .reply textarea { flex: 1; min-width: 0; font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); resize: vertical; min-height: 2.6em; }
   .reply textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   /* iOS Safari zooms into any field under 16px on focus and stays zoomed after it closes */
-  @media (max-width: 860px) { .reply textarea, .field input, .field textarea, .title-edit, .model-pick { font-size: 16px; } }
+  @media (max-width: 860px) { .reply textarea, #c-form .cwd input, .field input, .field textarea, .title-edit, .model-pick { font-size: 16px; } }
   .reply button, .perm button, .lowuse button { font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--accent); color: var(--bg); cursor: pointer; align-self: flex-end; }
   .reply button:disabled, .perm button:disabled { opacity: .5; cursor: default; }
   .perm .ghost, .lowuse .ghost { background: none; color: var(--fg); border: 1px solid var(--line); font-weight: 500; }
@@ -329,7 +333,7 @@
     .panel header { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
     .panel .close { display: none; }
     .panel .reply { padding-bottom: 12px; }
-    #t-hint, #u-hint { display: none; }
+    #t-hint, #u-hint, #c-hint { display: none; }
     /* nothing in a window may push it sideways: the column never grows past the screen, and a wide table scrolls on its own */
     .panel .body { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
     .report table { display: block; max-width: 100%; overflow-x: auto; }
@@ -433,6 +437,19 @@
       <button type="button" class="panel-back" id="u-back">‹ 回清單</button>
     </div>
   </div>
+
+  <div class="modal" id="codexq" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="c-title">
+      <header><span class="label" id="c-title">問 Codex</span><span class="meta" id="c-hint">唯讀：只查不改檔；在背景跑，答案會回到這裡</span><button type="button" class="close" id="c-close" aria-label="關閉">×</button></header>
+      <div class="body">
+        <div class="report" id="c-usage"></div>
+        <div class="tpairs" id="c-chat"></div>
+        <div class="sent" id="c-state" hidden></div>
+      </div>
+      <form class="reply" id="c-form"><label class="cwd"><span id="c-cwd-label">資料夾</span><input id="c-cwd" list="cx-dirs" autocomplete="off" spellcheck="false"><datalist id="cx-dirs"></datalist></label><textarea id="c-text" rows="3" maxlength="20000" placeholder="問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）"></textarea><button type="submit" id="c-go">問 Codex</button><button type="button" class="ghost" id="c-new">新對話</button></form>
+      <button type="button" class="panel-back" id="c-back">‹ 回清單</button>
+    </div>
+  </div>
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
@@ -510,6 +527,7 @@
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
       analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）', analystAsk: '問分析師',
+      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
       anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
@@ -557,6 +575,7 @@
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
       analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (Enter sends, Shift+Enter for a new line)', analystAsk: 'Ask',
+      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
       anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
       anUsed: '- {label}: {p}% used', anResets: ' (resets {when})', anAvg: ', {a}% an hour on average this window', anRecent: ' (last hour: {r}%)', anEta: ', at the average rate runs out **at {when}** ({early} before the reset)', anSafe: ', at the average rate lasts until the reset at about {q}%', anIdle: ', nothing used this window yet', anFew: ', the window just started; no forecast yet', anResetNow: '- {label}: reset',
       anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
@@ -608,12 +627,13 @@
     canvas.setAttribute('aria-label', tt('canvasAria')); set('#hbubble .more', 'more'); set('#empty', 'connecting');
     document.querySelectorAll('.close').forEach(b => b.setAttribute('aria-label', tt('close')));
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
-    set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#t-back', 'backToList'); set('#u-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
+    set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#t-back', 'backToList'); set('#u-back', 'backToList'); set('#c-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-project', 'spawnProject'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
     set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
     set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
     set('#u-title', 'analyst'); set('#u-hint', 'analystHint'); set('#u-text', 'analystPh', 'placeholder'); set('#u-go', 'analystAsk'); set('#u-stop', 'tutorStop');
+    set('#c-title', 'cxTitle'); set('#c-hint', 'cxHint'); set('#c-text', 'cxPh', 'placeholder'); set('#c-go', 'cxTitle'); set('#c-new', 'cxNew'); set('#c-cwd-label', 'cxCwd');
     set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
@@ -1618,7 +1638,7 @@
     groups.waiting.sort((a, b) => (a.reportedAt || 0) - (b.reportedAt || 0));
     // rebuilt only when something it shows changed (the time labels every 5 s are cheap; the cards are not)
     const lim = accountLimits() || [];
-    const key = JSON.stringify([lim.map(l => [l.kind, Math.round(l.percentUsed), l.resetsAt]), officeCfg?.tutor, officeCfg?.analyst, ...['waiting', 'working', 'idle'].map(k => groups[k].map(d => [d.id, d.title, d.blocked, d.perm?.at, d.permFor, d.report, d.activity, d.bg?.n, d.stateAt, d.reportedAt, d.seenAt, projectOf(d)?.name]))]);
+    const key = JSON.stringify([lim.map(l => [l.kind, Math.round(l.percentUsed), l.resetsAt]), officeCfg?.tutor, officeCfg?.analyst, officeCfg?.codex, ...['waiting', 'working', 'idle'].map(k => groups[k].map(d => [d.id, d.title, d.blocked, d.perm?.at, d.permFor, d.report, d.activity, d.bg?.n, d.stateAt, d.reportedAt, d.seenAt, projectOf(d)?.name]))]);
     if (key === phoneKey) return;
     phoneKey = key;
     const parts = [];
@@ -1636,7 +1656,7 @@
     parts.push(usage);
     // the tutor and the analyst have no desk to tap on a phone: two buttons open their panels
     const npcs = document.createElement('div'); npcs.className = 'pnpcs';
-    for (const [show, label, open] of [[officeCfg?.tutor !== false, tt('tutor'), () => openTutor()], [officeCfg?.analyst !== false, tt('analyst'), () => openAnalyst()]]) {
+    for (const [show, label, open] of [[officeCfg?.codex !== false, tt('cxTitle'), () => openCodex()], [officeCfg?.tutor !== false, tt('tutor'), () => openTutor()], [officeCfg?.analyst !== false, tt('analyst'), () => openAnalyst()]]) {
       if (!show) continue;
       const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.addEventListener('click', open); npcs.append(btn);
     }
@@ -2580,6 +2600,101 @@
       finally { analystBusy = false; analystCtl = null; uGo.disabled = false; uStop.hidden = true; }
     })();
   });
+  // ---- Codex Q&A: a question is a codexAsks document; the bridge runs `codex exec` read-only
+  // in its folder (`resume <thread>` to follow up) and writes the answer or the error back ----
+  const codexq = document.getElementById('codexq'), cForm = document.getElementById('c-form'), cText = document.getElementById('c-text'), cCwd = document.getElementById('c-cwd');
+  const cUsage = document.getElementById('c-usage'), cChat = document.getElementById('c-chat'), cState = document.getElementById('c-state'), cGo = document.getElementById('c-go');
+  let cxAsks = [], cxTimer = 0;
+  const cxGet = k => { try { return localStorage.getItem(k); } catch (e) { return null; } };
+  const cxSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+  // the thread a new question follows: the last answered one in the same folder since 新對話
+  function cxThread(cwd) {
+    const since = Number(cxGet('codexNewAt') || 0);
+    const last = cxAsks.filter(a => a.at > since && a.cwd === cwd && a.status === 'done' && a.thread).sort((a, b) => b.at - a.at)[0];
+    return last ? last.thread : null;
+  }
+  function openCodex() {
+    const dirs = new Set([cxGet('codexCwd') || '~/Ventem_Projects', ...(officeCfg?.newSessionDirs || [])]);
+    for (const d of desks.values()) if (d.cwd) dirs.add(d.cwd);
+    document.getElementById('cx-dirs').replaceChildren(...[...dirs].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
+    if (!cCwd.value) cCwd.value = cxGet('codexCwd') || '~/Ventem_Projects';
+    codexq.hidden = false; renderCodex(); cxTimer = setInterval(renderCodex, 1000);
+    setTimeout(() => cText.focus(), 0);
+  }
+  function closeCodex() { codexq.hidden = true; clearInterval(cxTimer); }
+  document.getElementById('c-close').addEventListener('click', closeCodex);
+  document.getElementById('c-back').addEventListener('click', closeCodex);
+  closeOnBackdrop(codexq, closeCodex);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !codexq.hidden) closeCodex(); });
+  submitOnEnter(cText, 'c-form');
+  cCwd.addEventListener('input', () => renderCodexState());
+  document.getElementById('c-new').addEventListener('click', () => { cxSet('codexNewAt', String(now())); renderCodexState(); cText.focus(); });
+  function renderCodexState() {
+    const cwd = cCwd.value.trim(), stale = !bridgeSeenAt || now() - bridgeSeenAt > 60_000;
+    const msg = [stale ? tt('cxNoBridge') : '', cwd ? tt(cxThread(cwd) ? 'cxFollow' : 'cxFresh', { cwd }) : ''].filter(Boolean).join(' · ');
+    cState.hidden = !msg; cState.textContent = msg;
+  }
+  const cxShown = {};
+  function renderCodex() {
+    if (codexq.hidden) return;
+    renderReport(cUsage, codexCard());
+    renderCodexState();
+    const asks = [...cxAsks].sort((a, b) => a.at - b.at);
+    if (!asks.length) { cChat.replaceChildren(); const e = document.createElement('div'); e.className = 'sent'; renderReport(e, tt('cxEmpty')); cChat.append(e); return; }
+    const keep = new Set(asks.map(a => a.id));
+    for (const el of [...cChat.children]) if (!keep.has(el.dataset.id)) el.remove();
+    let prev = null;
+    for (const a of asks) {
+      let item = cChat.querySelector(`[data-id="${CSS.escape(a.id)}"]`);
+      if (!item) {
+        item = document.createElement('div'); item.className = 'tq'; item.dataset.id = a.id;
+        const asked = document.createElement('div'); asked.className = 'line'; asked.textContent = tt('tutorYouAsked') + a.q;
+        // built once: the status line ticks every second, and a button rebuilt that often loses its clicks
+        const st = document.createElement('div'); st.className = 'cxs';
+        const where = document.createElement('span'), label = document.createElement('span'), stop = document.createElement('button');
+        where.textContent = a.cwd; stop.type = 'button'; stop.textContent = tt('cxStop'); stop.addEventListener('click', () => cxStop(cxAsks.find(x => x.id === a.id) || a));
+        st.append(where, label, stop);
+        const ans = document.createElement('div'); ans.className = 'report'; ans.hidden = true;
+        item.append(asked, st, ans);
+        if (prev) prev.after(item); else cChat.prepend(item);
+      }
+      prev = item;
+      const st = item.querySelector('.cxs'), ans = item.querySelector('.report');
+      const key = [a.status, a.cancel, a.answer, a.error].join('|');
+      const live = a.status === 'pending' || a.status === 'running';
+      if (cxShown[a.id] === key && !live) continue;
+      cxShown[a.id] = key;
+      const secs = s => s >= 60 ? Math.floor(s / 60) + (LANG === 'zh' ? ' 分 ' : 'm ') + (s % 60) + (LANG === 'zh' ? ' 秒' : 's') : s + (LANG === 'zh' ? ' 秒' : 's');
+      const label = a.cancel && live ? tt('cxCancelling')
+        : a.status === 'pending' ? tt('cxPending')
+        : a.status === 'running' ? tt('cxRunning', { s: secs(Math.max(0, Math.round((now() - (a.startedAt || now())) / 1000))) })
+        : a.status === 'failed' ? tt('cxFailed', { e: a.error || '?' })
+        : a.status === 'cancelled' ? tt('cxCancelled') : '';
+      const [, labelEl, stopEl] = st.children;
+      labelEl.textContent = label ? '· ' + label : '';
+      stopEl.hidden = !(live && !a.cancel && canWrite);
+      ans.hidden = a.status !== 'done';
+      if (a.status === 'done' && ans.dataset.key !== key) { ans.dataset.key = key; renderReport(ans, a.answer || ''); }
+    }
+  }
+  async function cxStop(a) {
+    if (!db) return;
+    try {
+      // a queued question never started: drop it here; a running one is killed by the bridge
+      await db.doc('codexAsks/' + a.id).update(a.status === 'pending' ? { status: 'cancelled', doneAt: now() } : { cancel: true });
+    } catch (e) { console.warn('codex stop failed', e); }
+  }
+  cForm.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const q = cText.value.trim(), cwd = cCwd.value.trim() || '~/Ventem_Projects';
+    if (!q || !db || !canWrite) return;
+    cGo.disabled = true;
+    try {
+      await db.collection('codexAsks').doc().set({ q, cwd, thread: cxThread(cwd), status: 'pending', at: now() });
+      cxSet('codexCwd', cwd); cText.value = '';
+    } catch (e) { console.warn('codex ask failed', e); cState.hidden = false; cState.textContent = tt('cxFailed', { e: String(e?.message || e) }); }
+    finally { cGo.disabled = false; }
+  });
   // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
   let bridgeSeenAt = 0;
   const bannerEl = document.getElementById('banner');
@@ -2640,7 +2755,7 @@
   // Clicking a worker (or its bubble) opens the full report with the reply box.
   const speak = {};
   canvas.addEventListener('click', ev => {
-    if (codexHit(ev)) { codexOpenUntil = codexOpenUntil > Date.now() ? 0 : Date.now() + 10_000; bossOpenUntil = 0; return; }
+    if (codexHit(ev)) { codexOpenUntil = 0; bossOpenUntil = 0; openCodex(); return; }
     if (bossHit(ev)) { bossOpenUntil = bossOpenUntil > Date.now() ? 0 : Date.now() + 10_000; codexOpenUntil = 0; return; }
     if (tutorHit(ev)) { openTutor(); return; }
     if (analystHit(ev)) { openAnalyst(); return; }
@@ -2759,7 +2874,8 @@
   function subscribeAll() {
     const d = db, sub = (ref, name, onNext) => unsubs.push(ref.onSnapshot(snap => { if (!snap.metadata || !snap.metadata.fromCache) linkUp(); onNext(snap); }, e => onLinkError(name, e)));
     sub(d.doc('meta/jira'), 'jira doc', snap => { jira = snap.exists && !DEMO ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); });
-    sub(d.doc('meta/codex'), 'codex doc', snap => { codex = snap.exists ? snap.data() : null; });
+    sub(d.doc('meta/codex'), 'codex doc', snap => { codex = snap.exists ? snap.data() : null; renderCodex(); });
+    if (officeCfg?.codex !== false) sub(d.collection('codexAsks').orderBy('at', 'desc').limit(20), 'codex asks', snap => { cxAsks = snap.docs.filter(x => x.exists).map(x => ({ id: x.id, ...x.data() })); renderCodex(); });
     sub(d.doc('meta/usage'), 'usage doc', snap => { usageDoc = snap.exists ? snap.data() : null; if (!analyst.hidden) renderAnalyst(); });
     sub(d.doc('meta/config'), 'config doc', snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); });
     sub(d.doc('meta/bridge'), 'bridge heartbeat', snap => { bridgeSeenAt = snap.exists ? (snap.data().seenAt || 0) : 0; judgeBridge(); });

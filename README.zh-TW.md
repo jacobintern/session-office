@@ -112,7 +112,7 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 | `officeUrl` | 你發佈的頁面網址 |
 | `bridgeCwd` | bridge session 執行的資料夾 |
 | `jira` | `null`，或 `{ "site", "email", "jql"?, "tokenFile"? }`。token 從 `tokenFile`（預設 `~/.jira_api_token`）讀取，透過 stdin 交給 curl，不會出現在指令參數裡；沒設 `jira` 時 Jira 欄位會隱藏 |
-| `codex` | 設成 `false` 會隱藏 Codex 秘書 |
+| `codex` | 設成 `false` 會隱藏 Codex 秘書和問 Codex |
 | `tutor` | 設成 `false` 會隱藏英文小老師 |
 | `analyst` | 設成 `false` 會隱藏用量分析師 |
 | `city` | `{ "lat", "lng" }`，用來計算窗外的日出日落 |
@@ -132,6 +132,10 @@ session ─(office mod)→ ~/.claude/office/desks/<id>.json
 ## 用量分析師
 
 點你自己會看到 5 小時和一週額度還剩多少、各自什麼時候重置。英文小老師隔壁桌的分析師看得更多：她用橋接視窗記的用量歷史（`meta/usage`，每分鐘一筆、保留 8 天），照最近的消耗速度預估每個額度什麼時候用完、列出在線上的 session 依花費排行，也能回答相關問題（跟小老師一樣從頁面問 Claude）。
+
+## 問 Codex
+
+點 Codex 秘書（手機版在清單上方的「問 Codex」），可以針對某個資料夾問 Codex。頁面把問題寫進 `codexAsks`，橋接視窗在背景用唯讀模式在那個資料夾跑 `codex exec`（不會開 terminal 分頁），再把答案寫回頁面。同一個資料夾的追問會接續同一段 Codex 對話，按「新對話」才重新開始。一次只跑一題，最多 10 分鐘，按「停止」可以中斷。答案三天後自動清掉。
 
 ## 匯報格式
 

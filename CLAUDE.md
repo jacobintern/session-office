@@ -23,6 +23,7 @@ block at the end of the page script; the board one is in `watchBoard`):
 | `meta/bridge` | `heartbeat`, `writeBridgeStatus` | `judgeBridge` (header light) |
 | `desks` | `bridgeTick` (from desk files) | `renderRoster`, `draw`, `fillModal` |
 | `requests` | `openRequestedSessions` | `openSpawn` form |
+| `codexAsks` | `serveCodexAsks`, `pruneCodexAsks` | `openCodex`, `renderCodex` (the page writes the question) |
 | `boards/*` | `syncBoards`, `writeBoard` | `watchBoard`, `renderBoard`, `saveBoard` |
 
 ## mod/hooks/register.tsx (one file; `// ----` marks worker, bridge, hooks)
@@ -46,7 +47,7 @@ block at the end of the page script; the board one is in `watchBoard`):
   (the `## 要你決定` block), `renderHistory`, `renderAsk`/`answer`, `send`,
   `instruct`, `fillProject`, `fillModelPick`, `fillEffortPick`, `fillHandoff`.
 - **Side panels** — roster `renderRoster`, Jira `renderJira`, new session
-  `openSpawn`, English tutor `openTutor`/`tutorRun`, usage analyst `openAnalyst`; your own limits `bossCard`, pairs `renderPairs`.
+  `openSpawn`, English tutor `openTutor`/`tutorRun`, usage analyst `openAnalyst`, Codex Q&A `openCodex`; your own limits `bossCard`, pairs `renderPairs`.
 
 ## Shipping a change
 

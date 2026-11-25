@@ -141,7 +141,7 @@ one-line notice only when one fails.
 | `officeUrl` | your published page |
 | `bridgeCwd` | the folder the bridge session runs in |
 | `jira` | `null`, or `{ "site", "email", "jql"?, "tokenFile"? }` — the token is read from `tokenFile` (default `~/.jira_api_token`) and passed to curl on stdin, never on argv; without `jira` the column is hidden |
-| `codex` | `false` hides the Codex secretary |
+| `codex` | `false` hides the Codex secretary and its questions |
 | `tutor` | `false` hides the English tutor |
 | `analyst` | `false` hides the usage analyst |
 | `city` | `{ "lat", "lng" }` for sunrise and sunset outside the window |
@@ -176,6 +176,15 @@ each resets. The analyst at the desk next to the tutor's goes further: from the
 bridge's usage history (`meta/usage`, a reading a minute, kept 8 days) she
 forecasts when each limit runs out at the recent rate, lists the live sessions
 by cost, and answers questions about it, asking Claude the same way the tutor does.
+
+## Asking Codex
+
+Click the Codex secretary (on a phone, 問 Codex above the list) to ask Codex a
+question about a folder. The page writes it to `codexAsks`; the bridge runs
+`codex exec` read-only in that folder in the background (no terminal tab opens)
+and writes the answer back. A follow-up in the same folder resumes the same Codex
+thread until you press 新對話. One question runs at a time, for up to 10 minutes;
+停止 ends it. Answers are cleared after three days.
 
 ## Report format
 
