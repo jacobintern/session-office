@@ -2628,7 +2628,7 @@
   document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !codexq.hidden) closeCodex(); });
   submitOnEnter(cText, 'c-form');
   cCwd.addEventListener('input', () => renderCodexState());
-  document.getElementById('c-new').addEventListener('click', () => { cxSet('codexNewAt', String(now())); renderCodexState(); cText.focus(); });
+  document.getElementById('c-new').addEventListener('click', () => { cxSet('codexNewAt', String(now())); renderCodex(); cText.focus(); });
   function renderCodexState() {
     const cwd = cCwd.value.trim(), stale = !bridgeSeenAt || now() - bridgeSeenAt > 60_000;
     const msg = [stale ? tt('cxNoBridge') : '', cwd ? tt(cxThread(cwd) ? 'cxFollow' : 'cxFresh', { cwd }) : ''].filter(Boolean).join(' · ');
@@ -2639,7 +2639,9 @@
     if (codexq.hidden) return;
     renderReport(cUsage, codexCard());
     renderCodexState();
-    const asks = [...cxAsks].sort((a, b) => a.at - b.at);
+    // 新對話 also clears the panel: older questions stay in the database until the 3-day prune
+    const since = Number(cxGet('codexNewAt') || 0);
+    const asks = cxAsks.filter(a => a.at > since).sort((a, b) => a.at - b.at);
     if (!asks.length) { cChat.replaceChildren(); const e = document.createElement('div'); e.className = 'sent'; renderReport(e, tt('cxEmpty')); cChat.append(e); return; }
     const keep = new Set(asks.map(a => a.id));
     for (const el of [...cChat.children]) if (!keep.has(el.dataset.id)) el.remove();
