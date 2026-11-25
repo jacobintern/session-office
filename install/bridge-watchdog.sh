@@ -22,11 +22,20 @@ if [ -n "$running" ]; then
   at=$(/usr/bin/plutil -extract at raw -o - "$office/bridge.json" 2>/dev/null)
   now=$(date +%s)
   age=$(( now - ${at:-0} / 1000 ))
-  started=$(LC_ALL=C ps -o lstart= -p "${pid:-0}" 2>/dev/null | sed 's/ *$//')
-  up=$(( now - $(LC_ALL=C date -j -f '%a %b %d %T %Y' "${started:-}" +%s 2>/dev/null || echo "$now") ))
-  if [ -n "$pid" ] && [[ " $running " == *" $pid "* ]] && [ "$age" -gt "$STUCK_SECS" ] && [ "$up" -gt "$STUCK_SECS" ]; then
-    log "bridge pid $pid has not synced for ${age}s (up ${up}s); ending it"
-    kill "$pid" 2>/dev/null
+  upOf() { local started=$(LC_ALL=C ps -o lstart= -p "${1:-0}" 2>/dev/null | sed 's/ *$//'); echo $(( now - $(LC_ALL=C date -j -f '%a %b %d %T %Y' "${started:-}" +%s 2>/dev/null || echo "$now") )); }
+  stuck=""
+  if [ -n "$pid" ] && [[ " $running " == *" $pid "* ]]; then
+    up=$(upOf "$pid")
+    [ "$age" -gt "$STUCK_SECS" ] && [ "$up" -gt "$STUCK_SECS" ] && stuck="$pid"
+  elif [ -n "$pid" ]; then
+    # bridge.json is from an earlier bridge: one running longer than STUCK_SECS
+    # has never written it (its mod did not load, or it waits on a dialog).
+    # Skipped when there is no bridge.json yet, so a first install has time for its prompts.
+    for p in ${=running}; do up=$(upOf "$p"); [ "$up" -gt "$STUCK_SECS" ] && stuck="$stuck $p"; done
+  fi
+  if [ -n "$stuck" ]; then
+    log "bridge pid ${stuck# } has not synced (last bridge.json ${age}s ago, from pid $pid); ending it"
+    kill ${=stuck} 2>/dev/null
     sleep 3
   else
     log "bridge running (pid $running)"
