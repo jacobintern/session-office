@@ -1320,8 +1320,8 @@
     }
     // status marker
     if (st === 'working' && !a.walking) {
-      // typing: little keyboard sparks
-      px(x - 14 + (Math.floor(a.step * 3) % 3) * 10, y - 2, 4, 2, css('--screen-on'));
+      // typing dots where an idle desk shows its z, the same as Codex at work
+      for (let i = 0; i < 3; i++) px(x + 16 + i * 5, y - 50 - (Math.floor(a.step * 3) % 3 === i ? 2 : 0), 3, 3, css('--screen-on'));
     } else if (st === 'idle' && !a.walking) {
       ctx.font = `700 12px ${css('--display')}`; ctx.fillStyle = css('--idle'); ctx.textAlign = 'left';
       ctx.fillText('z', x + 18, y - 46 - Math.round((a.step * 3) % 6));
