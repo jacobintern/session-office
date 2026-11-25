@@ -1434,7 +1434,9 @@ export const register: Register = on => {
           if (!me.title && prev.title) me.title = prev.title
           if (Array.isArray(prev.history)) me.history = prev.history
           if (prev.ctx && prev.ctx.tokens !== null) me.ctx = prev.ctx    // the health bar survives a resume until the next turn measures it
-          if (prev.projectManual && !me.projectManual) me.projectManual = prev.projectManual
+          // the desk's own choice beats CLAUDE_OFFICE_PROJECT: that is only the topic the session was opened with,
+          // and it stays in the environment, so it would undo a later /office project on every reload
+          if (prev.projectManual !== undefined) me.projectManual = prev.projectManual
           // and what the page shows: the task, and a report still waiting for you
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
