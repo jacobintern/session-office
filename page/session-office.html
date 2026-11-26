@@ -546,7 +546,7 @@
       online: '在線', waitingN: '待匯報', spawnBtn: '＋ 新開 session', langBtn: 'EN', langTitle: 'Switch to English',
       help: '每個 session 由 <code>office</code> mod 自動把桌卡寫到本機，再由一個橋接視窗同步進來，所以要有橋接視窗開著才會更新。桌牌預設是那個 session 的第一句任務，在視窗裡打 <code>/office name 名字</code> 可以改。桌卡超過 2 分鐘沒更新會標成離線，30 分鐘後從辦公室移除。角色圖來自 <a href="https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32">Pipoya</a>。',
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
-      decide: '要你決定', decideN: '要你決定（{n} 件）',
+      decide: '要你決定', decideOlder: '要你決定（{ago}問的，還沒回）', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
       ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', modeSolo: '單人', modeTeam: '專案（開組長）', teamName: '專案名稱（必填）', teamGoal: '目標與限制（必填）：組長會先跟你討論計畫，你核准後才找人', teamCap: '成員上限（不含組長）', openTeam: '開專案', teamLine: '橋接會開一個 session 當組長，桌牌是「專案名稱 組長」。它先拆工作、寫任務、跟你討論計畫；你核准後，它才在上限內找成員，每人各一個分頁。', enterHint: 'Enter 送出，Shift+Enter 換行',
@@ -570,7 +570,7 @@
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
       anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
-      project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByTitle: '桌名票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（分支票號、桌名票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有人貼卡。每位成員一張卡：你和同專案的每個 session 各一則，再貼就換掉自己那則；session 下一句開始前會自動讀到。', boardPh: '你的卡：要給同專案所有 session 知道的事…（Enter 送出，會換掉你上一則）', boardPost: '貼上去', boardDel: '刪除', boardArchived: '封存（{n}）：被新的卡換掉，或那位已離開', boardTopic: '主題 {t}', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
+      project: '專案：', projectNone: '未指定（按 ✎ 輸入話題，同話題的 session 就共用公佈欄）', projectByManual: '你指定的', projectByTicket: '分支票號', projectByTitle: '桌名票號', projectByRepo: 'repo', projectByParent: '母單', projectHint: 'Enter 存檔、Esc 取消；留空改回自動判斷（桌名票號、分支票號或 repo）', mates: '同專案：', matesNone: '沒有其他同事', boardSum: '公佈欄：{p}（{n}）', boardEmpty: '還沒有人貼卡。每位成員一張卡：你和同專案的每個 session 各一則，再貼就換掉自己那則；session 下一句開始前會自動讀到。', boardPh: '你的卡：要給同專案所有 session 知道的事…（Enter 送出，會換掉你上一則）', boardPost: '貼上去', boardDel: '刪除', boardArchived: '封存（{n}）：被新的卡換掉，或那位已離開', boardTopic: '主題 {t}', rename: '改名', renameHint: 'Enter 存檔、Esc 取消；留空會改回顯示第一句任務', bgWait: '等背景工作', replyHint: '也可以直接說：回顧一下、幫我 code review、驗收一下、交接', modelPick: '模型：{m}', modelSwitching: '換成 {m} 中…', effortLabel: 'effort {e}', effortPick: 'effort：{e}', effortHint: '下一輪就生效，不用重開；只改這個 session，不動新 session 的預設', lowUse: '你的 5 小時用量只剩 {p}%。用完之後 session 就寫不了交接，建議現在先交接。', handoff: '請它交接', handoffSent: '已請它交接，寫好後會回來匯報', codexReady: '交接寫好了，可以交給 Codex 接手', codexGo: '開 Codex 接手', codexSent: '已請橋接在新分頁開 Codex', copyName: '複製傳訊名稱', copyNameHint: '要別的 session 傳訊息給它時，用這個名字', dupName: '撞名', dupHint: '跟另一位同事同名，用名字傳訊會分不清；用 /office name 改名',
       seatN: '{n} 號 · ', rosterHead: '{n} 個 session，{live} 個在線', rosterNone: '還沒有 session',
       jiraMeta: '{n} 張 · {ago}', jiraStale: '超過 10 分鐘沒更新，看一下橋接視窗（/office status）。', jiraEmpty: '沒有指派給你的未完成票。',
       code: '（程式碼）',
@@ -594,7 +594,7 @@
       online: 'Online', waitingN: 'Reporting', spawnBtn: '+ New session', langBtn: '中', langTitle: '切換成中文',
       help: 'Each session’s <code>office</code> mod writes its desk card to this machine, and one bridge session syncs the cards in, so the office only updates while the bridge is running. A desk is named after the session’s first task; type <code>/office name &lt;name&gt;</code> in it to rename. A card not updated for 2 minutes shows as offline, and leaves the office after 30. Characters by <a href="https://pipoya.itch.io/pipoya-free-rpg-character-sprites-32x32">Pipoya</a>.',
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
-      decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
+      decide: 'Decisions for you', decideOlder: 'Decisions for you (asked {ago}, not answered yet)', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
       ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', modeSolo: 'On its own', modeTeam: 'Project (opens a lead)', teamName: 'Project name (required)', teamGoal: 'Goal and limits (required): the lead plans with you first and hires only after you approve', teamCap: 'Member limit (lead not counted)', openTeam: 'Open project', teamLine: 'The bridge opens a session as the lead, named “project lead”. It breaks the work into tasks and goes over the plan with you; once you approve, it hires members within the limit, each in its own tab.', enterHint: 'Enter to send, Shift+Enter for a new line',
@@ -706,7 +706,8 @@
   const switchingOf = d => { if (d.switching && now() - d.switching.at < 120000) return d.switching; const m = /^\/office model (\S+)/.exec(d.instruction || ''); return m && isPending(d) ? { to: m[1], at: d.instructionAt } : null; };
   const isSwitching = d => !!switchingOf(d);
   // the project a desk belongs to; a ticket rolls up to its parent when the Jira feed knows one
-  const projectOf = d => d.project ? { name: d.projectRoot || d.project, by: d.projectRoot && d.projectRoot !== d.project ? 'parent' : (d.projectBy || 'repo') } : null;
+  // projects belong to teams: a desk working alone has none (no project line, board, colour or overview)
+  const projectOf = d => d.role && d.project ? { name: d.projectRoot || d.project, by: d.projectRoot && d.projectRoot !== d.project ? 'parent' : (d.projectBy || 'repo') } : null;
   const boardIdOf = name => 'b' + hash(name).toString(16);
   // one colour per project, picked by its name, so desks of one project match on the canvas and in the roster
   const PROJECT_COLORS = ['#e8a640', '#5fc46e', '#78d3ff', '#d97ad1', '#f0e35f', '#ff8c69', '#9fd16b', '#b7a0ff'];
@@ -1660,7 +1661,7 @@
       const items = tasksDocs.get(name)?.items || [], ms = members.get(name) || [];
       // what waits on the user is asked in a desk's decisions (the lead's, mostly); the task list shows only what waits on someone else
       const stuck = items.filter(t => t.status === '卡住' && !isYou(t.waiting)).sort((a, b) => a.at - b.at);
-      const asks = ms.filter(d => isWaiting(d)).flatMap(d => decideQuestions(splitDecide(d.report).decide).map(q => ({ d, q })));
+      const asks = ms.flatMap(d => decideQuestions(openDecide(d).decide).map(q => ({ d, q })));
       const onYou = items.filter(t => t.status === '卡住' && isYou(t.waiting)).length;
       return { name, items, stuck, asks, onYou, done: items.filter(t => t.status === '完成').length, led: ms.some(d => d.role === 'lead') };
     }).sort((a, b) => (b.asks.length > 0) - (a.asks.length > 0) || (b.stuck.length > 0) - (a.stuck.length > 0) || (a.stuck[0]?.at ?? Infinity) - (b.stuck[0]?.at ?? Infinity) || a.name.localeCompare(b.name));
@@ -1944,6 +1945,14 @@
   }
   // the canvas bubble shows a short plain-text preview of the markdown
   const plainPreview = s => trMod(s || '').replace(/```[\s\S]*?```/g, tt('code')).replace(/^#{1,6}\s+/gm, '').replace(/[*_`>]/g, '').replace(/^\s*[-+]\s+/gm, '• ').replace(/\n{2,}/g, '\n');
+  // The questions a desk still waits on: its current report's, else the last ones the person has not
+  // answered yet (the mod keeps them in d.asked until the person speaks to it again). older: from d.asked.
+  function openDecide(d) {
+    const now = splitDecide(d.report).decide;
+    if (now) return { decide: now, older: false };
+    const kept = d.asked && d.asked.at !== d.reportedAt ? splitDecide(d.asked.report).decide : '';
+    return { decide: kept || '', older: !!kept, at: d.asked?.at };
+  }
   // A report with a "要你決定" heading has its decisions split out:
   // the modal highlights them in their own block under the rest and the bubble shows only them.
   function splitDecide(text) {
@@ -2013,8 +2022,10 @@
       : tt('goneLost', { ago: ago(d.seenAt || 0), act: trMod(d.activity || '—') }));
     const { decide, rest } = splitDecide(d.report);
     const asking = d.blocked === 'question' && Array.isArray(d.ask) && d.ask.length > 0;
-    document.getElementById('m-decide').hidden = !decide || asking;
-    if (decide) renderReport(document.getElementById('m-decide-body'), decide);
+    const open = openDecide(d);
+    document.getElementById('m-decide').hidden = !open.decide || asking;
+    document.querySelector('#m-decide .dh').textContent = open.older ? tt('decideOlder', { ago: ago(open.at) }) : tt('decide');
+    if (open.decide) renderReport(document.getElementById('m-decide-body'), open.decide);
     document.getElementById('m-report').hidden = asking || (!!decide && !rest);
     renderReport(document.getElementById('m-report'), (decide ? rest : trMod(d.report)) || tt('noReport'));
     // the mod's own commands (pause, rename) finish within a tick: no "sent, waiting" line for them
@@ -2365,9 +2376,8 @@
   function fillProject(d, lv) {
     const box = document.getElementById('m-project'), pr = projectOf(d);
     watchBoard(d);   // the board follows the project, which can change while the window is open
-    // a live desk without a project (a folder outside git) still shows the line, so the topic can be typed
     const canSet = lv === 'live' && canWrite;
-    box.hidden = !pr && !canSet && !projectEditing;
+    box.hidden = !pr && !projectEditing;   // only a team's desk has a project
     const nameEl = document.getElementById('m-project-name');
     nameEl.innerHTML = '';
     nameEl.append(tt('project'));
@@ -2967,7 +2977,7 @@
     if (!isWaiting(d) && !d.blocked && isLost(d)) return { cls: 'lost', text: tt('lostTag'), title: tt('lostHint') };
     if (d.blocked && d.blocked !== 'question') return { cls: 'lock', text: '🔒', title: tt('iconPerm') };
     if (d.blocked === 'question') return { cls: 'decide', text: '❗' + (Array.isArray(d.ask) && d.ask.length ? d.ask.length : ''), title: tt('iconAsk') };
-    const { decide } = splitDecide(d.report);
+    const { decide } = openDecide(d);
     return decide ? { cls: 'decide', text: '❗' + decideCount(decide), title: tt('decide') } : { cls: '', text: '💬', title: tt('iconReport') };
   }
   function placeIcons() {

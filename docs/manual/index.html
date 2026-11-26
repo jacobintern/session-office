@@ -248,8 +248,8 @@ html { scroll-behavior: smooth; }
     <thead><tr><th>專案怎麼決定</th><th>括號裡寫</th><th>說明</th></tr></thead>
     <tbody>
       <tr><td>你指定的話題</td><td>你指定的</td><td>最優先。按專案列的 ✎ 打一個名字，或開新 session 時填「專案／話題」欄；在 terminal 打 <code>/office project 名字</code> 也行。不是工程專案也能用，例如「報稅」</td></tr>
-      <tr><td>分支裡的票號</td><td>分支票號</td><td>沒指定時，分支名稱裡有票號就用票號；設定了 Jira 的話，子票會往上併到母票（寫「母單」）</td></tr>
-      <tr><td>桌名裡的票號</td><td>桌名票號</td><td>分支沒票號時，桌名（<code>/rename</code> 或 <code>/office name</code>）裡有票號就用票號，例如在上層資料夾開的 session 取名 IT-123；一樣會往上併到母票</td></tr>
+      <tr><td>桌名裡的票號</td><td>桌名票號</td><td>沒指定時，桌名（<code>/rename</code> 或 <code>/office name</code>）裡有票號就用票號，例如取名「code review IT-123」；設定了 Jira 的話，子票會往上併到母票（寫「母單」）</td></tr>
+      <tr><td>分支裡的票號</td><td>分支票號</td><td>桌名沒票號時，分支名稱裡有票號就用票號；一樣會往上併到母票。排在桌名後面，因為同一個 repo 的分支會被別的 session 切走</td></tr>
       <tr><td>repo 名稱</td><td>repo</td><td>沒票號時用 git repo 的名字</td></tr>
       <tr><td>都沒有</td><td>未指定</td><td>不在 git 裡、桌名也沒票號的 session 不會有預設專案，公佈欄和同事清單先不顯示；按 ✎ 指定話題就有</td></tr>
     </tbody></table></div>

@@ -79,6 +79,8 @@ type Desk = {
   cap?: number | null
   /** Set when the last turn answered a teammate who came on its own (not one this session sent for): the desk does not call the person over. */
   relay?: string | null
+  /** The last report that asked the person to decide, kept until the person next speaks to this session: a later report (a teammate's errand) does not bury it. */
+  asked?: { report: string; at: number } | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
   ask: AskQuestion[] | null
   /** The context window's fill, as the status line shows it: the page draws it as the dog's health bar. */
@@ -124,7 +126,7 @@ function logEvent($: EngineInterface, ev: string, data: Record<string, unknown> 
 }
 
 // What a /clear leaves on the desk: the conversation's task, title and report go.
-const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null, relay: null }
+const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null, relay: null, asked: null }
 // A prompt the engine injected (a task notification, a system reminder, a
 // local command's output) is not something the person asked for.
 const isMetaPrompt = (text: string) => /^\s*</.test(text ?? '')
@@ -195,8 +197,10 @@ async function saveDesk($: EngineInterface) {
 }
 
 // The project a desk belongs to, in this order: the name the person typed, the
-// ticket key in the branch name (plain pattern, no Jira needed; the page rolls a
-// child ticket up to its parent when Jira is configured), else the repo. A folder
+// ticket key in the desk's name, the ticket key in the branch name (plain pattern,
+// no Jira needed; the page rolls a child ticket up to its parent when Jira is
+// configured), else the repo. The name goes before the branch: a checkout is shared,
+// and a review session sits on whatever branch another session switched it to. A folder
 // outside git gets none: its name (Documents, 桌面) is no project anyone meant.
 const TICKET_RE = /\b([A-Z][A-Z0-9]+-\d+)\b/
 async function repoOf($: EngineInterface, cwd: string): Promise<string | null> {
@@ -209,12 +213,12 @@ async function setProject($: EngineInterface) {
   if (!me) return
   const manual = (me.projectManual ?? '').trim()
   const ticket = TICKET_RE.exec(me.branch ?? '')?.[1] ?? null
-  // a session opened outside a ticket branch and named after the ticket (/rename IT-123)
+  // a session named after its ticket (/rename IT-123)
   const titled = TICKET_RE.exec(me.title ?? '')?.[1] ?? null
   const repo = manual || ticket || titled ? null : await repoOf($, me.cwd)
   const p: Partial<Desk> = manual ? { project: manual, projectBy: 'manual' }
-    : ticket ? { project: ticket, projectBy: 'ticket' }
     : titled ? { project: titled, projectBy: 'title' }
+    : ticket ? { project: ticket, projectBy: 'ticket' }
     : repo ? { project: repo, projectBy: 'repo' }
     : { project: null, projectBy: null }
   if (eventsReady && p.project !== me.project) logEvent($, 'project', { from: me.project ?? null, to: p.project, by: p.projectBy })
@@ -470,6 +474,8 @@ const DIALOG_WAIT_MS = 10_000
 let runningTurn: string | null = null
 let turnFrom: string | null = null          // the teammate whose message started the running turn; null when the person did
 const BOARD_WAKE_FROM = '公佈欄'            // turnFrom of a turn the bridge started for a new board card
+let toldLead = false                        // a member sent its lead a message in the running turn
+const NOTIFICATION_RE = /^\s*<task-notification>/
 const sentFor = new Set<string>()          // teammates this session messaged for the person: their replies are reported (kept until /clear)
 let pausing = false
 
@@ -736,11 +742,13 @@ You lead this project's team: you plan, give out the work and collect it. You do
 1. Plan with the user first. Break the goal into tasks with the office \`task\` tool: each a short one-line title (under 30 characters) and its role (實作 build / 驗收 verify / 查證 look up); the scope (including what not to touch) and when it is done go in your plan and in the dispatch, not in the title. A 卡住 reason is one short sentence: the page lists every stuck task in one line. Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
 2. Hire with the office \`hire\` tool: a name, the folder, and the dispatch. Only one member builds in a repo at a time, in the repo itself. Two builders in one repo at once need their own clones (\`clone: true\`), and a new clone stops at the "trust this folder" prompt until the user answers it in that tab: ask the user under \`## ${DECIDE_HEADING()}\` first and say which tab will wait. A dispatch states the role, the scope (what to do and what not to touch), when it is done, and that the member reports back to you. Give more work to a member you already have with SendMessage. A message that only acknowledges or thanks needs no reply: answering it starts a loop.
 3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it.
-4. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing them. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member.
+4. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing your last questions until the user speaks to you. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When a member needs the user to answer in its own session (an "allow" for a blocked command), list it with the member's name so the user knows which desk to answer.
 5. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user.
 6. When the project ends: in each member's clone, check that \`git status --porcelain\` is empty and nothing is unpushed (\`git log @{u}..\`), then move the clone to ~/.Trash; list any that is not clean for the user instead. Then tell your members to wrap up.`
+const MEMBER_REPORT = (lead: string) => `# Your reply (Session Office)
+The user does not read this reply: they follow the project through ${lead}. Anything for the user (a question, an approval, a push or MR to allow) goes to ${lead} with SendMessage, with its options; never write a \`## ${DECIDE_HEADING()}\` section here. A short plain reply is enough.`
 const MEMBER_CONTEXT = (project: string, lead: string) => `# Your role (Session Office): member of project "${project}", led by "${lead}"
-Your work comes from "${lead}" as a dispatch: a role (實作 build, 驗收 verify someone else's work, 查證 look up) and a scope. Stay in the scope; ask ${lead} before touching anything outside it. Keep your task current with the office \`task\` tool (進行中; 卡住 with the reason and who you wait on; 待驗收 once built). When you are done, stuck, or need a decision, tell ${lead} with SendMessage and post a short card on the board; ${lead} speaks to the user. Never verify work you built yourself. A message from ${lead} that only acknowledges needs no reply: answering it starts a loop.`
+Your work comes from "${lead}" as a dispatch: a role (實作 build, 驗收 verify someone else's work, 查證 look up) and a scope. Stay in the scope; ask ${lead} before touching anything outside it. Keep your task current with the office \`task\` tool (進行中; 卡住 with the reason and who you wait on; 待驗收 once built). When you are done, stuck, or need a decision, tell ${lead} with SendMessage and post a short card on the board; ${lead} speaks to the user. Never write a \`## ${DECIDE_HEADING()}\` section yourself: put the question, with its options, in your message to ${lead}. If only the user can answer it in your own session (an "allow" for a command auto mode blocked), say so in that message and wait. Never verify work you built yourself. A message from ${lead} that only acknowledges needs no reply: answering it starts a loop.`
 // opens a command in a new iTerm2 tab of the front window
 async function openTab($: EngineInterface, command: string): Promise<string | null> {
   const script = [
@@ -866,9 +874,10 @@ const tasksText = (t: { project: string; items: Task[] }) => !t.items.length ? `
 // (or the office) has its card archived. One list of the collection per round.
 async function syncBoards($: EngineInterface, desks: Desk[]) {
   const roots = new Map<string, string>()
-  for (const d of desks) { const r = rootOf(d.project); if (r) roots.set(d.id, r) }
-  // a desk that left its project (the name cleared, or /office project to none) loses its board file
-  for (const d of desks) if (!roots.has(d.id) && boardsWritten[d.id] !== undefined) { await $.process.run(['rm', '-f', boardFile(d.id)], { timeoutMs: 5000 }); delete boardsWritten[d.id] }
+  // boards are a team's: a desk working alone has none
+  for (const d of desks) { const r = d.role ? rootOf(d.project) : null; if (r) roots.set(d.id, r) }
+  // a desk off a team (or one this bridge has not checked yet) loses its board file; '' marks it removed
+  for (const d of desks) if (!roots.has(d.id) && boardsWritten[d.id] !== '') { await $.process.run(['rm', '-f', boardFile(d.id)], { timeoutMs: 5000 }); boardsWritten[d.id] = '' }
   if (!roots.size) return
   const boards: Record<string, { version?: number; notes: Note[] }> = {}
   for (const doc of docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: BOARDS, query: { limit: 200 } }))) {
@@ -1586,7 +1595,9 @@ export const register: Register = on => {
   let boardShown = ''
   on('prompt.submit', async ($, e, next) => {
     seen('prompt.submit')
-    const context = [...(e.context ?? []), REPORT_FORMAT()]
+    // a member's reply to its lead, a board card or its own background work is read by no one: no report format, which would ask the person
+    const memberErrand = me?.role === 'member' && !!me.lead && (teammateOf(e.text) !== null || boardWakeOf(e.text) !== null || NOTIFICATION_RE.test(e.text ?? ''))
+    const context = [...(e.context ?? []), memberErrand ? MEMBER_REPORT(me!.lead!) : REPORT_FORMAT()]
     if (me) {
       try {
         const raw = await $.fs.read(boardFile(me.id))
@@ -1655,6 +1666,7 @@ export const register: Register = on => {
           // the desk's own choice beats CLAUDE_OFFICE_PROJECT: that is only the topic the session was opened with,
           // and it stays in the environment, so it would undo a later /office project on every reload
           if (prev.projectManual !== undefined) me.projectManual = prev.projectManual
+          if (prev.asked) me.asked = prev.asked
           // the environment carries the role only in the process that was opened with it (a model switch starts another)
           if (!me.role && prev.role) Object.assign(me, { role: prev.role, lead: prev.lead ?? null, cap: prev.cap ?? null })
           // and what the page shows: the task, and a report still waiting for you
@@ -1793,7 +1805,7 @@ export const register: Register = on => {
   })
   on('tool.call', { tool: 'mcp__office__task' }, async ($, e) => {
     if (!me) return { deny: 'This session has no desk in Session Office.' }
-    if (!me.project) return { deny: 'This desk has no project, so there is no task list; the user can set a topic with `/office project <name>`.' }
+    if (!me.role || !me.project) return { deny: 'The task list is for project teams; this session works alone.' }
     const a = e as unknown as Partial<TaskOp> & { action?: string }
     if (a.action === 'list') {
       try { return { result: tasksText(JSON.parse(await $.fs.read(taskFile(me.id)))) } } catch { return { result: 'No task list yet for this desk (the bridge has not synced it).' } }
@@ -1814,7 +1826,8 @@ export const register: Register = on => {
     const { action, text, include_archived } = e as unknown as { action?: string; text?: string; include_archived?: boolean }
     let board: { project: string; notes: Note[] } | null = null
     try { board = JSON.parse(await $.fs.read(boardFile(me.id))) } catch { /* not synced yet */ }
-    const noProject = 'This desk has no project (the folder is not in git), so there is no board; the user can set a topic with `/office project <name>`.'
+    if (!me.role) return { deny: 'The board is for project teams; this session works alone.' }
+    const noProject = 'This desk has no project, so there is no board.'
     const name = board?.project ?? rootOf(me.project) ?? 'this project'
     if (action === 'post') {
       const note = String(text ?? '').trim().slice(0, 1000)
@@ -1923,9 +1936,12 @@ export const register: Register = on => {
     if (e.agentId === undefined) seen('turn.start')
     const mate = e.agentId === undefined ? teammateOf(e.text) : null
     let stopNow = false
-    if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? (boardWakeOf(e.text) !== null ? BOARD_WAKE_FROM : null) }
+    // a background task's notification carries on for whoever started the task
+    if (e.agentId === undefined) { runningTurn = e.turnId; toldLead = false; if (!NOTIFICATION_RE.test(e.text ?? '')) turnFrom = mate?.name ?? (boardWakeOf(e.text) !== null ? BOARD_WAKE_FROM : null) }
     if (e.agentId === undefined && me) {
       const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null, relay: null }
+      // the person speaks to it again: its open questions are answered, or listed again at the end of this turn
+      if (turnFrom === null && !NOTIFICATION_RE.test(e.text ?? '')) p.asked = null
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
         p.delivery = { at: pendingInstruction.at, state: 'delivered' }
         if (abortNextFor === pendingInstruction.at) stopNow = true    // paused from the page before it started
@@ -1960,9 +1976,11 @@ export const register: Register = on => {
   on('tool.call', async ($, e, next) => {
     if (e.agentId !== undefined || !me) return next(e)
     // work sent out on the person's behalf (or passed on while gathering it): the reply comes back here to be reported
-    if (e.tool === 'SendMessage' && (turnFrom === null || sentFor.has(turnFrom))) {
+    if (e.tool === 'SendMessage') {
       const to = String((e as unknown as { to?: unknown }).to ?? '').replace(/\s*\[[^\]]*\]\s*$/, '').trim()
-      if (to) sentFor.add(to)
+      if (me.role === 'member' && to === me.lead) toldLead = true
+      // in a team the lead speaks to the user: a teammate's reply is never the person's errand
+      else if (to && !me.role && (turnFrom === null || sentFor.has(turnFrom))) sentFor.add(to)
     }
     if (e.tool === 'AskUserQuestion') {
       // The model asks the person to choose. The dog brings the question to the
@@ -1999,9 +2017,15 @@ export const register: Register = on => {
         const at = Date.now()
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
         // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
-        const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && !DECIDE_RE.test(e.answer ?? '') ? turnFrom : null
-        if (relay) patch($, { state: 'idle', activity: relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
-        else patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        const asks = DECIDE_RE.test(e.answer ?? '') && !(me.role === 'member' && toldLead)
+        // a member never calls the person over from a turn they did not start: the lead speaks to them, and a
+        // question the member left here instead shows in the project overview
+        const quietMember = me.role === 'member' && turnFrom !== null
+        const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && (!asks || quietMember) ? turnFrom : null
+        const asked = asks ? { asked: { report, at } } : {}   // a member's question went to its lead, not to the person
+        // with questions to the person still open it stays waiting at their desk; only a desk with nothing to ask goes back to rest
+        if (relay && (!me.asked || quietMember)) patch($, { ...asked, state: 'idle', activity: asks ? '有問題沒交給組長' : relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        else patch($, { ...asked, state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         // the Stop settings hook writes what is still running a moment later
         $.clock.after(1500, () => { void checkBackground($, at) })
       }
