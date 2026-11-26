@@ -712,8 +712,16 @@
       : innerHeight - (box.getBoundingClientRect().top + scrollY) - border - parseFloat(getComputedStyle(box.closest('.wrap')).paddingBottom);
     FIT_ROWS = COLS > MIN_COLS ? Math.max(MIN_ROWS, Math.floor(room / (TILE * k) * 4) / 4) : MIN_ROWS;
   }
+  // the page was frozen (Mac asleep, tab hidden) or could not hear the bridge: the seen times are old because
+  // nothing refreshed them, not because the sessions ended, so the desks already on the floor stay put
+  // until the heartbeats have had time to come back, instead of walking out and straight back in
+  let lastLayoutAt = 0, holdUntil = 0;
   function layout() {
-    const list = [...desks.values()].filter(d => liveness(d) !== 'gone').sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
+    const t = now();
+    if ((lastLayoutAt && t - lastLayoutAt > STALE_MS) || !navigator.onLine || linkState !== 'ok' || (bridgeSeenAt && t - bridgeSeenAt > STALE_MS)) holdUntil = t + 2 * 60 * 1000;
+    lastLayoutAt = t;
+    const held = d => t < holdUntil && d.state !== 'gone' && actors.has(d.id) && !actors.get(d.id).leaving;
+    const list = [...desks.values()].filter(d => liveness(d) !== 'gone' || held(d)).sort((a, b) => (a.startedAt || 0) - (b.startedAt || 0));
     // seat numbers come from the bridge (`seat`, fixed per session); a desk that
     // has none yet takes the lowest free number until the bridge assigns one
     const used = new Set(list.filter(d => d.seat).map(d => d.seat));
@@ -776,7 +784,17 @@
           a.x = L.entry.spawnX - behind * TILE * 1.2; a.y = L.entry.corrY; a.arriving = true; a.target = { x: s.seatX, y: s.seatY }; a.path = entryPath(s, L);
         }
       }
-      delete a.leaving;
+      if (a.leaving) {
+        // back before it was out of sight: retrace the steps it took to its seat, then carry on from there
+        // (a path planned from the corridor would cut through the walls)
+        const isSeat = p => Math.abs(p.x - s.seatX) < 2 && Math.abs(p.y - s.seatY) < 2, full = a.exitFull || [];
+        const passed = full.slice(0, full.length - a.path.length).reverse(), i = passed.findIndex(isSeat), j = a.path.findIndex(isSeat);
+        const b = s.bench, endX = s.seatX > (b.xStart + b.xEnd) / 2 ? b.xEnd + TILE * 0.5 : b.xStart - TILE * 0.5;
+        a.path = i >= 0 ? passed.slice(0, i + 1) : j >= 0 ? a.path.slice(0, j + 1)
+          : a.y > L.entry.floorBottom ? entryPath(s, L) : [{ x: endX, y: a.y }, { x: endX, y: s.seatY }, { x: s.seatX, y: s.seatY }];
+        a.arriving = true; a.target = { x: s.seatX, y: s.seatY };
+        delete a.leaving; delete a.exitFull;
+      }
       if (a.arriving) { if (a.path.length) { a.slot = s; a.atBoss = false; a.queue = -1; return; } delete a.arriving; }
       const qi = waiting.indexOf(s);
       // three wait inside your office in a row in front of the desk; the rest line up outside the door
@@ -822,7 +840,7 @@
       if (seen.has(id) || a.leaving) continue;
       if (reduced || !a.slot) { actors.delete(id); continue; }
       a.leaving = true; a.atBoss = false; a.queue = -1; delete a.queueNo;
-      a.path = exitPath(a, L); delete a.arriving;
+      a.path = exitPath(a, L); a.exitFull = a.path.slice(); delete a.arriving;
     }
     for (const [id, a] of actors) if (a.leaving && !a.path.length) actors.delete(id);
   }
