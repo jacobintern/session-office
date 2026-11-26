@@ -64,7 +64,8 @@
 1. ✅ 主動通知：有人貼卡或回報時，叫醒同專案閒著的 session（73f36f5）。
 2. ✅ 任務清單（`tasks`，office 的 `task` 工具）＋專案總覽（卡在哪、等誰、幾件要你決定）。
 3. ✅ 「新開」表單的單人／專案模式、組長與成員的規則（mod 依角色注入）、`hire` 工具開成員（上限）、需要時的 clone 與收尾清理。
-4. Ventem 專屬的那層放進你的個人 skill；全域 CLAUDE.md「不開 worktree」加上小組 clone 的例外。
+4. ~~Ventem 專屬的那層放進個人 skill~~ 不做（11-26）：`Ventem_Projects/CLAUDE.md` 已強制叫 Ventem skill，成員開工時自己會載入；小組 clone 的「不開 worktree」例外等真的用到 clone 再補。
+5. ✅ 組長轉達的 push／開 MR 核准：全域 CLAUDE.md 加例外（附使用者回覆原文、只限寫明的 repo／分支／MR），組長與成員規則同步。
 
 ## 放哪裡
 
