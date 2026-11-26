@@ -229,6 +229,14 @@
   #t-form textarea, #u-form textarea, #c-form textarea { flex-basis: 100%; }
   #c-form .cwd { display: flex; align-items: center; gap: 6px; flex-basis: 100%; min-width: 0; font-size: .8rem; color: var(--muted); }
   #c-form .cwd input { flex: 1; min-width: 0; font: inherit; font-family: var(--mono); font-size: .8rem; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+  .evfilter { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); margin-bottom: 8px; }
+  .evfilter select { font: inherit; padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); max-width: 100%; }
+  .evlist .ev { display: grid; grid-template-columns: auto minmax(0, 9em) 1fr; gap: 10px; padding: 4px 0; border-bottom: 1px solid var(--line); font-size: .85rem; }
+  .evlist .ev .t { font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+  .evlist .ev .who { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .evlist .ev .what { min-width: 0; overflow-wrap: anywhere; }
+  .evlist .ev.bad .what { color: #c0392b; font-weight: 600; }
+  @media (max-width: 860px) { .evlist .ev { grid-template-columns: auto 1fr; } .evlist .ev .what { grid-column: 1 / -1; } .evfilter select { font-size: 16px; } }
   .tq .cxs { display: flex; align-items: center; gap: 8px; font-size: .78rem; color: var(--muted); }
   .tq .cxs button { font: inherit; font-size: .75rem; background: none; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); padding: 2px 8px; cursor: pointer; }
   @media (max-width: 700px) { .tpair { grid-template-columns: 1fr; } .tpair .src { grid-row: auto; } }
@@ -333,7 +341,7 @@
     .panel header { padding-top: max(14px, env(safe-area-inset-top, 0px)); }
     .panel .close { display: none; }
     .panel .reply { padding-bottom: 12px; }
-    #t-hint, #u-hint, #c-hint { display: none; }
+    #t-hint, #u-hint, #c-hint, #e-hint { display: none; }
     /* nothing in a window may push it sideways: the column never grows past the screen, and a wide table scrolls on its own */
     .panel .body { grid-template-columns: minmax(0, 1fr); overflow-x: hidden; }
     .report table { display: block; max-width: 100%; overflow-x: auto; }
@@ -450,6 +458,17 @@
       <button type="button" class="panel-back" id="c-back">‹ 回清單</button>
     </div>
   </div>
+
+  <div class="modal" id="eventsq" hidden>
+    <div class="panel" role="dialog" aria-modal="true" aria-labelledby="e-title">
+      <header><span class="label" id="e-title">警衛：最近事件</span><span class="meta" id="e-hint">每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log</span><button type="button" class="close" id="e-close" aria-label="關閉">×</button></header>
+      <div class="body">
+        <label class="evfilter"><span id="e-filter-label">只看</span><select id="e-filter"></select></label>
+        <div class="evlist" id="e-list"></div>
+      </div>
+      <button type="button" class="panel-back" id="e-back">‹ 回清單</button>
+    </div>
+  </div>
   </main>
 
   <aside class="feed" id="feed" aria-label="Jira">
@@ -527,7 +546,7 @@
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
       analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）', analystAsk: '問分析師',
-      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
+      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', evGuard: '警衛', evTitle: '警衛：最近事件', evHint: '每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log', evFilter: '只看', evAll: '全部 session', evEmpty: '還沒有事件。橋接會把 ~/.claude/office/events.log 最近 100 筆同步到這裡。', evLoad: '重新載入：專案 {p}', evNoProject: '重新載入：沒有專案', evInstr: '收到指令「{x}」', evState: '{a} → {b}', evProject: '專案 {a} → {b}', evFailed: '指令沒送到：{x}', evNone: '（無）', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
       anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
@@ -575,7 +594,7 @@
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
       analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (Enter sends, Shift+Enter for a new line)', analystAsk: 'Ask',
-      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
+      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', evGuard: 'Guard', evTitle: 'Guard: recent events', evHint: "Each session's loads, instructions taken, state and project changes; the full log is ~/.claude/office/events.log on this Mac", evFilter: 'Show', evAll: 'All sessions', evEmpty: 'No events yet. The bridge copies the last 100 lines of ~/.claude/office/events.log here.', evLoad: 'Reloaded: project {p}', evNoProject: 'Reloaded: no project', evInstr: 'Took the instruction “{x}”', evState: '{a} → {b}', evProject: 'Project {a} → {b}', evFailed: 'Instruction not delivered: {x}', evNone: '(none)', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
       anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
       anUsed: '- {label}: {p}% used', anResets: ' (resets {when})', anAvg: ', {a}% an hour on average this window', anRecent: ' (last hour: {r}%)', anEta: ', at the average rate runs out **at {when}** ({early} before the reset)', anSafe: ', at the average rate lasts until the reset at about {q}%', anIdle: ', nothing used this window yet', anFew: ', the window just started; no forecast yet', anResetNow: '- {label}: reset',
       anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
@@ -634,6 +653,7 @@
     set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
     set('#u-title', 'analyst'); set('#u-hint', 'analystHint'); set('#u-text', 'analystPh', 'placeholder'); set('#u-go', 'analystAsk'); set('#u-stop', 'tutorStop');
     set('#c-title', 'cxTitle'); set('#c-hint', 'cxHint'); set('#c-text', 'cxPh', 'placeholder'); set('#c-go', 'cxTitle'); set('#c-new', 'cxNew'); set('#c-cwd-label', 'cxCwd');
+    set('#e-title', 'evTitle'); set('#e-hint', 'evHint'); set('#e-filter-label', 'evFilter');
     set('#j-title', 'jiraTitle'); set('#j-meta', 'notSynced'); set('#j-groups .none', 'jiraWait', 'innerHTML');
   }
   applyStatic();
@@ -1295,10 +1315,11 @@
   const CODEX_SHEET = sheets.push({ im: load('chars/k00.png'), y: 0 }) - 1; // Codex, your secretary
   const TUTOR_SHEET = 1 + 91 + 128; // the blonde teacher in the school pack: your English tutor, never a session
   const ANALYST_SHEET = 1 + 91 + 130; // also from the school pack: the usage analyst beside her, never a session
+  const GUARD_SHEET = 1 + 91 + 134 + 35; // the first soldier: the guard at the entrance who keeps the event log, never a session
   // Enemy sheets 14-29 are orbs whose back view is a plain ball: seated in the lower
   // row (back to us) they would read as an empty seat, so such a draw is drawn again
   const ORB_FIRST = 1 + 91 + 134 + 14, ORB_LAST = ORB_FIRST + 15;
-  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; (k >= ORB_FIRST && k <= ORB_LAST) || k === TUTOR_SHEET || k === ANALYST_SHEET; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
+  const charOf = id => { let k = 1 + (hash(id) >>> 3) % POOL_SIZE; for (let n = 1; (k >= ORB_FIRST && k <= ORB_LAST) || k === TUTOR_SHEET || k === ANALYST_SHEET || k === GUARD_SHEET; n++) k = 1 + (hash(id + '#' + n) >>> 3) % POOL_SIZE; return k; };
   function drawSprite(sheet, dir, col, x, feetY) {
     const { im, y: y0 } = sheets[sheet];
     if (!im || !im.complete || !im.naturalWidth) { px(x - 10, feetY - 44, 20, 44, 'rgba(0,0,0,.08)'); return; }
@@ -1462,6 +1483,9 @@
     const bossY = L.boss.y - TILE * 0.85;
     bossAt = { x: L.boss.x, y: bossY };
     items.push({ y: bossY + 12, draw: () => drawBoss(bossAt) });
+    // the guard stands just right of the entrance, off the path the arrivals take
+    guardAt = { x: L.entry.doorX + TILE * 1.3, y: L.entry.corrY - 12 };
+    items.push({ y: guardAt.y + 12, draw: () => drawGuard(guardAt) });
     codexAt = { x: TILE * 2.3, y: L.boss.y - TILE * 0.85 };
     if (officeCfg?.codex === false) codexAt = { x: -999, y: -999 };   // config.json turned the Codex secretary off
     else items.push({ y: codexAt.y + 12, draw: () => drawCodex(codexAt) });
@@ -1506,7 +1530,7 @@
 
   // Codex, the secretary standing beside you: its account limits come from the bridge
   // (meta/codex, read from Codex's own rollout logs, so they move only when Codex is used).
-  let codex = null, codexAt = { x: 0, y: 0 }, codexOpenUntil = 0;
+  let codex = null, codexAt = { x: 0, y: 0 }, codexOpenUntil = 0, guardAt = { x: -999, y: -999 }, eventsDoc = null;
   // Clicking yourself shows what is left of your own 5-hour and weekly limits and when each resets.
   let bossAt = { x: -999, y: -999 }, bossOpenUntil = 0;
   // The English tutor sits at her own desk below your office (her popup is further down).
@@ -1551,6 +1575,14 @@
   }
   const codexHit = ev => npcHit(ev, codexAt), bossHit = ev => npcHit(ev, bossAt), tutorHit = ev => npcHit(ev, tutorAt) || npcHit(ev, { x: tutorDesk.x, y: tutorDesk.y + 20 });
   const analystHit = ev => npcHit(ev, analystAt) || npcHit(ev, { x: analystDesk.x, y: analystDesk.y + 20 });
+  const guardHit = ev => npcHit(ev, guardAt);
+  // a delivery that failed in the last half hour turns his name tag red
+  const guardAlarm = () => (eventsDoc?.items || []).some(e => e.ev === 'delivery-failed' && Date.now() - Date.parse(e.t) < 30 * 60 * 1000);
+  function drawGuard(a) {
+    px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
+    drawSprite(GUARD_SHEET, 'down', 1, a.x, a.y + 12);
+    nameTag(a.x, a.y - 48, tt('evGuard'), guardAlarm() ? LOST_RED : css('--idle'));
+  }
   function drawAnalyst(a) {
     px(a.x - 12, a.y + 10, 24, 4, 'rgba(0,0,0,.18)');
     drawSprite(ANALYST_SHEET, 'down', 1, a.x, a.y + 12);
@@ -1674,7 +1706,7 @@
     parts.push(usage);
     // the tutor and the analyst have no desk to tap on a phone: two buttons open their panels
     const npcs = document.createElement('div'); npcs.className = 'pnpcs';
-    for (const [show, label, open] of [[officeCfg?.codex !== false, tt('cxTitle'), () => openCodex()], [officeCfg?.tutor !== false, tt('tutor'), () => openTutor()], [officeCfg?.analyst !== false, tt('analyst'), () => openAnalyst()]]) {
+    for (const [show, label, open] of [[officeCfg?.codex !== false, tt('cxTitle'), () => openCodex()], [officeCfg?.tutor !== false, tt('tutor'), () => openTutor()], [officeCfg?.analyst !== false, tt('analyst'), () => openAnalyst()], [true, tt('evGuard'), () => openEvents()]]) {
       if (!show) continue;
       const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.addEventListener('click', open); npcs.append(btn);
     }
@@ -2715,6 +2747,47 @@
     } catch (e) { console.warn('codex ask failed', e); cState.hidden = false; cState.textContent = tt('cxFailed', { e: String(e?.message || e) }); }
     finally { cGo.disabled = false; }
   });
+  // ---- the guard's event log: meta/events holds the last 100 lines of ~/.claude/office/events.log, newest first ----
+  const eventsq = document.getElementById('eventsq'), eList = document.getElementById('e-list'), eFilter = document.getElementById('e-filter');
+  function openEvents() { eventsq.hidden = false; renderEvents(); }
+  function closeEvents() { eventsq.hidden = true; }
+  document.getElementById('e-close').addEventListener('click', closeEvents);
+  document.getElementById('e-back').addEventListener('click', closeEvents);
+  closeOnBackdrop(eventsq, closeEvents);
+  document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && !eventsq.hidden) closeEvents(); });
+  eFilter.addEventListener('change', () => renderEvents());
+  const EV_STATE = { working: 'working', reporting: 'reporting', idle: 'idle', gone: 'gone' };
+  function eventText(e) {
+    const st = v => EV_STATE[v] ? tt(EV_STATE[v]) : String(v ?? tt('evNone'));
+    const by = { manual: tt('projectByManual'), ticket: tt('projectByTicket'), title: tt('projectByTitle'), repo: tt('projectByRepo') };
+    if (e.ev === 'load') return e.project ? tt('evLoad', { p: e.project + (by[e.projectBy] ? `（${by[e.projectBy]}）` : '') }) : tt('evNoProject');
+    if (e.ev === 'instruction') return tt('evInstr', { x: e.text || '' });
+    if (e.ev === 'state') return tt('evState', { a: st(e.from), b: st(e.to) }) + (e.activity ? `（${e.activity}）` : '');
+    if (e.ev === 'project') return tt('evProject', { a: e.from || tt('evNone'), b: e.to || tt('evNone') });
+    if (e.ev === 'delivery-failed') return tt('evFailed', { x: e.reason || '' });
+    return e.ev;
+  }
+  function renderEvents() {
+    if (eventsq.hidden) return;
+    const items = eventsDoc?.items || [];
+    // the filter lists every session in the log, by its latest name
+    const names = new Map();
+    for (const e of items) if (e.id && !names.has(e.id)) names.set(e.id, e.title || e.id);
+    const keep = eFilter.value;
+    eFilter.replaceChildren(...[['', tt('evAll')], ...names].map(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; return o; }));
+    eFilter.value = names.has(keep) ? keep : '';
+    const shown = items.filter(e => !eFilter.value || e.id === eFilter.value);
+    if (!shown.length) { const e = document.createElement('div'); e.className = 'sent'; e.textContent = tt('evEmpty'); eList.replaceChildren(e); return; }
+    const today = new Date().toDateString();
+    eList.replaceChildren(...shown.map(e => {
+      const row = document.createElement('div'); row.className = 'ev' + (e.ev === 'delivery-failed' ? ' bad' : '');
+      const d = new Date(e.t), t = document.createElement('span'); t.className = 't';
+      t.textContent = (d.toDateString() === today ? '' : `${d.getMonth() + 1}/${d.getDate()} `) + d.toLocaleTimeString(LANG === 'zh' ? 'zh-TW' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+      const who = document.createElement('span'); who.className = 'who'; who.textContent = e.title || e.id || ''; who.title = who.textContent;
+      const what = document.createElement('span'); what.className = 'what'; what.textContent = eventText(e);
+      row.append(t, who, what); return row;
+    }));
+  }
   // Bridge liveness: the bridge session writes meta/bridge every ~10 s.
   let bridgeSeenAt = 0;
   const bannerEl = document.getElementById('banner');
@@ -2770,7 +2843,7 @@
     }
     return best;
   }
-  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || bossHit(ev) || tutorHit(ev) || analystHit(ev)); });
+  canvas.addEventListener('pointermove', ev => { const a = actorAt(ev) || bubbleAt(ev); hover = a ? a.slot.d.id : null; canvas.classList.toggle('hit', !!a || codexHit(ev) || bossHit(ev) || tutorHit(ev) || analystHit(ev) || guardHit(ev)); });
   canvas.addEventListener('pointerleave', () => { hover = null; });
   // Clicking a worker (or its bubble) opens the full report with the reply box.
   const speak = {};
@@ -2779,6 +2852,7 @@
     if (bossHit(ev)) { bossOpenUntil = bossOpenUntil > Date.now() ? 0 : Date.now() + 10_000; codexOpenUntil = 0; return; }
     if (tutorHit(ev)) { openTutor(); return; }
     if (analystHit(ev)) { openAnalyst(); return; }
+    if (guardHit(ev)) { openEvents(); return; }
     const a = actorAt(ev) || bubbleAt(ev); if (!a) return;
     openModal(a.slot.d.id);
   });
@@ -2895,6 +2969,7 @@
     const d = db, sub = (ref, name, onNext) => unsubs.push(ref.onSnapshot(snap => { if (!snap.metadata || !snap.metadata.fromCache) linkUp(); onNext(snap); }, e => onLinkError(name, e)));
     sub(d.doc('meta/jira'), 'jira doc', snap => { jira = snap.exists && !DEMO ? snap.data() : null; if (!snap.exists) jMeta.textContent = tt('notSynced'); renderJira(); });
     sub(d.doc('meta/codex'), 'codex doc', snap => { codex = snap.exists ? snap.data() : null; renderCodex(); });
+    sub(d.doc('meta/events'), 'events doc', snap => { eventsDoc = snap.exists ? snap.data() : null; renderEvents(); });
     if (officeCfg?.codex !== false) sub(d.collection('codexAsks').orderBy('at', 'desc').limit(20), 'codex asks', snap => { cxAsks = snap.docs.filter(x => x.exists).map(x => ({ id: x.id, ...x.data() })); renderCodex(); });
     sub(d.doc('meta/usage'), 'usage doc', snap => { usageDoc = snap.exists ? snap.data() : null; if (!analyst.hidden) renderAnalyst(); });
     sub(d.doc('meta/config'), 'config doc', snap => { officeCfg = snap.exists ? snap.data() : null; applyConfig(); });

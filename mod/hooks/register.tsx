@@ -847,6 +847,16 @@ async function openRequestedSessions($: EngineInterface) {
 // Writes one document of `meta`, pinned to the version we last saw so two
 // bridges cannot clobber each other; a refused write re-reads the doc and retries once.
 const metaVersions: Record<string, number | undefined> = {}
+// the guard on the page: the last 100 lines of the event log, newest first, written only when they changed
+let eventsSynced = ''
+async function syncEvents($: EngineInterface) {
+  const ran = await $.process.run(['sh', '-c', '[ -f "$1" ] && tail -n 100 "$1"', 'sh', eventsPath()], { timeoutMs: 5000 }).catch(() => null)
+  const text = ran?.stdout ?? ''
+  if (!text || text === eventsSynced) return
+  const items = text.trim().split('\n').flatMap(l => { try { return [JSON.parse(l) as Record<string, unknown>] } catch { return [] } }).reverse()
+  await putMeta($, 'events', { items, at: Date.now() })
+  eventsSynced = text
+}
 async function putMeta($: EngineInterface, docId: string, data: Record<string, unknown>) {
   const write = async () => {
     const v = metaVersions[docId]
@@ -1148,6 +1158,7 @@ async function bridgeTick($: EngineInterface) {
     if (tickCount === 3 || tickCount % 2 === 0) await syncCodex($, tickCount === 3 || tickCount % CODEX_EVERY === 0)
     if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), filesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
     if (tickCount % 2 === 0) { lastTick.note = '問 Codex'; await serveCodexAsks($) }
+    if (tickCount % 2 === 1) { lastTick.note = '同步事件'; await syncEvents($) }
     if (tickCount % (JIRA_EVERY * 30) === 0 && cfg.codex !== false) await pruneCodexAsks($)
     // a line appended between the read and the rename is lost; rare enough for a log
     if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['sh', '-c', 'f="$1"; [ -f "$f" ] || exit 0; awk -v c="$2" \'substr($0, 7, 24) >= c\' "$f" > "$f.tmp" && mv "$f.tmp" "$f"', 'sh', eventsPath(), new Date(Date.now() - 7 * 86_400_000).toISOString()], { timeoutMs: 10000 }).catch(() => {})
