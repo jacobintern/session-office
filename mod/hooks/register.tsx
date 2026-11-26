@@ -716,6 +716,71 @@ async function writeBoard($: EngineInterface, root: string, b: { version?: numbe
   return true
 }
 
+// ---- tasks: each project's task list, one `tasks` document per project like its board. A session changes it with
+// the office `task` tool: the change waits in tasks/posts/ and the bridge applies it in order, numbering new tasks,
+// then copies the list to tasks/<desk>.json for the tool to read. The page's project overview is built from it.
+const TASKS = 'tasks'
+const TASK_STATUS = ['待派', '進行中', '卡住', '待驗收', '完成']
+const TASK_ROLES = ['實作', '驗收', '查證']
+type Task = { no: number; title: string; role: string | null; owner: string | null; status: string; reason: string | null; waiting: string | null; at: number; by: string }
+type TaskOp = { desk: string; by: string; at: number; action: 'add' | 'update'; no?: number; title?: string; role?: string; owner?: string; status?: string; reason?: string; waiting?: string }
+const tasksDir = () => `${home}/.claude/office/tasks`
+const taskPostDir = () => `${tasksDir()}/posts`
+const taskFile = (id: string) => `${tasksDir()}/${id}.json`
+const tasksWritten: Record<string, string> = {}
+async function syncTasks($: EngineInterface, desks: Desk[]) {
+  const roots = new Map<string, string>()
+  for (const d of desks) { const r = rootOf(d.project); if (r) roots.set(d.id, r) }
+  const lists: Record<string, { version?: number; items: Task[] }> = {}
+  for (const doc of docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: TASKS, query: { limit: 200 } }))) {
+    if (typeof doc.data.project === 'string') lists[doc.data.project] = { version: doc.version, items: Array.isArray(doc.data.items) ? (doc.data.items as Task[]) : [] }
+  }
+  let posts: string[] = []
+  try { posts = (await $.process.run(['ls', taskPostDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(f => f.endsWith('.json')) } catch { /* none yet */ }
+  const ops: { path: string; op: TaskOp }[] = []
+  for (const f of posts) { const path = `${taskPostDir()}/${f}`; try { ops.push({ path, op: JSON.parse(await $.fs.read(path)) as TaskOp }) } catch { /* half-written; next round */ } }
+  for (const { path, op } of ops.sort((a, b) => a.op.at - b.op.at)) {
+    const root = roots.get(op.desk)
+    if (root) {
+      const l = lists[root] ?? { items: [] }
+      const pick = (k: keyof TaskOp) => typeof op[k] === 'string' ? (op[k] as string).trim().slice(0, 300) || null : undefined
+      let items = l.items, no = op.no ?? 0
+      if (op.action === 'add') {
+        no = items.reduce((m, t) => Math.max(m, t.no), 0) + 1
+        const owner = pick('owner') ?? null
+        items = [...items, { no, title: pick('title') ?? '(untitled)', role: pick('role') ?? null, owner, status: pick('status') ?? (owner ? '進行中' : '待派'), reason: pick('reason') ?? null, waiting: pick('waiting') ?? null, at: op.at, by: op.by }]
+      } else {
+        items = items.map(t => {
+          if (t.no !== op.no) return t
+          const u: Task = { ...t, at: op.at, by: op.by }
+          for (const k of ['title', 'role', 'owner', 'status', 'reason', 'waiting'] as const) { const v = pick(k); if (v !== undefined) (u as Record<string, unknown>)[k] = v }
+          // a task that is no longer stuck drops its reason
+          if (u.status !== '卡住' && pick('reason') === undefined) { u.reason = null; u.waiting = null }
+          return u
+        })
+      }
+      const data = { project: root, items }
+      const wrote = l.version === undefined
+        ? await $.tool.call({ tool: 'ArtifactData', action: 'set', url: OFFICE_URL, collection: TASKS, doc_id: boardId(root), data })
+        : await $.tool.call({ tool: 'ArtifactData', action: 'update', url: OFFICE_URL, collection: TASKS, doc_id: boardId(root), data, if_version: l.version })
+      if (!wroteOk(wrote)) { report($, `tasks for ${root} not written: ${JSON.stringify(wrote).slice(0, 160)}`); continue }
+      const m = /"version"\s*:\s*(\d+)|version (\d+)/.exec(JSON.stringify(wrote))
+      lists[root] = { version: Number(m?.[1] ?? m?.[2]), items }
+      const t = items.find(x => x.no === no)
+      logEvent($, 'task', { project: root, no, title: t?.title ?? null, status: t?.status ?? null, by: op.by })
+    }
+    await $.process.run(['rm', '-f', path], { timeoutMs: 5000 })
+  }
+  for (const [deskId, root] of roots) {
+    const body = JSON.stringify({ project: root, items: lists[root]?.items ?? [] })
+    if (tasksWritten[deskId] === body) continue
+    await $.fs.write(taskFile(deskId), body)
+    tasksWritten[deskId] = body
+  }
+}
+const tasksText = (t: { project: string; items: Task[] }) => !t.items.length ? `${t.project} has no tasks yet.`
+  : `Tasks of ${t.project}:\n` + t.items.map(x => `#${x.no} [${x.status}] ${x.title}${x.role ? ` · ${x.role}` : ''}${x.owner ? ` · ${x.owner}` : ''}${x.status === '卡住' ? ` · stuck: ${x.reason ?? '?'} (waiting on ${x.waiting ?? '?'})` : ''}`).join('\n')
+
 // Each desk gets a file with its project's board; a post by a session replaces
 // that session's card on the board document, and a desk that left the project
 // (or the office) has its card archived. One list of the collection per round.
@@ -969,7 +1034,7 @@ const TEAMMATE_RE = /<cross-session-message\b[^>]*\bfrom-name="([^"]*)"[^>]*>\s*
 const teammateOf = (text: string) => { const m = TEAMMATE_RE.exec(text ?? ''); return m?.[1] ? { name: m[1], body: m[2] ?? '' } : null }
 const RELAY_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis message is from the teammate session "${name}", not from the user. Do what it asks, then send your answer back to "${name}" with SendMessage. The text you end this turn with is not shown to the user as a report, so it should not be the only place the answer lives. Add a \`## ${DECIDE_HEADING()}\` section only for what the user must approve in person in this session (opening, closing or merging an MR, a destructive step, spending money, a permission); that is the only thing that calls the user over.`
 const COMMANDER_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis is a reply from "${name}", a teammate you sent work to on the user's behalf. You report to the user: put the teammates' answers together for them, and say who you are still waiting on, if anyone.`
-const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: a numbered list (\`1.\` \`2.\` \`3.\`, never \`-\` bullets), one item per number with the question, the options labelled (a) (b) (c) and your recommendation, at most 3 items, so the user can answer by number and letter ("1. a 2. b"). Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
+const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer now, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: a numbered list (\`1.\` \`2.\` \`3.\`, never \`-\` bullets), one item per number with the question, the options labelled (a) (b) (c) and your recommendation, at most 5 items, so the user can answer by number with a letter or free text ("1. a 2. <a sentence>"). Only the numbered items need a reply; anything the user must do but cannot answer yet (waiting on a review or someone else) stays out of this section, as a to-do the user need not reply to. An item the user skips is still open: list it again at the next wrap-up, do not chase it. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
 
 // Codex: every Codex call logs the account's limits in its rollout file
 // (~/.codex/sessions/**/rollout-*.jsonl, a token_count event). The bridge
@@ -1276,6 +1341,7 @@ async function bridgeTick($: EngineInterface) {
     }
 
     try { await syncBoards($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `boards: ${String(error).slice(0, 200)}`) }
+    try { await syncTasks($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `tasks: ${String(error).slice(0, 200)}`) }
     await openRequestedSessions($)
 
     for (const [id, doc] of docs) {
@@ -1532,6 +1598,24 @@ export const register: Register = on => {
           isDeferred: false,
         })
       } catch (error) { report($, `board tool not registered: ${String(error)}`) }
+      try {
+        await $.tool.register({
+          name: 'task',
+          description: "Session Office task list of this project: what is to be done, who does it, and where it is stuck. `list` shows it; `add` a task (title, and owner/role when it is given out); `update` one by its number: its status as it moves (進行中 → 待驗收 → 完成), or 卡住 with the reason and who it waits on (使用者 for the user, or a teammate's name). The page shows the user every stuck task, so mark one 卡住 as soon as you are blocked and 進行中 again once you are not.",
+          inputSchema: { type: 'object', properties: {
+            action: { type: 'string', enum: ['list', 'add', 'update'] },
+            no: { type: 'number', description: 'update: the task number.' },
+            title: { type: 'string', description: 'add (required) or update: what the task is, one line.' },
+            role: { type: 'string', enum: TASK_ROLES, description: 'The part the owner plays in it: 實作 (build), 驗收 (verify someone else\'s work), 查證 (look up).' },
+            owner: { type: 'string', description: 'The session doing it (its name).' },
+            status: { type: 'string', enum: TASK_STATUS },
+            reason: { type: 'string', description: 'With status 卡住: what it is stuck on.' },
+            waiting: { type: 'string', description: 'With status 卡住: who it waits on: 使用者, or a teammate\'s name.' },
+          }, required: ['action'] },
+          isDeferred: false,
+        })
+      } catch (error) { report($, `task tool not registered: ${String(error)}`) }
+      await $.process.run(['mkdir', '-p', taskPostDir()], { timeoutMs: 5000 }).catch(() => {})
       await $.process.run(['mkdir', '-p', boardPostDir()], { timeoutMs: 5000 }).catch(() => {})
       $.clock.after(15_000, () => { void startupCheck($) })
     }
@@ -1568,6 +1652,24 @@ export const register: Register = on => {
     return { result: title ? `Nameplate set to "${title}".` : 'Nameplate cleared; it shows the first task again.' }
   })
 
+  on('tool.call', { tool: 'mcp__office__task' }, async ($, e) => {
+    if (!me) return { deny: 'This session has no desk in Session Office.' }
+    if (!me.project) return { deny: 'This desk has no project, so there is no task list; the user can set a topic with `/office project <name>`.' }
+    const a = e as unknown as Partial<TaskOp> & { action?: string }
+    if (a.action === 'list') {
+      try { return { result: tasksText(JSON.parse(await $.fs.read(taskFile(me.id)))) } } catch { return { result: 'No task list yet for this desk (the bridge has not synced it).' } }
+    }
+    if (a.action !== 'add' && a.action !== 'update') return { deny: 'action is list, add or update.' }
+    if (a.action === 'add' && !String(a.title ?? '').trim()) return { deny: 'add needs a title.' }
+    if (a.action === 'update' && typeof a.no !== 'number') return { deny: 'update needs the task number (no).' }
+    if (a.status !== undefined && !TASK_STATUS.includes(a.status)) return { deny: `status is one of ${TASK_STATUS.join(', ')}.` }
+    if (a.status === '卡住' && (!String(a.reason ?? '').trim() || !String(a.waiting ?? '').trim())) return { deny: '卡住 needs the reason and who it waits on (waiting).' }
+    const at = Date.now()
+    const op: TaskOp = { desk: me.id, by: me.title || me.label, at, action: a.action }
+    for (const k of ['no', 'title', 'role', 'owner', 'status', 'reason', 'waiting'] as const) if (a[k] !== undefined) (op as Record<string, unknown>)[k] = a[k]
+    await $.fs.write(`${taskPostDir()}/${me.id}-${at}.json`, JSON.stringify(op))
+    return { result: a.action === 'add' ? 'Added; the bridge numbers it within a few seconds (`list` then shows the number).' : `Task #${a.no} updated; the page shows it within a few seconds.` }
+  })
   on('tool.call', { tool: 'mcp__office__board' }, async ($, e) => {
     if (!me) return { deny: 'This session has no desk in Session Office.' }
     const { action, text, include_archived } = e as unknown as { action?: string; text?: string; include_archived?: boolean }
