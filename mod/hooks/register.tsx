@@ -733,7 +733,7 @@ const TEAM_CAP = 3
 const LEAD_KICKOFF = (project: string, goal: string, cap: number) => `你是專案「${project}」的組長（成員上限 ${cap} 位）。\n\n目標與限制：\n${goal}\n\n先不要找人：把工作拆成任務，用 office 的 task 工具寫下來（每件寫清楚定位、範圍、完成條件），整理成計畫回報給我，等我核准。`
 const LEAD_CONTEXT = (project: string, cap: number) => `# Your role (Session Office): lead of project "${project}"
 You lead this project's team: you plan, give out the work and collect it. You do not write code yourself; keep your context for the whole picture.
-1. Plan with the user first. Break the goal into tasks with the office \`task\` tool (each: a title, the role 實作 build / 驗收 verify / 查證 look up, the scope including what not to touch, and when it is done). Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
+1. Plan with the user first. Break the goal into tasks with the office \`task\` tool: each a short one-line title (under 30 characters) and its role (實作 build / 驗收 verify / 查證 look up); the scope (including what not to touch) and when it is done go in your plan and in the dispatch, not in the title. A 卡住 reason is one short sentence: the page lists every stuck task in one line. Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
 2. Hire with the office \`hire\` tool: a name, the folder, and the dispatch. Only one member builds in a repo at a time, in the repo itself. Two builders in one repo at once need their own clones (\`clone: true\`), and a new clone stops at the "trust this folder" prompt until the user answers it in that tab: ask the user under \`## ${DECIDE_HEADING()}\` first and say which tab will wait. A dispatch states the role, the scope (what to do and what not to touch), when it is done, and that the member reports back to you. Give more work to a member you already have with SendMessage. A message that only acknowledges or thanks needs no reply: answering it starts a loop.
 3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it.
 4. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user.
@@ -1705,11 +1705,11 @@ export const register: Register = on => {
           inputSchema: { type: 'object', properties: {
             action: { type: 'string', enum: ['list', 'add', 'update'] },
             no: { type: 'number', description: 'update: the task number.' },
-            title: { type: 'string', description: 'add (required) or update: what the task is, one line.' },
+            title: { type: 'string', description: 'add (required) or update: what the task is, one short line (under 30 characters); scope and when it is done go elsewhere.' },
             role: { type: 'string', enum: TASK_ROLES, description: 'The part the owner plays in it: 實作 (build), 驗收 (verify someone else\'s work), 查證 (look up).' },
             owner: { type: 'string', description: 'The session doing it (its name).' },
             status: { type: 'string', enum: TASK_STATUS },
-            reason: { type: 'string', description: 'With status 卡住: what it is stuck on.' },
+            reason: { type: 'string', description: 'With status 卡住: what it is stuck on, one short sentence.' },
             waiting: { type: 'string', description: 'With status 卡住: who it waits on: 使用者, or a teammate\'s name.' },
           }, required: ['action'] },
           isDeferred: false,
