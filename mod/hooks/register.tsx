@@ -72,6 +72,11 @@ type Desk = {
   projectManual?: string | null
   /** The project rolled up to its parent ticket (the bridge fills it from Jira); the board is kept per root. */
   projectRoot?: string | null
+  /** A project team: `lead` plans and gives out the work, `member` does what it is given; null for a session on its own. */
+  role?: 'lead' | 'member' | null
+  /** A member's lead (its name), and a lead's limit on members: both given when the session was opened. */
+  lead?: string | null
+  cap?: number | null
   /** Set when the last turn answered a teammate who came on its own (not one this session sent for): the desk does not call the person over. */
   relay?: string | null
   /** The questions of a pending AskUserQuestion, so the page can show the options and answer them. */
@@ -716,6 +721,76 @@ async function writeBoard($: EngineInterface, root: string, b: { version?: numbe
   return true
 }
 
+// ---- project teams: a lead plans with the user, then hires members (the office `hire` tool) and gives out the work.
+// The page opens a lead (requests, kind 'lead'); a lead's hire waits in hires/ and the bridge opens the member,
+// in its own clone of the repo when asked, with the dispatch as its first message, sent as from the lead.
+const hiresDir = () => `${home}/.claude/office/hires`
+const TEAM_CAP = 3
+const LEAD_KICKOFF = (project: string, goal: string, cap: number) => `你是專案「${project}」的組長（成員上限 ${cap} 位）。\n\n目標與限制：\n${goal}\n\n先不要找人：把工作拆成任務，用 office 的 task 工具寫下來（每件寫清楚定位、範圍、完成條件），整理成計畫回報給我，等我核准。`
+const LEAD_CONTEXT = (project: string, cap: number) => `# Your role (Session Office): lead of project "${project}"
+You lead this project's team: you plan, give out the work and collect it. You do not write code yourself; keep your context for the whole picture.
+1. Plan with the user first. Break the goal into tasks with the office \`task\` tool (each: a title, the role 實作 build / 驗收 verify / 查證 look up, the scope including what not to touch, and when it is done). Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
+2. Hire with the office \`hire\` tool: a name, the folder, and the dispatch. Only one member builds in a repo at a time, in the repo itself. Two builders in one repo at once need their own clones (\`clone: true\`), and a new clone stops at the "trust this folder" prompt until the user answers it in that tab: ask the user under \`## ${DECIDE_HEADING()}\` first and say which tab will wait. A dispatch states the role, the scope (what to do and what not to touch), when it is done, and that the member reports back to you. Give more work to a member you already have with SendMessage. A message that only acknowledges or thanks needs no reply: answering it starts a loop.
+3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it.
+4. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user.
+5. When the project ends: in each member's clone, check that \`git status --porcelain\` is empty and nothing is unpushed (\`git log @{u}..\`), then move the clone to ~/.Trash; list any that is not clean for the user instead. Then tell your members to wrap up.`
+const MEMBER_CONTEXT = (project: string, lead: string) => `# Your role (Session Office): member of project "${project}", led by "${lead}"
+Your work comes from "${lead}" as a dispatch: a role (實作 build, 驗收 verify someone else's work, 查證 look up) and a scope. Stay in the scope; ask ${lead} before touching anything outside it. Keep your task current with the office \`task\` tool (進行中; 卡住 with the reason and who you wait on; 待驗收 once built). When you are done, stuck, or need a decision, tell ${lead} with SendMessage and post a short card on the board; ${lead} speaks to the user. Never verify work you built yourself. A message from ${lead} that only acknowledges needs no reply: answering it starts a loop.`
+// opens a command in a new iTerm2 tab of the front window
+async function openTab($: EngineInterface, command: string): Promise<string | null> {
+  const script = [
+    'tell application "iTerm2"',
+    '  if (count of windows) = 0 then',
+    '    set w to (create window with default profile)',
+    '  else',
+    '    set w to current window',
+    '    tell w to create tab with default profile',
+    '  end if',
+    `  tell current session of w to write text "${asQuote(command)}"`,
+    'end tell',
+  ].join('\n')
+  try {
+    const ran = await $.process.run(['osascript', '-e', script], { timeoutMs: 15000 })
+    return ran.exitCode === 0 ? null : ran.stderr.trim().slice(0, 300) || `osascript exit ${ran.exitCode}`
+  } catch (error) { return String(error).slice(0, 300) }
+}
+const cloneName = (s: string) => s.replace(/[^\w\u4e00-\u9fff.-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'x'
+const dirname = (p: string) => p.replace(/\/+$/, '').replace(/\/[^/]*$/, '') || '/'
+// a member's own clone, next to the repo (under the same trusted folder, so it opens without the trust prompt);
+// a local clone, with origin pointed back at the repo's own remote
+async function cloneFor($: EngineInterface, cwd: string, project: string, name: string): Promise<{ dir?: string; error?: string }> {
+  const top = await $.process.run(['git', 'rev-parse', '--show-toplevel'], { cwd, timeoutMs: 5000 }).catch(() => null)
+  const root = top?.exitCode === 0 ? top.stdout.trim() : ''
+  if (!root) return { error: `不在 git repo 裡：${cwd}` }
+  const dest = `${dirname(root)}/.office-clones/${cloneName(project)}/${basename(root)}-${cloneName(name)}`
+  const sub = cwd.startsWith(root) ? cwd.slice(root.length) : ''
+  if (!(await $.fs.exists(dest))) {
+    await $.process.run(['mkdir', '-p', dirname(dest)], { timeoutMs: 5000 })
+    const ran = await $.process.run(['git', 'clone', '--quiet', root, dest], { timeoutMs: 300_000 })
+    if (ran.exitCode !== 0) return { error: `clone 失敗：${ran.stderr.trim().slice(0, 200)}` }
+    const url = await $.process.run(['git', 'remote', 'get-url', 'origin'], { cwd: root, timeoutMs: 5000 }).catch(() => null)
+    if (url?.exitCode === 0 && url.stdout.trim()) await $.process.run(['git', 'remote', 'set-url', 'origin', url.stdout.trim()], { cwd: dest, timeoutMs: 5000 })
+  }
+  return { dir: dest + sub }
+}
+async function openHires($: EngineInterface) {
+  let files: string[] = []
+  try { files = (await $.process.run(['ls', hiresDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(f => f.endsWith('.json')) } catch { return }
+  for (const f of files) {
+    const path = `${hiresDir()}/${f}`
+    let h: { project: string; lead: string; name: string; cwd: string; clone?: boolean; task: string }
+    try { h = JSON.parse(await $.fs.read(path)) } catch { continue }
+    await $.process.run(['rm', '-f', path], { timeoutMs: 5000 })
+    let cwd = h.cwd, error: string | null = null
+    if (h.clone) { const c = await cloneFor($, h.cwd, h.project, h.name); if (c.error) error = c.error; else cwd = c.dir! }
+    if (!error) {
+      const first = `<cross-session-message from-name="${h.lead.replace(/"/g, "'")}">\n${h.task}`
+      error = await openTab($, `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(h.name)} CLAUDE_OFFICE_PROJECT=${shellQuote(h.project)} CLAUDE_OFFICE_ROLE=member CLAUDE_OFFICE_LEAD=${shellQuote(h.lead)} claude ${shellQuote(first)}` + TAB_EXIT)
+    }
+    logEvent($, error ? 'hire-failed' : 'hire', { project: h.project, lead: h.lead, name: h.name, cwd, ...(error ? { reason: error } : {}) })
+  }
+}
+
 // ---- tasks: each project's task list, one `tasks` document per project like its board. A session changes it with
 // the office `task` tool: the change waits in tasks/posts/ and the bridge applies it in order, numbering new tasks,
 // then copies the list to tasks/<desk>.json for the tool to read. The page's project overview is built from it.
@@ -908,8 +983,13 @@ async function openRequestedSessions($: EngineInterface) {
     try { isDir = (await $.fs.stat(cwd)).kind === 'dir' } catch { isDir = false }
     if (!cwd || !isDir) { await mark('failed', { error: `目錄不存在：${cwd || '(空)'}` }); continue }
     // kind 'codex': Codex takes over from a handoff, with its first message as the task
+    // kind 'lead': a project team's lead, told to plan with the user before it hires anyone
+    const cap = Math.min(5, Math.max(1, Number(doc.data.cap) || TEAM_CAP))
+    if (doc.data.kind === 'lead' && (!project || !task)) { await mark('failed', { error: '專案要有名稱和目標' }); continue }
     const command = (doc.data.kind === 'codex'
       ? `cd ${shellQuote(cwd)} && codex ${shellQuote(task)}`
+      : doc.data.kind === 'lead'
+      ? `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(`${project} 組長`)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} CLAUDE_OFFICE_ROLE=lead CLAUDE_OFFICE_CAP=${cap} claude ${shellQuote(LEAD_KICKOFF(project, task, cap))}`
       : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`) + TAB_EXIT
     const script = [
       'tell application "iTerm2"',
@@ -1343,6 +1423,7 @@ async function bridgeTick($: EngineInterface) {
     try { await syncBoards($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `boards: ${String(error).slice(0, 200)}`) }
     try { await syncTasks($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `tasks: ${String(error).slice(0, 200)}`) }
     await openRequestedSessions($)
+    await openHires($)
 
     for (const [id, doc] of docs) {
       if (!files.has(id)) {
@@ -1509,6 +1590,9 @@ export const register: Register = on => {
     if (mate) context.push(sentFor.has(mate.name) ? COMMANDER_CONTEXT(mate.name) : RELAY_CONTEXT(mate.name))
     const wokeBy = boardWakeOf(e.text)
     if (wokeBy !== null) context.push(BOARD_WAKE_CONTEXT(wokeBy))
+    const team = rootOf(me?.project)
+    if (me?.role === 'lead' && team) context.push(LEAD_CONTEXT(team, me.cap ?? TEAM_CAP))
+    if (me?.role === 'member' && team && me.lead) context.push(MEMBER_CONTEXT(team, me.lead))
     return next({ ...e, context })
   })
   on('session.start', async ($, e, next) => {
@@ -1541,6 +1625,10 @@ export const register: Register = on => {
         blocked: null,
         ask: null,
         projectManual: ((await $.env.get('CLAUDE_OFFICE_PROJECT')) ?? '').trim().slice(0, 60) || null,   // the topic typed in the page's new-session window
+        // a project team: given when the page (a lead) or a lead (a member) opened the session
+        role: ((r: string | undefined) => r === 'lead' || r === 'member' ? r : null)(await $.env.get('CLAUDE_OFFICE_ROLE')),
+        lead: ((await $.env.get('CLAUDE_OFFICE_LEAD')) ?? '').trim() || null,
+        cap: Number(await $.env.get('CLAUDE_OFFICE_CAP')) || null,
       }
       // a reload (or /resume) of a session that already has a desk keeps what the
       // old desk knew: above all which page instruction it last ran, or the one
@@ -1556,6 +1644,8 @@ export const register: Register = on => {
           // the desk's own choice beats CLAUDE_OFFICE_PROJECT: that is only the topic the session was opened with,
           // and it stays in the environment, so it would undo a later /office project on every reload
           if (prev.projectManual !== undefined) me.projectManual = prev.projectManual
+          // the environment carries the role only in the process that was opened with it (a model switch starts another)
+          if (!me.role && prev.role) Object.assign(me, { role: prev.role, lead: prev.lead ?? null, cap: prev.cap ?? null })
           // and what the page shows: the task, and a report still waiting for you
           if (prev.task) me.task = prev.task
           if (prev.state === 'reporting' && prev.report) Object.assign(me, { state: 'reporting', activity: prev.activity ?? me.activity, report: prev.report, reportedAt: prev.reportedAt ?? null, blocked: prev.blocked ?? null, ask: prev.ask ?? null })
@@ -1615,7 +1705,20 @@ export const register: Register = on => {
           isDeferred: false,
         })
       } catch (error) { report($, `task tool not registered: ${String(error)}`) }
-      await $.process.run(['mkdir', '-p', taskPostDir()], { timeoutMs: 5000 }).catch(() => {})
+      try {
+        await $.tool.register({
+          name: 'hire',
+          description: "Session Office, for a project lead only: open a new member session for your project with its first dispatch. Only after the user approved the plan, and within the member limit.",
+          inputSchema: { type: 'object', properties: {
+            name: { type: 'string', description: "The member's name on its desk (unique in the office), e.g. 'AB77 實作 A'." },
+            task: { type: 'string', description: 'The dispatch: role, scope (what to do, what not to touch), when it is done, report back to you.' },
+            cwd: { type: 'string', description: 'The folder it works in; your own folder when left out.' },
+            clone: { type: 'boolean', description: 'Give it its own clone of the repo: only when two members must build in one repo at once and the user agreed; the new clone waits on the trust prompt until the user answers it.' },
+          }, required: ['name', 'task'] },
+          isDeferred: false,
+        })
+      } catch (error) { report($, `hire tool not registered: ${String(error)}`) }
+      await $.process.run(['mkdir', '-p', taskPostDir(), hiresDir()], { timeoutMs: 5000 }).catch(() => {})
       await $.process.run(['mkdir', '-p', boardPostDir()], { timeoutMs: 5000 }).catch(() => {})
       $.clock.after(15_000, () => { void startupCheck($) })
     }
@@ -1652,6 +1755,31 @@ export const register: Register = on => {
     return { result: title ? `Nameplate set to "${title}".` : 'Nameplate cleared; it shows the first task again.' }
   })
 
+  on('tool.call', { tool: 'mcp__office__hire' }, async ($, e) => {
+    if (!me) return { deny: 'This session has no desk in Session Office.' }
+    const team = rootOf(me.project)
+    if (me.role !== 'lead' || !team) return { deny: 'Only a project lead hires; this session is not one.' }
+    const a = e as unknown as { name?: string; task?: string; cwd?: string; clone?: boolean }
+    const name = String(a.name ?? '').trim().slice(0, 40), task = String(a.task ?? '').trim()
+    if (!name || !task) return { deny: 'hire needs a name and the dispatch (task).' }
+    // the members now in the office: desks of this project opened as members
+    let members = 0, taken = false
+    for (const f of (await $.process.run(['ls', deskDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(x => x.endsWith('.json'))) {
+      try {
+        const d = JSON.parse(await $.fs.read(`${deskDir()}/${f}`)) as Desk
+        if (Date.now() - d.seenAt > 30 * 60 * 1000) continue
+        if (d.role === 'member' && rootOf(d.project) === team) members++
+        if ((d.title || '').trim() === name) taken = true
+      } catch { /* half-written */ }
+    }
+    const cap = me.cap ?? TEAM_CAP
+    if (members >= cap) return { deny: `The team already has ${members} members (limit ${cap}). Ask the user under \`## ${DECIDE_HEADING()}\` before hiring more, or give the work to a member you have.` }
+    if (taken) return { deny: `A desk named "${name}" is already in the office; pick another name.` }
+    const cwd = String(a.cwd ?? '').trim().replace(/^~(?=\/|$)/, home) || me.cwd
+    const at = Date.now()
+    await $.fs.write(`${hiresDir()}/${me.id}-${at}.json`, JSON.stringify({ project: team, lead: me.title || me.label, name, cwd, clone: !!a.clone, task, at }))
+    return { result: `Hiring "${name}"${a.clone ? ' in its own clone' : ''}: the bridge opens it within a few seconds (a clone can take longer), with your dispatch as its first message. It answers you with SendMessage.` }
+  })
   on('tool.call', { tool: 'mcp__office__task' }, async ($, e) => {
     if (!me) return { deny: 'This session has no desk in Session Office.' }
     if (!me.project) return { deny: 'This desk has no project, so there is no task list; the user can set a topic with `/office project <name>`.' }

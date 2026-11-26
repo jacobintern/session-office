@@ -24,6 +24,7 @@ block at the end of the page script; the board one is in `watchBoard`):
 | `desks` | `bridgeTick` (from desk files) | `renderRoster`, `draw`, `fillModal` |
 | `requests` | `openRequestedSessions` | `openSpawn` form |
 | `codexAsks` | `serveCodexAsks`, `pruneCodexAsks` | `openCodex`, `renderCodex` (the page writes the question) |
+| `requests` kind `lead` | `openRequestedSessions` (opens a project lead), `openHires` (a lead's `hire` tool, via `hires/`) | `openSpawn`, `applySpawnMode` |
 | `tasks` | `syncTasks` (from the `task` tool's posts) | `projectOverview` (above the roster) |
 | `meta/events` | `syncEvents` (last 100 lines of `events.log`) | `drawGuard`, `openEvents`, `renderEvents` |
 | `boards/*` | `syncBoards`, `writeBoard` | `watchBoard`, `renderBoard`, `saveBoard` |

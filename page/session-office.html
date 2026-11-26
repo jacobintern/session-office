@@ -104,6 +104,11 @@
   .lang-btn:hover { color: var(--fg); border-color: var(--fg); }
   .spawn-btn:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
   .field { display: grid; gap: 4px; font-size: .85rem; color: var(--muted); }
+  .smode { display: flex; gap: 6px; }
+  .smode label { flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; font-size: .85rem; cursor: pointer; }
+  .smode label:has(input:checked) { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .smode input { margin: 0; }
+  #s-cap { width: 5em; }
   .field input, .field textarea { font: inherit; font-size: .92rem; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); min-width: 0; }
   .field input:focus-visible, .field textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   .field code { font-family: var(--mono); }
@@ -417,10 +422,12 @@
       <header><span class="label" id="s-title">新開 session</span><button type="button" class="close" id="s-close" aria-label="關閉">×</button></header>
       <form id="s-form">
         <div class="body">
+          <div class="smode" role="radiogroup"><label><input type="radio" name="s-mode" value="solo" checked><span id="s-mode-solo">單人</span></label><label><input type="radio" name="s-mode" value="team"><span id="s-mode-team">專案（開組長）</span></label></div>
           <label class="field">目錄<input id="s-cwd" list="dirs" required placeholder="/path/to/repo" autocomplete="off"><datalist id="dirs"></datalist></label>
           <label class="field">桌牌（可空，空的話用第一句任務）<input id="s-name" maxlength="40" autocomplete="off"></label>
           <label class="field">專案／話題（可空；同話題的 session 共用公佈欄）<input id="s-project" list="projects" maxlength="60" autocomplete="off"><datalist id="projects"></datalist></label>
           <label class="field">第一個任務（可空）<textarea id="s-task" rows="3" maxlength="20000" placeholder="Enter 送出，Shift+Enter 換行"></textarea></label>
+          <label class="field" id="s-cap-wrap" hidden>成員上限<input id="s-cap" type="number" min="1" max="5" value="3"></label>
           <div class="line">橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。</div>
         </div>
         <div class="reply"><button type="submit" id="s-send">開</button></div>
@@ -538,7 +545,7 @@
       decide: '要你決定', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
       ack: '收到，回座位', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
-      spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', enterHint: 'Enter 送出，Shift+Enter 換行',
+      spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', modeSolo: '單人', modeTeam: '專案（開組長）', joinProject: '加入專案（可空；選一個正在跑的專案，就成為它的成員）', teamName: '專案名稱（必填）', teamGoal: '目標與限制（必填）：組長會先跟你討論計畫，你核准後才找人', teamCap: '成員上限（不含組長）', openTeam: '開專案', teamLine: '橋接會開一個 session 當組長，桌牌是「專案名稱 組長」。它先拆工作、寫任務、跟你討論計畫；你核准後，它才在上限內找成員，每人各一個分頁。', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
       sAgo: '{n} 秒前', mAgo: '{n} 分鐘前', hAgo: '{n} 小時前', dAgo: '{n} 天前', sDur: '{n} 秒', mDur: '{n} 分鐘', hDur: '{n} 小時', dDur: '{n} 天', workingFor: '跑了 {d}', idleFor: '閒置 {d}',
@@ -586,7 +593,7 @@
       decide: 'Decisions for you', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
       ack: 'Got it, back to desk', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
-      spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', enterHint: 'Enter to send, Shift+Enter for a new line',
+      spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', modeSolo: 'On its own', modeTeam: 'Project (opens a lead)', joinProject: 'Join a project (optional; pick a running one to become its member)', teamName: 'Project name (required)', teamGoal: 'Goal and limits (required): the lead plans with you first and hires only after you approve', teamCap: 'Member limit (lead not counted)', openTeam: 'Open project', teamLine: 'The bridge opens a session as the lead, named “project lead”. It breaks the work into tasks and goes over the plan with you; once you approve, it hires members within the limit, each in its own tab.', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
       sAgo: '{n}s ago', mAgo: '{n} min ago', hAgo: '{n} h ago', dAgo: '{n} d ago', sDur: '{n}s', mDur: '{n} min', hDur: '{n} h', dDur: '{n} d', workingFor: 'running {d}', idleFor: 'idle {d}',
@@ -657,7 +664,7 @@
     set('#m-decide .dh', 'decide'); set('#m-reply', 'replyPh', 'placeholder'); set('#m-send', 'send');
     set('#m-ack', 'ack'); set('#m-back', 'backToList'); set('#t-back', 'backToList'); set('#u-back', 'backToList'); set('#c-back', 'backToList'); set('#m-compact', 'compact'); set('#m-reply-hint', 'replyHint'); set('#m-clear', 'clear'); set('#m-fire', 'fire'); set('#m-fire-yes', 'fireYes'); set('#m-fire-no', 'cancel'); set('#m-pause', 'pause'); set('#m-board-text', 'boardPh', 'placeholder'); set('#m-board-post', 'boardPost'); set('#m-model-yes', 'confirm'); set('#m-model-no', 'cancel');
     set('#s-title', 'spawnTitle'); label('#s-cwd', 'cwd'); label('#s-name', 'deskName'); label('#s-project', 'spawnProject'); label('#s-task', 'firstTask'); set('#s-task', 'enterHint', 'placeholder');
-    set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open');
+    set('#s-form .line', 'spawnLine', 'innerHTML'); set('#s-send', 'open'); set('#s-mode-solo', 'modeSolo'); set('#s-mode-team', 'modeTeam'); label('#s-cap', 'teamCap');
     set('#t-title', 'tutor'); set('#t-hint', 'tutorHint'); set('#t-empty', 'tutorEmpty'); set('#t-text', 'tutorPh', 'placeholder');
     set('#t-go', 'tutorGo'); set('#t-ask', 'tutorAsk'); set('#t-stop', 'tutorStop'); set('#t-copy', 'tutorCopyAll');
     set('#u-title', 'analyst'); set('#u-hint', 'analystHint'); set('#u-text', 'analystPh', 'placeholder'); set('#u-go', 'analystAsk'); set('#u-stop', 'tutorStop');
@@ -2253,6 +2260,18 @@
   const spawn = document.getElementById('spawn'), sForm = document.getElementById('s-form'), sSend = document.getElementById('s-send');
   const sCwd = document.getElementById('s-cwd'), sName = document.getElementById('s-name'), sProject = document.getElementById('s-project'), sTask = document.getElementById('s-task');
   submitOnEnter(sTask, 's-form');
+  // 單人 or 專案: a project opens a lead (requests, kind 'lead') with the goal as its brief and a member limit
+  const spawnMode = () => document.querySelector('input[name="s-mode"]:checked')?.value || 'solo';
+  function applySpawnMode() {
+    const team = spawnMode() === 'team', setLabel = (el, key) => { const l = el.closest('label'); if (l && l.firstChild.nodeType === 3) l.firstChild.nodeValue = tt(key); };
+    sName.closest('label').hidden = team;
+    document.getElementById('s-cap-wrap').hidden = !team;
+    setLabel(sProject, team ? 'teamName' : 'joinProject'); sProject.required = team;
+    setLabel(sTask, team ? 'teamGoal' : 'firstTask'); sTask.required = team;
+    sSend.textContent = tt(team ? 'openTeam' : 'open');
+    document.querySelector('#s-form .line').innerHTML = team ? tt('teamLine') : tt('spawnLine');
+  }
+  for (const r of document.querySelectorAll('input[name="s-mode"]')) r.addEventListener('change', applySpawnMode);
   function openSpawn() {
     // the folders from config.json (newSessionDirs) first, then wherever sessions run now
     const dirs = new Set(officeCfg?.newSessionDirs || []);
@@ -2262,6 +2281,7 @@
     const projects = new Set([...desks.values()].map(d => projectOf(d)?.name).filter(Boolean));
     document.getElementById('projects').replaceChildren(...[...projects].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
     if (!sCwd.value) sCwd.value = [...dirs][0] || '';
+    applySpawnMode();
     spawn.hidden = false; setTimeout(() => sCwd.focus(), 0);
   }
   function closeSpawn() { spawn.hidden = true; }
@@ -2273,10 +2293,11 @@
     ev.preventDefault();
     if (!db || !canWrite) return;
     const cwd = sCwd.value.trim(), task = sTask.value.trim(), title = sName.value.trim(), project = sProject.value.trim().slice(0, 60);
-    if (!cwd) return;
+    const team = spawnMode() === 'team', cap = Math.min(5, Math.max(1, Number(document.getElementById('s-cap').value) || 3));
+    if (!cwd || (team && (!project || !task))) return;
     sSend.disabled = true;
     try {
-      await db.collection('requests').doc().set({ kind: 'spawn', cwd, task, title, project, status: 'pending', at: now() });
+      await db.collection('requests').doc().set(team ? { kind: 'lead', cwd, task, project, cap, status: 'pending', at: now() } : { kind: 'spawn', cwd, task, title, project, status: 'pending', at: now() });
       sTask.value = ''; sName.value = ''; sProject.value = ''; closeSpawn();
     } catch (e) { console.warn('spawn request failed', e); }
     finally { sSend.disabled = false; }
