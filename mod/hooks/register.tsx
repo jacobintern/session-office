@@ -707,6 +707,10 @@ const boardsWritten: Record<string, string> = {}
 // and a member is woken at most once every few minutes.
 const BOARD_WAKE_MIN_MS = 3 * 60 * 1000
 const boardWokeAt: Record<string, number> = {}
+// the newest card the user posted from the page on each board, as last seen: a newer one wakes the members too
+// (the bridge's first round only sets the marks, so a restart does not wake anyone)
+const userCardSeen: Record<string, number> = {}
+let userCardsPrimed = false
 const BOARD_WAKE_RE = /^<board-wake\b[^>]*\bfrom-name="([^"]*)"[^>]*>/
 const boardWakeOf = (text: string) => BOARD_WAKE_RE.exec(text ?? '')?.[1] ?? null
 const BOARD_WAKE_CONTEXT = (by: string) => `# Why this turn started (Session Office)\nNo one asked you anything: "${by}" posted a new card on your project's board (shown above), and you were idle. Read it. If it changes your work (a shared file, an interface, an order of work, something you were waiting on), act on it or tell that teammate with SendMessage; if it does not concern you, end with one short line. This turn is not reported to the user; only a \`## ${DECIDE_HEADING()}\` section calls them over. A card you post now wakes no one.`
@@ -870,6 +874,12 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
     if (typeof doc.data.project === 'string') boards[doc.data.project] = { version: doc.version, notes: Array.isArray(doc.data.notes) ? (doc.data.notes as Note[]) : [] }
   }
   const wakes: { root: string; from: string; by: string; text: string; at: number }[] = []
+  for (const root of new Set(roots.values())) {
+    const mine = (boards[root]?.notes ?? []).filter(n => n.user && !n.archived).sort((a, b) => b.at - a.at)[0]
+    if (mine && userCardsPrimed && mine.at > (userCardSeen[root] ?? 0)) wakes.push({ root, from: '', by: mine.by || '使用者', text: mine.text, at: mine.at })
+    userCardSeen[root] = Math.max(userCardSeen[root] ?? 0, mine?.at ?? 0)
+  }
+  userCardsPrimed = true
   let posts: string[] = []
   try { posts = (await $.process.run(['ls', boardPostDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(f => f.endsWith('.json')) } catch { /* no posts yet */ }
   for (const f of posts) {
