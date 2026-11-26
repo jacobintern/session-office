@@ -26,6 +26,12 @@ block at the end of the page script; the board one is in `watchBoard`):
 | `codexAsks` | `serveCodexAsks`, `pruneCodexAsks` | `openCodex`, `renderCodex` (the page writes the question) |
 | `boards/*` | `syncBoards`, `writeBoard` | `watchBoard`, `renderBoard`, `saveBoard` |
 
+When a desk behaved oddly (a project that changed back, an instruction that
+never ran, a state that flipped), read `~/.claude/office/events.log` first:
+one JSON line per mod load, instruction taken, state or project change and
+failed delivery (`logEvent`), times in UTC, 7 days kept. It stays on this Mac.
+The watchdog's own log, `bridge-watchdog.log`, has a line only when the bridge changes.
+
 ## mod/hooks/register.tsx (one file; `// ----` marks worker, bridge, hooks)
 
 - **worker** — the desk card: `saveDesk`, `patch`, `refreshUsage`, `setProject`,

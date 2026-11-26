@@ -38,7 +38,8 @@ if [ -n "$running" ]; then
     kill ${=stuck} 2>/dev/null
     sleep 3
   else
-    log "bridge running (pid $running)"
+    # a line only when the running bridge changes, not every minute
+    [ "$(cat "$office/watchdog-last" 2>/dev/null)" = "$running" ] || { log "bridge running (pid $running)"; echo "$running" > "$office/watchdog-last"; }
     exit 0
   fi
 fi
@@ -59,6 +60,7 @@ if ! /usr/bin/osascript -e 'application "iTerm2" is running' 2>/dev/null | grep 
   done
 fi
 
+rm -f "$office/watchdog-last"
 log "no bridge found; opening one in $dir"
 /usr/bin/osascript - "$dir" <<'APPLESCRIPT'
 on run argv

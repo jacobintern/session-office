@@ -109,6 +109,14 @@ const boardPostDir = () => `${boardsDir()}/posts`
 const inboxPath = (id: string) => `${inboxDir()}/${id}.json`
 // written and read by install/office-hook.sh, the settings hooks
 const hookDir = () => `${home}/.claude/office/hook`
+// The event log: one JSON line per thing worth checking afterwards (the mod loading, an instruction taken,
+// the state or project changing, a delivery failing). Every session appends to it; the bridge keeps 7 days.
+const eventsPath = () => `${home}/.claude/office/events.log`
+let eventsReady = false   // the load is logged once as a whole, not as each field it restores
+function logEvent($: EngineInterface, ev: string, data: Record<string, unknown> = {}) {
+  const line = JSON.stringify({ t: new Date().toISOString(), id: me?.id.slice(0, 8) ?? null, title: me?.title || me?.label || null, ev, ...data })
+  void $.process.run(['sh', '-c', 'printf "%s\\n" "$1" >> "$2"', 'sh', line, eventsPath()], { timeoutMs: 5000 }).catch(() => {})
+}
 
 // What a /clear leaves on the desk: the conversation's task, title and report go.
 const CLEARED: Partial<Desk> = { state: 'idle', task: '', title: '', report: '', reportedAt: null, blocked: null, ask: null, ctx: null, relay: null }
@@ -204,6 +212,7 @@ async function setProject($: EngineInterface) {
     : titled ? { project: titled, projectBy: 'title' }
     : repo ? { project: repo, projectBy: 'repo' }
     : { project: null, projectBy: null }
+  if (eventsReady && p.project !== me.project) logEvent($, 'project', { from: me.project ?? null, to: p.project, by: p.projectBy })
   patch($, p)
 }
 const projectText = () => !me ? '' : me.project
@@ -320,7 +329,10 @@ async function checkBackground($: EngineInterface, turnAt: number) {
 function patch($: EngineInterface, p: Partial<Desk>, options: { throttle?: boolean } = {}) {
   if (!me) return
   const nowMs = Date.now()
-  if (p.state !== undefined && p.state !== me.state) p = { ...p, stateAt: nowMs }
+  if (p.state !== undefined && p.state !== me.state) {
+    if (eventsReady) logEvent($, 'state', { from: me.state, to: p.state, activity: p.activity ?? me.activity ?? null })
+    p = { ...p, stateAt: nowMs }
+  }
   Object.assign(me, p)
   if (options.throttle && nowMs - lastWriteAt < ACTIVITY_WRITE_MIN_MS) return
   lastWriteAt = nowMs
@@ -399,6 +411,7 @@ async function takeInstruction($: EngineInterface) {
     const at = typeof inbox.instructionAt === 'number' ? inbox.instructionAt : 0
     if (!instruction || !at || at <= (me.instructionDoneAt ?? 0)) return
     me.instructionDoneAt = at
+    logEvent($, 'instruction', { at, text: instruction.slice(0, 80) })
     if (instruction.startsWith('/')) {
       // a slash command from the page (`/clear`, `/compact`, …) runs as if typed
       const [name = '', ...rest] = instruction.slice(1).split(/\s+/)
@@ -545,6 +558,7 @@ const STOPPED_REASON = '你在終端機中斷後，要先在它的 terminal 輸�
 function lost($: EngineInterface, at: number, reason: string) {
   pendingInstruction = null
   const p: Partial<Desk> = { delivery: { at, state: 'failed', reason } }
+  logEvent($, 'delivery-failed', { at, reason })
   // taking the instruction marked the desk working; with nothing running it should not look busy
   if (me?.state === 'working' && me.activity === '收到辦公室的指令') Object.assign(p, { state: 'idle', activity: '指令沒送到' })
   patch($, p)
@@ -1135,6 +1149,8 @@ async function bridgeTick($: EngineInterface) {
     if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['find', imagesDir(), filesDir(), '-type', 'f', '-mtime', '+7', '-delete']).catch(() => {})
     if (tickCount % 2 === 0) { lastTick.note = '問 Codex'; await serveCodexAsks($) }
     if (tickCount % (JIRA_EVERY * 30) === 0 && cfg.codex !== false) await pruneCodexAsks($)
+    // a line appended between the read and the rename is lost; rare enough for a log
+    if (tickCount % (JIRA_EVERY * 30) === 0) await $.process.run(['sh', '-c', 'f="$1"; [ -f "$f" ] || exit 0; awk -v c="$2" \'substr($0, 7, 24) >= c\' "$f" > "$f.tmp" && mv "$f.tmp" "$f"', 'sh', eventsPath(), new Date(Date.now() - 7 * 86_400_000).toISOString()], { timeoutMs: 10000 }).catch(() => {})
     lastTick.note = '讀資料庫'
     const listResult = await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: COLLECTION, query: { limit: 200 } })
     const listed = docsIn(listResult)
@@ -1456,6 +1472,8 @@ export const register: Register = on => {
       if (named) me.title = named
       await noteModel($)
       await setProject($)
+      logEvent($, 'load', { state: me.state, project: me.project ?? null, projectBy: me.projectBy ?? null, topic: ((await $.env.get('CLAUDE_OFFICE_PROJECT')) ?? '').trim() || null })
+      eventsReady = true
       await refreshUsage($)
       await saveDesk($)
       // only a name the engine lost (kept on the desk) goes back through /rename; every save of this file reloads the mod in every session
