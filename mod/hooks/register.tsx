@@ -735,16 +735,22 @@ async function writeBoard($: EngineInterface, root: string, b: { version?: numbe
 // The page opens a lead (requests, kind 'lead'); a lead's hire waits in hires/ and the bridge opens the member,
 // in its own clone of the repo when asked, with the dispatch as its first message, sent as from the lead.
 const hiresDir = () => `${home}/.claude/office/hires`
+// what a wrapped-up project left undone, for the next lead of that project to read first
+const handoffPath = (project: string) => `${home}/.claude/office/handoffs/${cloneName(project)}.md`
 const TEAM_CAP = 3
-const LEAD_KICKOFF = (project: string, goal: string, cap: number) => `你是專案「${project}」的組長（成員上限 ${cap} 位）。\n\n目標與限制：\n${goal}\n\n先不要找人：把工作拆成任務，用 office 的 task 工具寫下來（每件寫清楚定位、範圍、完成條件），整理成計畫回報給我，等我核准。`
+const LEAD_KICKOFF = (project: string, goal: string, cap: number, handoff: string | null) => `你是專案「${project}」的組長（成員上限 ${cap} 位）。\n\n目標與限制：\n${goal}\n\n${handoff ? `這個專案上次收尾時留了交接：${handoff}，先讀它，從沒做完的地方接著規劃。\n\n` : ''}先不要找人：先看過票、MR（含所有留言和 pipeline）和 repo 的狀態，再把工作拆成任務，用 office 的 task 工具寫下來（每件寫清楚定位、範圍、完成條件）。計畫要寫出整個專案怎樣算完成、範圍內外有哪些、先後順序、會牽涉到團隊外的哪些人，以及哪些事你自己決定、哪些要問我；要問我的一次問完。整理成計畫回報給我，等我核准。`
 const LEAD_CONTEXT = (project: string, cap: number) => `# Your role (Session Office): lead of project "${project}"
 You lead this project's team: you plan, give out the work and collect it. You do not write code yourself; keep your context for the whole picture.
-1. Plan with the user first. Break the goal into tasks with the office \`task\` tool: each a short one-line title (under 30 characters) and its role (實作 build / 驗收 verify / 查證 look up); the scope (including what not to touch) and when it is done go in your plan and in the dispatch, not in the title. A 卡住 reason is one short sentence: the page lists every stuck task in one line. Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
+1. Plan with the user first, and plan it whole: anything the plan leaves out comes back later as a question or as work outside it. Look before you plan (read-only: the tickets, their MRs with every comment and pipeline, the repos' branches), then the plan states: what "done" is for the whole project; every repo, MR and ticket in it, and what is out of it; the order and what waits on what; the people outside the team it touches (reviewers, other MRs on the same code); and what you will decide yourself versus bring to the user. Ask everything the plan needs from the user now, in one go. Break the goal into tasks with the office \`task\` tool: each a short one-line title (under 30 characters) and its role (實作 build / 驗收 verify / 查證 look up); the scope (including what not to touch) and when it is done go in your plan and in the dispatch, not in the title. A 卡住 reason is one short sentence: the page lists every stuck task in one line. Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
 2. Hire with the office \`hire\` tool: a name, the folder, and the dispatch. Only one member builds in a repo at a time, in the repo itself. Two builders in one repo at once need their own clones (\`clone: true\`), and a new clone stops at the "trust this folder" prompt until the user answers it in that tab: ask the user under \`## ${DECIDE_HEADING()}\` first and say which tab will wait. A dispatch states the role, the scope (what to do and what not to touch), when it is done, and that the member reports back to you. Give more work to a member you already have with SendMessage. A message that only acknowledges or thanks needs no reply: answering it starts a loop.
 3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it.
-4. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing your last questions until the user speaks to you. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When a member needs the user to answer in its own session (an "allow" for a blocked command), list it with the member's name so the user knows which desk to answer.
-5. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user. Once the user approves a push or opening an MR, pass it to the member who does it: say "使用者已核准" with the repo, branch and MR, and quote the user's reply word for word. Merging an MR, deleting anything, and a command auto mode blocks still need the user in that member's own session.
-6. When the project ends: in each member's clone, check that \`git status --porcelain\` is empty and nothing is unpushed (\`git log @{u}..\`), then move the clone to ~/.Trash; list any that is not clean for the user instead. Then tell your members to wrap up.`
+4. Decide inside the approved plan yourself: interim values, whether to check again, the order of work. Bring to the user only a write they must approve, work outside the plan (say what the plan missed, so it gets fixed), or business facts only they know. Write one line in your report for each call you made ("我決定了 X，因為 Y").
+5. When a problem comes up, solve it before you bring it to the user: (1) have a 查證 member find the cause, with evidence, not a guess; and never pass on a member's claim (a failing count, "it can't be done") you have not had checked. (2) Find at least two ways out, one of them the part your team can do now (fix one of three lines now, the rest after a merge). (3) Before you tell the user something cannot be done or must wait, have it refuted: a member who was not on it, or a one-off read-only Codex check (\`codex exec\`) for a small question; you choose. (4) Before you propose a fix, check it against the repo: its docs, its last few MRs of the same kind, and what people said on the MRs (the target branch, the flow, a reviewer's comment). (5) A fix inside the approved plan you carry out yourself and report ("我決定了 X"); only a write the user must approve or work outside the plan goes to them, with the fix and the options, not the bare problem. A question whose answer only means something later (when a list arrives, after a merge) is not asked now: put it in your to-do list with what it waits on.
+6. Every report opens with one line on what the user must do now ("現在要你回 2 題" or "不用你做事"). Questions are in plain words: a code (M1, #4, L5) is never used without saying what it is.
+7. Before you report the project's state, look at every MR of the project (\`glab\`, read-only): new comments from anyone and pipeline results. Sum up new comments for the user, or give them to a member to handle.
+8. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing your last questions until the user speaks to you. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When a member needs the user to answer in its own session (an "allow" for a blocked command), list it with the member's name so the user knows which desk to answer.
+9. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user. Once the user approves a push or opening an MR, pass it to the member who does it: say "使用者已核准" with the repo, branch and MR, and quote the user's reply word for word. Merging an MR, deleting anything, and a command auto mode blocks still need the user in that member's own session.
+10. Wrapping up starts only when the user asks (the page's 收尾 button sends 「收尾這個專案」); once every task is 完成 you may say the project can be wrapped up. Then, in this order: (1) Take stock: every task, every MR of the project (state, pipeline, comments not answered), and in every repo the team touched, unpushed commits and uncommitted changes (each member checks its own and tells you). (2) What is not done: what the user must approve or do (merging MRs, the Jira status changes the MRs' state calls for) goes under \`## ${DECIDE_HEADING()}\`, all at once; what waits on others goes into the handoff file ${handoffPath(project)} (what is done, what is left and what it waits on, where things are), which the next lead of this project reads first; delete the file when nothing is left. (3) Run a retrospective (the user's retrospective skill, if they have one) so the lessons are kept. (4) Tell each member to wrap up: check its leftovers (unpushed commits, background jobs) and report; in a member's clone, \`git status --porcelain\` empty and nothing unpushed (\`git log @{u}..\`) means it goes to ~/.Trash, anything else is listed for the user. Then close the member with the office \`dismiss\` tool. (5) Report a short summary; the user closes your own session.`
 const MEMBER_REPORT = (lead: string) => `# Your reply (Session Office)
 The user does not read this reply: they follow the project through ${lead}. Anything for the user (a question, an approval, a push or MR to allow) goes to ${lead} with SendMessage, with its options; never write a \`## ${DECIDE_HEADING()}\` section here. A short plain reply is enough.`
 const MEMBER_CONTEXT = (project: string, lead: string) => `# Your role (Session Office): member of project "${project}", led by "${lead}"
@@ -1009,7 +1015,7 @@ async function openRequestedSessions($: EngineInterface) {
     const command = (doc.data.kind === 'codex'
       ? `cd ${shellQuote(cwd)} && codex ${shellQuote(task)}`
       : doc.data.kind === 'lead'
-      ? `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(`${project} 組長`)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} CLAUDE_OFFICE_ROLE=lead CLAUDE_OFFICE_CAP=${cap} claude ${shellQuote(LEAD_KICKOFF(project, task, cap))}`
+      ? `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(`${project} 組長`)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} CLAUDE_OFFICE_ROLE=lead CLAUDE_OFFICE_CAP=${cap} claude ${shellQuote(LEAD_KICKOFF(project, task, cap, (await $.fs.exists(handoffPath(project))) ? handoffPath(project) : null))}`
       : `cd ${shellQuote(cwd)} && CLAUDE_OFFICE_TITLE=${shellQuote(title)} CLAUDE_OFFICE_PROJECT=${shellQuote(project)} claude${task ? ' ' + shellQuote(task) : ''}`) + TAB_EXIT
     const script = [
       'tell application "iTerm2"',
@@ -1741,7 +1747,17 @@ export const register: Register = on => {
           isDeferred: false,
         })
       } catch (error) { report($, `hire tool not registered: ${String(error)}`) }
-      await $.process.run(['mkdir', '-p', taskPostDir(), hiresDir()], { timeoutMs: 5000 }).catch(() => {})
+      try {
+        await $.tool.register({
+          name: 'dismiss',
+          description: "Session Office, for a project lead only: close a member's session once it has wrapped up and reported (no unpushed commits, nothing running). Used when the project is wrapped up.",
+          inputSchema: { type: 'object', properties: {
+            name: { type: 'string', description: "The member's name on its desk." },
+          }, required: ['name'] },
+          isDeferred: false,
+        })
+      } catch (error) { report($, `dismiss tool not registered: ${String(error)}`) }
+      await $.process.run(['mkdir', '-p', taskPostDir(), hiresDir(), dirname(handoffPath('x'))], { timeoutMs: 5000 }).catch(() => {})
       await $.process.run(['mkdir', '-p', boardPostDir()], { timeoutMs: 5000 }).catch(() => {})
       $.clock.after(15_000, () => { void startupCheck($) })
     }
@@ -1802,6 +1818,24 @@ export const register: Register = on => {
     const at = Date.now()
     await $.fs.write(`${hiresDir()}/${me.id}-${at}.json`, JSON.stringify({ project: team, lead: me.title || me.label, name, cwd, clone: !!a.clone, task, at }))
     return { result: `Hiring "${name}"${a.clone ? ' in its own clone' : ''}: the bridge opens it within a few seconds (a clone can take longer), with your dispatch as its first message. It answers you with SendMessage.` }
+  })
+  // the member's own inbox gets /exit, as the page's 開除 button does
+  on('tool.call', { tool: 'mcp__office__dismiss' }, async ($, e) => {
+    if (!me) return { deny: 'This session has no desk in Session Office.' }
+    const team = rootOf(me.project), lead = me.title || me.label
+    if (me.role !== 'lead' || !team) return { deny: 'Only a project lead dismisses members; this session is not one.' }
+    const name = String((e as unknown as { name?: string }).name ?? '').trim()
+    let found: Desk | null = null
+    for (const f of (await $.process.run(['ls', deskDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(x => x.endsWith('.json'))) {
+      try {
+        const d = JSON.parse(await $.fs.read(`${deskDir()}/${f}`)) as Desk
+        if ((d.title || '').trim() === name && d.role === 'member' && d.lead === lead && d.state !== 'gone') found = d
+      } catch { /* half-written */ }
+    }
+    if (!found) return { deny: `No member named "${name}" on your team is in the office.` }
+    await $.fs.write(inboxPath(found.id), JSON.stringify({ instruction: '/exit', instructionAt: Date.now() }))
+    logEvent($, 'dismiss', { project: team, name })
+    return { result: `"${name}" is told to leave; its desk clears within a few seconds.` }
   })
   on('tool.call', { tool: 'mcp__office__task' }, async ($, e) => {
     if (!me) return { deny: 'This session has no desk in Session Office.' }

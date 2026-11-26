@@ -11,6 +11,44 @@ log() { echo "$(date '+%F %T') $*"; }
 office="$HOME/.claude/office"
 STUCK_SECS=180
 
+notify() { /usr/bin/osascript -e "display notification \"$1\" with title \"Session Office\"" >/dev/null 2>&1; }
+
+# A bridge whose login expired stays up but stops syncing, and a new one would need
+# the same login: tell the person instead (macOS notification, not through the page,
+# which the bridge itself feeds). At most every 10 minutes, and only while it is not syncing.
+login_check() {
+  local sid tr ok at last now=$(date +%s)
+  sid=$(/usr/bin/plutil -extract sessionId raw -o - "$office/bridge.json" 2>/dev/null) || return
+  ok=$(/usr/bin/plutil -extract ok raw -o - "$office/bridge.json" 2>/dev/null)
+  at=$(/usr/bin/plutil -extract at raw -o - "$office/bridge.json" 2>/dev/null)
+  [ "$ok" = "true" ] && [ $(( now - ${at:-0} / 1000 )) -lt 120 ] && return
+  tr=$(ls -t "$HOME"/.claude/projects/*/"$sid".jsonl 2>/dev/null | head -1)
+  [ -n "$tr" ] && tail -n 30 "$tr" | grep -qE 'Run /login|run /login|Login expired' || return
+  last=$(cat "$office/login-notified" 2>/dev/null || echo 0)
+  [ $(( now - last )) -ge 600 ] || return
+  notify "橋接要重新登入：到橋接的 iTerm 分頁跑 /login"
+  log "bridge needs /login; notified"
+  echo "$now" > "$office/login-notified"
+}
+login_check
+
+# Once a day: once today is inside the window the claude.ai login ends in, say so ahead of
+# time. The CLI warns only when a session starts, and the bridge runs for days.
+# `claude auth status --text` prints "Sign-in ends: between <from> and <to> (...)" (v2.1.318+).
+login_ends_check() {
+  local today=$(date +%F) cli line from to
+  [ "$(cat "$office/login-ends-checked" 2>/dev/null)" = "$today" ] && return
+  echo "$today" > "$office/login-ends-checked"
+  cli=$(command -v claude || echo /opt/homebrew/bin/claude)
+  line=$("$cli" auth status --text 2>/dev/null | grep '^Sign-in ends: between')
+  from=$(echo "$line" | awk '{print $4}'); to=$(echo "$line" | awk '{print $6}')
+  [[ "$from" == ????-??-?? && "$to" == ????-??-?? ]] || return
+  [[ "$today" < "$from" ]] && return
+  notify "Claude 登入會在 $from～$to 之間到期，找空檔在任一分頁跑 /login（橋接也要）"
+  log "login ends between $from and $to; notified"
+}
+login_ends_check
+
 # A running bridge is a `claude --dangerously-skip-permissions` process.
 # Match the claude process itself, not a shell whose command line merely quotes it.
 running=$(ps -axo pid=,command= | awk '$2 == "claude" && $3 == "--dangerously-skip-permissions" { print $1 }' | tr '\n' ' ')
@@ -35,6 +73,7 @@ if [ -n "$running" ]; then
   fi
   if [ -n "$stuck" ]; then
     log "bridge pid ${stuck# } has not synced (last bridge.json ${age}s ago, from pid $pid); ending it"
+    notify "橋接 ${age} 秒沒同步，已結束它並重開一個"
     kill ${=stuck} 2>/dev/null
     sleep 3
   else
