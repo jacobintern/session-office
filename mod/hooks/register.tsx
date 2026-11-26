@@ -446,7 +446,8 @@ async function takeInstruction($: EngineInterface) {
       }
       return
     }
-    patch($, { state: 'working', activity: '收到辦公室的指令', task: firstLine(instruction, 80) })
+    const wokeBy = boardWakeOf(instruction)
+    patch($, wokeBy !== null ? { state: 'working', activity: `讀公佈欄：${wokeBy} 的新卡` } : { state: 'working', activity: '收到辦公室的指令', task: firstLine(instruction, 80) })
     await deliver($, { at, text: instruction, tries: 0, sentAt: 0 })
   } catch (error) {
     report($, `instruction from the office could not be run: ${String(error)}`)
@@ -463,6 +464,7 @@ const DIALOG_WAIT_MS = 10_000
 // interruption marker, so the next page instruction still gets in.
 let runningTurn: string | null = null
 let turnFrom: string | null = null          // the teammate whose message started the running turn; null when the person did
+const BOARD_WAKE_FROM = '公佈欄'            // turnFrom of a turn the bridge started for a new board card
 const sentFor = new Set<string>()          // teammates this session messaged for the person: their replies are reported (kept until /clear)
 let pausing = false
 
@@ -695,6 +697,14 @@ const boardId = (project: string) => 'b' + fnv(project)
 let jiraParent: Record<string, string> = {}
 const rootOf = (project: string | null | undefined) => project ? (jiraParent[project] ?? project) : null
 const boardsWritten: Record<string, string> = {}
+// A card posted by one member wakes the members of that project who sit idle, so they read it now and not at their
+// next turn. A card posted in such a woken turn wakes nobody (two members would otherwise keep waking each other),
+// and a member is woken at most once every few minutes.
+const BOARD_WAKE_MIN_MS = 3 * 60 * 1000
+const boardWokeAt: Record<string, number> = {}
+const BOARD_WAKE_RE = /^<board-wake\b[^>]*\bfrom-name="([^"]*)"[^>]*>/
+const boardWakeOf = (text: string) => BOARD_WAKE_RE.exec(text ?? '')?.[1] ?? null
+const BOARD_WAKE_CONTEXT = (by: string) => `# Why this turn started (Session Office)\nNo one asked you anything: "${by}" posted a new card on your project's board (shown above), and you were idle. Read it. If it changes your work (a shared file, an interface, an order of work, something you were waiting on), act on it or tell that teammate with SendMessage; if it does not concern you, end with one short line. This turn is not reported to the user; only a \`## ${DECIDE_HEADING()}\` section calls them over. A card you post now wakes no one.`
 async function writeBoard($: EngineInterface, root: string, b: { version?: number; notes: Note[] }): Promise<boolean> {
   const data = { project: root, notes: b.notes }
   const wrote = b.version === undefined
@@ -719,12 +729,13 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
   for (const doc of docsIn(await $.tool.call({ tool: 'ArtifactData', action: 'list', url: OFFICE_URL, collection: BOARDS, query: { limit: 200 } }))) {
     if (typeof doc.data.project === 'string') boards[doc.data.project] = { version: doc.version, notes: Array.isArray(doc.data.notes) ? (doc.data.notes as Note[]) : [] }
   }
+  const wakes: { root: string; from: string; by: string; text: string; at: number }[] = []
   let posts: string[] = []
   try { posts = (await $.process.run(['ls', boardPostDir()], { timeoutMs: 5000 })).stdout.split('\n').filter(f => f.endsWith('.json')) } catch { /* no posts yet */ }
   for (const f of posts) {
     const path = `${boardPostDir()}/${f}`
     try {
-      const post = JSON.parse(await $.fs.read(path)) as { desk: string; by: string; text: string; at: number }
+      const post = JSON.parse(await $.fs.read(path)) as { desk: string; by: string; text: string; at: number; quiet?: boolean }
       const root = roots.get(post.desk)
       if (root) {
         const b = boards[root] ?? { notes: [] }
@@ -733,6 +744,7 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
         b.notes = trimNotes([...b.notes.map(n => !n.archived && (n.desk === post.desk || (!n.desk && !n.user && n.by === post.by)) ? { ...n, archived: post.at } : n), note])
         if (!(await writeBoard($, root, b))) continue   // the file waits for the next round
         boards[root] = b
+        if (!post.quiet) wakes.push({ root, from: post.desk, by: post.by, text: post.text, at: post.at })
       }
       await $.process.run(['rm', '-f', path], { timeoutMs: 5000 })
     } catch { /* half-written; next round */ }
@@ -752,6 +764,18 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
     if (boardsWritten[deskId] === body) continue
     await $.fs.write(boardFile(deskId), body)
     boardsWritten[deskId] = body
+  }
+  // after the board files, so a woken member reads the new card; never over an instruction still waiting in its inbox
+  const nowMs = Date.now()
+  for (const w of wakes) for (const d of desks) {
+    if (d.id === w.from || roots.get(d.id) !== w.root || d.state !== 'idle' || d.blocked || nowMs - (boardWokeAt[d.id] ?? 0) < BOARD_WAKE_MIN_MS) continue
+    try {
+      const inbox = JSON.parse(await $.fs.read(inboxPath(d.id))) as { instructionAt?: number }
+      if ((inbox.instructionAt ?? 0) > (d.instructionDoneAt ?? 0)) continue
+    } catch { /* no inbox yet */ }
+    await $.fs.write(inboxPath(d.id), JSON.stringify({ instruction: `<board-wake from-name="${w.by.replace(/"/g, "'")}">\n${w.text}`, instructionAt: nowMs }))
+    boardWokeAt[d.id] = nowMs
+    logEvent($, 'board-wake', { to: d.title || d.label || d.id.slice(0, 8), from: w.by })
   }
 }
 
@@ -1417,6 +1441,8 @@ export const register: Register = on => {
     }
     const mate = teammateOf(e.text)
     if (mate) context.push(sentFor.has(mate.name) ? COMMANDER_CONTEXT(mate.name) : RELAY_CONTEXT(mate.name))
+    const wokeBy = boardWakeOf(e.text)
+    if (wokeBy !== null) context.push(BOARD_WAKE_CONTEXT(wokeBy))
     return next({ ...e, context })
   })
   on('session.start', async ($, e, next) => {
@@ -1554,7 +1580,7 @@ export const register: Register = on => {
       if (!note) return { deny: 'Nothing to post.' }
       if (!me.project) return { deny: noProject }
       const at = Date.now()
-      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, text: note, at }))
+      await $.fs.write(`${boardPostDir()}/${me.id}-${at}.json`, JSON.stringify({ desk: me.id, by: me.title || me.label, text: note, at, ...(turnFrom === BOARD_WAKE_FROM ? { quiet: true } : {}) }))
       return { result: `Your card on the board of ${name} is updated (the earlier one is archived); the bridge publishes it within a few seconds.` }
     }
     if (!board) return { result: 'No board yet for this desk (the bridge has not synced it, or the desk has no project).' }
@@ -1656,7 +1682,7 @@ export const register: Register = on => {
     if (e.agentId === undefined) seen('turn.start')
     const mate = e.agentId === undefined ? teammateOf(e.text) : null
     let stopNow = false
-    if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? null }
+    if (e.agentId === undefined) { runningTurn = e.turnId; turnFrom = mate?.name ?? (boardWakeOf(e.text) !== null ? BOARD_WAKE_FROM : null) }
     if (e.agentId === undefined && me) {
       const p: Partial<Desk> = { state: 'working', activity: '思考中', bg: null, relay: null }
       if (pendingInstruction && e.text.includes(pendingInstruction.text.slice(0, 200))) {
@@ -1733,7 +1759,7 @@ export const register: Register = on => {
         const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
         // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
         const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && !DECIDE_RE.test(e.answer ?? '') ? turnFrom : null
-        if (relay) patch($, { state: 'idle', activity: `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        if (relay) patch($, { state: 'idle', activity: relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         else patch($, { state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         // the Stop settings hook writes what is still running a moment later
         $.clock.after(1500, () => { void checkBackground($, at) })
