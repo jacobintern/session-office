@@ -143,6 +143,10 @@
   .proj .ph .hot { color: var(--wait); font-weight: 600; }
   .proj .stuck { color: #c0392b; font-size: .78rem; margin-top: 2px; overflow-wrap: anywhere; }
   .proj .stuck .w { color: var(--muted); }
+  .proj .sec { font-size: .72rem; font-weight: 600; color: var(--muted); margin-top: 4px; }
+  .proj .sec.ask { color: var(--wait); }
+  .proj .ask-q { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 1px 0; font: inherit; font-size: .78rem; color: var(--fg); cursor: pointer; overflow-wrap: anywhere; }
+  .proj .ask-q:hover { color: var(--accent); }
   .roster h2 { font-size: .9rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
   .roster h3 { font-size: .74rem; font-weight: 600; letter-spacing: .05em; margin: 10px 0 2px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
   .roster h3 .n { font-weight: 500; }
@@ -562,7 +566,7 @@
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
       analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）', analystAsk: '問分析師',
-      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', evGuard: '警衛', evTitle: '警衛：最近事件', evHint: '每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log', evFilter: '只看', evAll: '全部 session', evEmpty: '還沒有事件。橋接會把 ~/.claude/office/events.log 最近 100 筆同步到這裡。', evLoad: '重新載入：專案 {p}', evNoProject: '重新載入：沒有專案', evInstr: '收到指令「{x}」', evState: '{a} → {b}', evProject: '專案 {a} → {b}', evFailed: '指令沒送到：{x}', evNone: '（無）', evWake: '{b} 貼了新卡，叫醒 {a} 去讀', evTask: '任務 #{n}「{t}」→ {s}', ovHead: '專案', ovDone: '{d}/{t} 完成', ovStuck: '卡 {n} 件', ovDecide: '要你決定 {n}', ovNoTasks: '還沒有任務', ovPlanning: '組長規劃中', ovClear: '沒卡', ovYou: '你', ovWait: '（等 {w}，{d}）', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
+      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', evGuard: '警衛', evTitle: '警衛：最近事件', evHint: '每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log', evFilter: '只看', evAll: '全部 session', evEmpty: '還沒有事件。橋接會把 ~/.claude/office/events.log 最近 100 筆同步到這裡。', evLoad: '重新載入：專案 {p}', evNoProject: '重新載入：沒有專案', evInstr: '收到指令「{x}」', evState: '{a} → {b}', evProject: '專案 {a} → {b}', evFailed: '指令沒送到：{x}', evNone: '（無）', evWake: '{b} 貼了新卡，叫醒 {a} 去讀', evTask: '任務 #{n}「{t}」→ {s}', ovHead: '專案', ovDone: '{d}/{t} 完成', ovNoTasks: '還沒有任務', ovPlanning: '組長規劃中', ovAsks: '要你決定（點一下打開回覆）', ovAskHint: '打開 {who} 回覆', ovStuckOthers: '卡住（等別人）', ovClear: '沒卡', ovWaitYou: '等你 {n} 件', ovWait: '（等 {w}，{d}）', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
       anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
@@ -610,7 +614,7 @@
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
       analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (Enter sends, Shift+Enter for a new line)', analystAsk: 'Ask',
-      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', evGuard: 'Guard', evTitle: 'Guard: recent events', evHint: "Each session's loads, instructions taken, state and project changes; the full log is ~/.claude/office/events.log on this Mac", evFilter: 'Show', evAll: 'All sessions', evEmpty: 'No events yet. The bridge copies the last 100 lines of ~/.claude/office/events.log here.', evLoad: 'Reloaded: project {p}', evNoProject: 'Reloaded: no project', evInstr: 'Took the instruction “{x}”', evState: '{a} → {b}', evProject: 'Project {a} → {b}', evFailed: 'Instruction not delivered: {x}', evNone: '(none)', evWake: '{b} posted a card; woke {a} to read it', evTask: 'Task #{n} “{t}” → {s}', ovHead: 'Projects', ovDone: '{d}/{t} done', ovStuck: '{n} stuck', ovDecide: '{n} for you', ovNoTasks: 'no tasks yet', ovPlanning: 'the lead is planning', ovClear: 'nothing stuck', ovYou: 'you', ovWait: ' (waiting on {w}, {d})', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
+      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', evGuard: 'Guard', evTitle: 'Guard: recent events', evHint: "Each session's loads, instructions taken, state and project changes; the full log is ~/.claude/office/events.log on this Mac", evFilter: 'Show', evAll: 'All sessions', evEmpty: 'No events yet. The bridge copies the last 100 lines of ~/.claude/office/events.log here.', evLoad: 'Reloaded: project {p}', evNoProject: 'Reloaded: no project', evInstr: 'Took the instruction “{x}”', evState: '{a} → {b}', evProject: 'Project {a} → {b}', evFailed: 'Instruction not delivered: {x}', evNone: '(none)', evWake: '{b} posted a card; woke {a} to read it', evTask: 'Task #{n} “{t}” → {s}', ovHead: 'Projects', ovDone: '{d}/{t} done', ovNoTasks: 'no tasks yet', ovPlanning: 'the lead is planning', ovAsks: 'For you to decide (click to answer)', ovAskHint: 'Open {who} to answer', ovStuckOthers: 'Stuck (waiting on others)', ovClear: 'nothing stuck', ovWaitYou: '{n} waiting on you', ovWait: ' (waiting on {w}, {d})', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
       anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
       anUsed: '- {label}: {p}% used', anResets: ' (resets {when})', anAvg: ', {a}% an hour on average this window', anRecent: ' (last hour: {r}%)', anEta: ', at the average rate runs out **at {when}** ({early} before the reset)', anSafe: ', at the average rate lasts until the reset at about {q}%', anIdle: ', nothing used this window yet', anFew: ', the window just started; no forecast yet', anResetNow: '- {label}: reset',
       anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
@@ -1642,6 +1646,10 @@
   // ---- the project overview above the roster: per project, how far its tasks are and where it is stuck.
   // A project shows when it has a lead, tasks or two live members; a session on its own stays in the roster below.
   let tasksDocs = new Map();   // project -> its task list (the `tasks` collection)
+  const isYou = w => /^(使用者|user|you|你)$/i.test(String(w || '').trim());
+  // the numbered questions of a decisions section, each cut before its options: "1. 這份計畫核准嗎？"
+  const decideQuestions = text => String(text || '').split('\n').map(l => /^\s*(\d+)[.、)]\s*(.+)$/.exec(l)).filter(Boolean)
+    .map(([, n, q]) => { const c = q.replace(/\*\*/g, '').split(/\s*[(（]a[)）]/)[0].trim(); const m = /^.*?[？?]/.exec(c); return `${n}. ${(m ? m[0] : c).slice(0, 80)}`; });
   function projectOverview(L) {
     const live = L.list.filter(d => liveness(d) === 'live');
     const members = new Map();
@@ -1650,10 +1658,12 @@
     if (!names.size) return null;
     const rows = [...names].map(name => {
       const items = tasksDocs.get(name)?.items || [], ms = members.get(name) || [];
-      const stuck = items.filter(t => t.status === '卡住').sort((a, b) => a.at - b.at);
-      const decide = ms.filter(d => isWaiting(d) && splitDecide(d.report).decide).length;
-      return { name, items, stuck, decide, done: items.filter(t => t.status === '完成').length, led: ms.some(d => d.role === 'lead') };
-    }).sort((a, b) => (b.stuck.length + b.decide > 0) - (a.stuck.length + a.decide > 0) || (a.stuck[0]?.at ?? Infinity) - (b.stuck[0]?.at ?? Infinity) || a.name.localeCompare(b.name));
+      // what waits on the user is asked in a desk's decisions (the lead's, mostly); the task list shows only what waits on someone else
+      const stuck = items.filter(t => t.status === '卡住' && !isYou(t.waiting)).sort((a, b) => a.at - b.at);
+      const asks = ms.filter(d => isWaiting(d)).flatMap(d => decideQuestions(splitDecide(d.report).decide).map(q => ({ d, q })));
+      const onYou = items.filter(t => t.status === '卡住' && isYou(t.waiting)).length;
+      return { name, items, stuck, asks, onYou, done: items.filter(t => t.status === '完成').length, led: ms.some(d => d.role === 'lead') };
+    }).sort((a, b) => (b.asks.length > 0) - (a.asks.length > 0) || (b.stuck.length > 0) - (a.stuck.length > 0) || (a.stuck[0]?.at ?? Infinity) - (b.stuck[0]?.at ?? Infinity) || a.name.localeCompare(b.name));
     const box = document.createElement('div'); box.className = 'povw';
     const h = document.createElement('h2'); h.textContent = tt('ovHead'); box.append(h);
     for (const r of rows) {
@@ -1661,11 +1671,19 @@
       const ph = document.createElement('div'); ph.className = 'ph';
       const b = document.createElement('b'); b.textContent = r.name; ph.append(b);
       const bits = [[r.items.length ? tt('ovDone', { d: r.done, t: r.items.length }) : tt(r.led ? 'ovPlanning' : 'ovNoTasks'), '']];
-      if (r.stuck.length) bits.push([tt('ovStuck', { n: r.stuck.length }), 'hot']);
-      if (r.decide) bits.push([tt('ovDecide', { n: r.decide }), 'hot']);
-      if (!r.stuck.length && !r.decide && r.items.length) bits.push([tt('ovClear'), '']);
+      // tasks wait on the user while no desk is asking (its report was acknowledged): say so rather than "nothing stuck"
+      if (r.onYou && !r.asks.length) bits.push([tt('ovWaitYou', { n: r.onYou }), 'hot']);
+      if (!r.stuck.length && !r.asks.length && !r.onYou && r.items.length) bits.push([tt('ovClear'), '']);
       for (const [text, cls] of bits) { const sp = document.createElement('span'); sp.textContent = text; if (cls) sp.className = cls; ph.append(sp); }
       el.append(ph);
+      if (r.asks.length) {
+        const sec = document.createElement('div'); sec.className = 'sec ask'; sec.textContent = tt('ovAsks'); el.append(sec);
+        for (const { d, q } of r.asks) {
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'ask-q'; b.textContent = q; b.title = tt('ovAskHint', { who: d.title || d.label || '' });
+          b.addEventListener('click', () => openModal(d.id)); el.append(b);
+        }
+      }
+      if (r.stuck.length) { const sec = document.createElement('div'); sec.className = 'sec'; sec.textContent = tt('ovStuckOthers'); el.append(sec); }
       // one line each: the title up to its first stop, the reason's first sentence; the whole of both on hover
       const short = (x, n) => { const c = String(x || '').split(/[。；;（(]/)[0].trim(); return c.length > n ? c.slice(0, n) + '…' : c; };
       for (const t of r.stuck) {
@@ -1673,7 +1691,7 @@
         line.textContent = `⛔ #${t.no} ${short(t.title, 30)}${t.reason ? '：' + short(t.reason, 30) : ''}`;
         line.title = `#${t.no} ${t.title}${t.reason ? '\n\n' + t.reason : ''}`;
         const w = document.createElement('span'); w.className = 'w';
-        w.textContent = tt('ovWait', { w: /^(使用者|user|you|你)$/i.test(t.waiting || '') ? tt('ovYou') : (t.waiting || '?'), d: dur(t.at) });
+        w.textContent = tt('ovWait', { w: t.waiting || '?', d: dur(t.at) });
         line.append(w); el.append(line);
       }
       box.append(el);
