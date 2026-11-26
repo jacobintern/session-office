@@ -24,6 +24,7 @@ block at the end of the page script; the board one is in `watchBoard`):
 | `desks` | `bridgeTick` (from desk files) | `renderRoster`, `draw`, `fillModal` |
 | `requests` | `openRequestedSessions` | `openSpawn` form |
 | `codexAsks` | `serveCodexAsks`, `pruneCodexAsks` | `openCodex`, `renderCodex` (the page writes the question) |
+| `meta/events` | `syncEvents` (last 100 lines of `events.log`) | `drawGuard`, `openEvents`, `renderEvents` |
 | `boards/*` | `syncBoards`, `writeBoard` | `watchBoard`, `renderBoard`, `saveBoard` |
 
 When a desk behaved oddly (a project that changed back, an instruction that
