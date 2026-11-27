@@ -34,6 +34,12 @@ under **Unreleased**.
   - A one-letter answer a member relays is not a decision to change code;
     the lead asks again at its own desk.
 
+### Fixed
+
+- A second report soon after the first no longer hides it. Reports you have not
+  read yet (since your last reply or 收到) stay above the latest one, and the
+  roster shows 📨 with their count.
+
 ## [0.3.0] - 2026-11-27
 
 ### Added

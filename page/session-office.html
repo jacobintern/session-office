@@ -148,6 +148,8 @@
   .proj .ask-q { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 1px 0; font: inherit; font-size: .78rem; color: var(--fg); cursor: pointer; overflow-wrap: anywhere; }
   .proj .ask-q:hover { color: var(--accent); }
   .proj .ask-q.at-desk { color: var(--muted); }
+  .unread .item { border-left: 3px solid var(--wait); padding: 2px 0 6px 10px; margin-bottom: 10px; }
+  .unread .when { font-size: .78rem; color: var(--wait); font-weight: 600; margin-bottom: 4px; }
   .proj .ph .wrapup { margin-left: auto; font: inherit; font-size: .72rem; padding: 0 8px; border: 1px solid var(--line); border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
   .proj .ph .wrapup.sure { border-color: var(--wait); color: var(--wait); font-weight: 600; }
   .roster h2 { font-size: .9rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
@@ -405,6 +407,7 @@
         <div class="branch" id="m-branch"></div>
         <div class="project" id="m-project"><span id="m-project-name"></span><input class="project-edit" id="m-project-edit" maxlength="60" hidden><button type="button" class="copyname" id="m-project-rename" hidden>✎</button><span class="mates" id="m-mates"></span></div>
         <div class="line" id="m-task"></div>
+        <div class="unread" id="m-unread" hidden></div>
         <div class="report" id="m-report"></div>
         <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
         <div class="blocked" id="m-blocked" hidden></div>
@@ -552,7 +555,7 @@
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
       decide: '要你決定', decideOlder: '要你決定（{ago}問的，還沒回）', decideLeft: '要你決定（還沒回的題目）', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
-      ack: '收到，回座位', later: '稍後處理', laterTag: '稍後', laterHint: '你標了稍後處理：它回座位等你，題目留在專案總覽；它有新回報時會再來排隊', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
+      ack: '收到，回座位', unreadOlder: '較早的回報，還沒讀（{ago}）', unreadHint: '{n} 則回報還沒讀，打開會一起列出', later: '稍後處理', laterTag: '稍後', laterHint: '你標了稍後處理：它回座位等你，題目留在專案總覽；它有新回報時會再來排隊', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', modeSolo: '單人', modeTeam: '專案（開組長）', teamName: '專案名稱（必填）', teamGoal: '目標與限制（必填）：組長會先跟你討論計畫，你核准後才找人', teamCap: '成員上限（不含組長）', openTeam: '開專案', teamLine: '橋接會開一個 session 當組長，桌牌是「專案名稱 組長」。它先拆工作、寫任務、跟你討論計畫；你核准後，它才在上限內找成員，每人各一個分頁。', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
@@ -600,7 +603,7 @@
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
       decide: 'Decisions for you', decideOlder: 'Decisions for you (asked {ago}, not answered yet)', decideLeft: 'Decisions for you (the ones not answered yet)', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
-      ack: 'Got it, back to desk', later: 'Later', laterTag: 'later', laterHint: 'You marked it for later: it waits at its seat and its questions stay in the overview; it queues again when it reports something new', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
+      ack: 'Got it, back to desk', unreadOlder: 'An earlier report, not read yet ({ago})', unreadHint: '{n} reports not read yet; opening it lists them all', later: 'Later', laterTag: 'later', laterHint: 'You marked it for later: it waits at its seat and its questions stay in the overview; it queues again when it reports something new', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', modeSolo: 'On its own', modeTeam: 'Project (opens a lead)', teamName: 'Project name (required)', teamGoal: 'Goal and limits (required): the lead plans with you first and hires only after you approve', teamCap: 'Member limit (lead not counted)', openTeam: 'Open project', teamLine: 'The bridge opens a session as the lead, named “project lead”. It breaks the work into tasks and goes over the plan with you; once you approve, it hires members within the limit, each in its own tab.', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
@@ -702,6 +705,8 @@
   const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
   const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
   // 稍後處理: you sent a desk with open questions back to its seat; it queues again once it reports something new
+  // reports to you since you last replied or pressed 收到 (a reply that went only to a teammate does not count)
+  const unreadOf = d => (Array.isArray(d.history) ? d.history : []).filter(h => h.toYou !== false && h.at > (d.ackAt || 0));
   const isLater = d => !!(d.ackAt && d.ackAt >= Math.max(d.reportedAt || 0, d.asked?.at || 0) && openDecide(d).decide);
   // a reply sent from the page but not yet started by the session still counts as work, so it doesn't look sent back to its seat
   const deliveryOf = d => d.delivery && d.delivery.at === d.instructionAt ? d.delivery : null;
@@ -1772,6 +1777,7 @@
         if (key !== 'gone' && isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); b.title = tt('lostHint'); el.querySelector('.label').after(b); }
         if (key === 'switching') { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(modelName((MODELS.find(([a]) => a === switchingOf(d).to) || [])[1] || switchingOf(d).to)); b.title = trMod(d.activity || ''); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
+        if (key !== 'gone' && unreadOf(d).length > 1) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = '📨 ' + unreadOf(d).length; b.title = tt('unreadHint', { n: unreadOf(d).length }); el.querySelector('.label').after(b); }
         if (key !== 'gone' && isLater(d)) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = '📌 ' + tt('laterTag'); b.title = tt('laterHint'); el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         // waiting: how long the report has sat there; working / idle: how long in that state (older mods
@@ -2084,7 +2090,7 @@
     if (lost) sent.textContent = tt('sentLost', { text: sentText, why: trMod(dv.reason || '') });
     else if (pending) sent.textContent = tt(dv && dv.state === 'retried' ? 'sentRetried' : 'sent', { text: sentText, ago: ago(d.instructionAt) });
     document.getElementById('m-meta').textContent = (d.reportedAt ? tt('reportedAgo', { ago: ago(d.reportedAt) }) + '  ·  ' : '') + tt('updatedAgo', { ago: ago(d.seenAt) });
-    renderHistory(d);
+    renderUnread(d); renderHistory(d);
     mSend.disabled = !(lv === 'live' && canWrite);
     document.getElementById('m-ack').hidden = !(isWaiting(d) && lv === 'live' && canWrite);
     // with questions still open it is not "got it" but "later": back to its seat, marked, the questions kept
@@ -2103,6 +2109,24 @@
   // the earlier rounds from the desk's `history` (oldest first, the last one is the current
   // report), newest first and folded; a desk from an older mod has no history and shows nothing
   const histEl = document.getElementById('m-hist');
+  // a second report a few seconds after the first replaces it as the desk's report: the ones you have not read yet
+  // stay above it, oldest first, so nothing slips past you
+  function renderUnread(d) {
+    const el = document.getElementById('m-unread');
+    const older = unreadOf(d).filter(h => h.at !== d.reportedAt);
+    el.hidden = !older.length;
+    const key = d.id + ':' + older.map(h => h.at).join(',');
+    if (el.dataset.key === key) return;
+    el.dataset.key = key;
+    el.replaceChildren(...older.map(h => {
+      const item = document.createElement('div'); item.className = 'item';
+      const when = document.createElement('div'); when.className = 'when';
+      when.textContent = tt('unreadOlder', { ago: ago(h.at) }) + (h.task ? '　·　' + tt('task', { t: h.task }) : '');
+      const rep = document.createElement('div'); rep.className = 'report';
+      renderReport(rep, trMod(splitDecide(h.report).rest || h.report) || tt('noContent'));
+      item.append(when, rep); return item;
+    }));
+  }
   function renderHistory(d) {
     const past = Array.isArray(d.history) ? d.history.slice(0, -1).reverse() : [];
     histEl.hidden = !past.length;

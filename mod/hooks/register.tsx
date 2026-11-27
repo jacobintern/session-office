@@ -39,7 +39,7 @@ type Desk = {
   report: string
   reportedAt: number | null
   /** The last HISTORY_KEEP finished turns, oldest first, so a report the next turn replaces can still be read. */
-  history?: Array<{ at: number; task: string; report: string }>
+  history?: Array<{ at: number; task: string; report: string; toYou?: boolean }>
   startedAt: number
   seenAt: number
   /** When `state` last changed, so the page can say how long a session has been working or idle. */
@@ -2153,7 +2153,6 @@ export const register: Register = on => {
       else {
         const report = clipReport((e.answer ?? '').trim()) || (e.reason === 'error' ? errorReport(await lastApiError($)) : `_（這輪沒有文字回覆：${e.reason === 'refusal' ? '模型拒絕' : e.reason}）_`)
         const at = Date.now()
-        const history = [...(me.history ?? []), { at, task: me.task, report }].slice(-HISTORY_KEEP)
         // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
         const noneLeft = NONE_LEFT_RE.test(decideSection(e.answer ?? '') ?? '')
         const asks = DECIDE_RE.test(e.answer ?? '') && !noneLeft && !(me.role === 'member' && toldLead)
@@ -2163,6 +2162,8 @@ export const register: Register = on => {
         const quietMember = me.role === 'member' && turnFrom !== null
         const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && (!asks || quietMember) ? turnFrom : null
         const asked = noneLeft ? { asked: null } : asks && (!quietMember || me.asked) ? { asked: { report, at } } : {}
+        // a reply that went only to a teammate is marked, so the page counts just the reports you have not read
+        const history = [...(me.history ?? []), { at, task: me.task, report, ...(relay && !me.asked ? { toYou: false } : {}) }].slice(-HISTORY_KEEP)
         // with questions to the person still open it stays waiting at their desk; only a desk with nothing to ask goes back to rest
         if (relay && !me.asked) patch($, { ...asked, state: 'idle', activity: asks ? '有問題沒交給組長' : relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         else patch($, { ...asked, state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
