@@ -42,6 +42,12 @@ under **Unreleased**.
   handoff file as they go, and keep the ones still in force on their board card
   with a pointer to the file, so a new member or a session back from a
   compaction finds them.
+- Lead rules: anything a person must do by hand is the last resort, after the
+  agents have tried to do it themselves. The rule on relayed one-letter answers
+  is gone, since every question is asked at the lead's desk.
+- Lead rules: keeping to scope is the lead's own call (leave it out, note it as
+  a to-do). The rule that a fix outside the plan waits for the user moved to
+  the user's own instructions.
 - Lead rule 8 is shorter: sentences that only described what the page does
   on its own were dropped.
 
