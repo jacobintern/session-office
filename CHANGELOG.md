@@ -53,6 +53,9 @@ under **Unreleased**.
 
 ### Fixed
 
+- A reply to a lone question that does not open with one of its options ("a",
+  "(b) 但…") is no longer passed on to the member as the answer, nor does it
+  settle the question.
 - A second report soon after the first no longer hides it. Reports you have not
   seen stay above the latest one, numbered and folded, and the roster shows 📨
   with their count. A report counts as read once its desk window has shown it

@@ -320,7 +320,7 @@ function decideSection(report: string): string | null {
   return (end < 0 ? after : after.slice(0, end)).trim()
 }
 // The numbered questions of a report's decisions the person's reply leaves open, as a decisions section of their own
-// (null when none are): "1 a 2. b" answers items 1 and 2 and keeps 3; a bare answer settles a lone question; a reply
+// (null when none are): "1 a 2. b" answers items 1 and 2 and keeps 3; an answer opening with an option letter settles a lone question; a reply
 // with no item number to a list of several answers none of them. The page reads replies the same way (routeAnswers).
 function questionsLeft(report: string, reply: string | null): string | null {
   const section = decideSection(report)
@@ -335,7 +335,8 @@ function questionsLeft(report: string, reply: string | null): string | null {
   const answered = new Set<string>()
   if (reply !== null) {
     for (const a of reply.matchAll(/(?:^|\s)(\d{1,2})\s*[.、)]?\s+\S/g)) answered.add(a[1])
-    if (!answered.size && items.length === 1 && reply.trim()) answered.add(items[0].n)
+    // a lone question takes an answer without its number only when it opens with an option letter ("a", "(b) 但…")
+    if (!answered.size && items.length === 1 && /^\s*[(（]?[a-z][)）]?(?=$|[\s，,。.;；:：、])/i.test(reply)) answered.add(items[0].n)
   }
   const left = items.filter(it => !answered.has(it.n))
   return left.length ? `## ${DECIDE_HEADING()}\n\n${left.map(it => it.text.trimEnd()).join('\n')}` : null

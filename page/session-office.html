@@ -2375,19 +2375,24 @@
     }
     const answers = new Map();
     for (const m of reply.matchAll(/(?:^|\s)(\d{1,2})\s*[.、)]?\s+([\s\S]*?)(?=\s\d{1,2}\s*[.、)]?\s|$)/g)) answers.set(m[1], m[2].trim());
-    // one question needs no number: a bare "a" answers it
-    if (!answers.size && items.size === 1) answers.set([...items.keys()][0], reply.trim());
+    // one question needs no number, but only an answer that opens with one of its options ("a", "(b) 但…") is one:
+    // anything else ("你怎麼跑出來了?") is said to the desk, not passed on as a decision
+    const lone = items.size === 1 ? [...items.values()][0] : null;
+    const pick = lone && /^\s*[(（]?([a-z])[)）]?(?=$|[\s，,。.;；:：、])/i.exec(reply);
+    if (!answers.size && pick && lone.opts[pick[1].toLowerCase()]) answers.set(lone.n, reply.trim());
     const out = [];
     out.missed = [];
-    if (!answers.size) for (const it of items.values()) if (it.to) out.missed.push({ n: it.n, name: it.to, why: 'routeNoNumber' });
+    // an option letter with no item number to several questions: say so; a reply that is no answer is just talk
+    if (!answers.size && items.size > 1 && /^\s*[(（]?[a-z][)）]?(?=$|[\s，,。.;；:：、])/i.test(reply)) for (const it of items.values()) if (it.to) out.missed.push({ n: it.n, name: it.to, why: 'routeNoNumber' });
     for (const [n, a] of answers) {
       const it = items.get(n);
       if (!it || !it.to || !a) continue;
       const to = [...desks.values()].find(x => liveness(x) === 'live' && (x.title || x.label) === it.to);
       if (!to) { out.missed.push({ n, name: it.to, why: 'routeNoDesk' }); continue; }
       if (to.id === id) continue;
-      const letter = /^([a-z])\b/i.exec(a), pick = letter && it.opts[letter[1].toLowerCase()];
-      out.push({ id: to.id, n, name: it.to, text: tt('routedText', { lead: d.title || d.label || '', q: it.q, a: pick ? `(${letter[1].toLowerCase()}) ${pick}${a.slice(1).trim() ? '；' + a.slice(1).trim() : ''}` : a }) });
+      const letter = /^\s*[(（]?([a-z])[)）]?(?=$|[\s，,。.;；:：、])/i.exec(a), pick = letter && it.opts[letter[1].toLowerCase()];
+      const more = letter ? a.slice(letter[0].length).replace(/^[\s，,。.;；:：、]+/, '').trim() : '';
+      out.push({ id: to.id, n, name: it.to, text: tt('routedText', { lead: d.title || d.label || '', q: it.q, a: pick ? `(${letter[1].toLowerCase()}) ${pick}${more ? '；' + more : ''}` : a }) });
     }
     return out;
   }
