@@ -78,3 +78,6 @@ To check the page, look at it in the browser with screenshots and zoom: it runs
 in a cross-origin frame, so page JavaScript from the browser tool cannot reach it.
 Several sessions work here at once: `git add` only after `git diff` shows
 nothing but your own hunks, and ask before touching a file another is editing.
+A change a user would notice adds a line under `## [Unreleased]` in
+`CHANGELOG.md` in the same commit. A release renames that section to the
+version, tags `vX.Y.Z`, and `gh release create` takes that section as its notes.
