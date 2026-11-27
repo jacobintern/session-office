@@ -793,12 +793,12 @@ const LEAD_CONTEXT = (project: string, cap: number) => `# Your role (Session Off
 You lead this project's team: you plan, give out the work and collect it. You do not write code yourself; keep your context for the whole picture.
 1. Plan with the user first, and plan it whole: anything the plan leaves out comes back later as a question or as work outside it. Look before you plan (read-only: the tickets, their MRs with every comment and pipeline, the repos' branches), then the plan states: what "done" is for the whole project; every repo, MR and ticket in it, and what is out of it; the order and what waits on what; the people outside the team it touches (reviewers, other MRs on the same code); and what you will decide yourself versus bring to the user. Ask everything the plan needs from the user now, in one go. Break the goal into tasks with the office \`task\` tool: each a short one-line title (under 30 characters) and its role (實作 build / 驗收 verify / 查證 look up); the scope (including what not to touch) and when it is done go in your plan and in the dispatch, not in the title. A 卡住 reason is one short sentence: the page lists every stuck task in one line. Report the plan and ask for approval under \`## ${DECIDE_HEADING()}\`. Hire no one and hand out nothing until the user approves it; work outside the approved plan, or more than ${cap} members, goes back to the user first.
 2. Hire with the office \`hire\` tool: a name, the folder, and the dispatch. Only one member builds in a repo at a time, in the repo itself. Two builders in one repo at once need their own clones (\`clone: true\`), and a new clone stops at the "trust this folder" prompt until the user answers it in that tab: ask the user under \`## ${DECIDE_HEADING()}\` first and say which tab will wait. A dispatch states the role, the scope (what to do and what not to touch), when it is done, and that the member reports back to you. Give more work to a member you already have with SendMessage. A message that only acknowledges or thanks needs no reply: answering it starts a loop.
-3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it.
+3. Members report to you with SendMessage and on the board: done (with evidence), stuck, or a decision for the user. Keep the task list current: 卡住 with the reason and who it waits on, 待驗收 once built, 完成 only after someone else verified it. Decisions you make and findings a member proves must not live only in a session: write each into ${handoffPath(project)} as you go (what, why, where the evidence is), and keep your board card to the ones still in force plus a pointer to that file (a card holds 1000 characters and replaces your last), so a new hire or a session back from a compaction finds them.
 4. Decide inside the approved plan yourself: interim values, whether to check again, the order of work. Bring to the user only a write they must approve, work outside the plan (say what the plan missed, so it gets fixed), or business facts only they know. Write one line in your report for each call you made ("我決定了 X，因為 Y"). A fix outside the plan is given to no one until the user has chosen it.
 5. When a problem comes up, solve it before you bring it to the user: (1) have a 查證 member find the cause, with evidence, not a guess; and never pass on a member's claim (a failing count, "it can't be done") you have not had checked. (2) Find at least two ways out, one of them the part your team can do now (fix one of three lines now, the rest after a merge); a text for the user to pass on to someone else is not one: first try doing it yourself (a reply on the MR thread from the user's account), and ask only if you cannot. When the way out needs the user in person (signing in, a deploy, storing a credential, an allow at a desk), first look for one that does not need them at the computer: they often work from a phone. (3) Before you tell the user something cannot be done or must wait, have it refuted: a member who was not on it, or a one-off read-only Codex check (\`codex exec\`) for a small question; you choose. (4) Before you propose a fix, check it against the repo: its docs, its last few MRs of the same kind, and what people said on the MRs (the target branch, the flow, a reviewer's comment); before you tie a fix to one ticket, check what it does to the other tickets shipping with it. (5) A fix inside the approved plan you carry out yourself and report ("我決定了 X"); only a write the user must approve or work outside the plan goes to them, with the fix and the options, not the bare problem. A question whose answer only means something later (when a list arrives, after a merge) is not asked now: put it in your to-do list with what it waits on.
 6. Every report opens with one line on what the user must do now ("現在要你回 2 題" or "不用你做事"). Questions are in plain words: a code (M1, #4, L5) is never used without saying what it is. A risk opens with how bad it is and how likely, then the details.
 7. Before you report the project's state, look at every MR of the project (\`glab\`, read-only), others' MRs under the same parent ticket included, and list them all: new comments from anyone and pipeline results. Sum up new comments for the user, or give them to a member to handle.
-8. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Questions the user has not answered stay on the page item by item until answered (each turn shows you which are still open): do not repeat them unless you write a new section. Ask every question at your own desk, members' included: never send the user to a member's desk to answer, and do not leave one there; a member's question goes in your list, with \`→ <the member's desk name>\` when the member carries it out. A member's word that the user answered "a" at its desk is not a decision to change code, branch or write: those count only from the user's reply to your own section, so ask it again there. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When the approval is for something a member will run (a production or UAT query, a deploy, a merge, anything its own auto mode or permission prompt holds back for the user's own word), end that question's numbered line with \`→ <the member's desk name>\`: the page sends the user's answer to that item straight into the member's session as the user's own words, and tells you it did, so you do not relay it.
+8. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question; the questions still open are shown to you each turn, so do not repeat them. Ask every question at your own desk, members' included, and never send the user to a member's desk. When a member carries an item out (a production or UAT query, a deploy, a merge, anything its auto mode or permission prompt holds for the user), end its numbered line with \`→ <the member's desk name>\`: the answer goes straight to the member, so do not relay it. A member's word that the user answered "a" at its desk is not a decision to change code, branch or write: ask it again here. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member.
 9. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user. Before you ask to merge, say that the code review and the verification by someone who did not build it are both done, with evidence for each. Once the user approves a push or opening an MR, pass it to the member who does it: say "使用者已核准" with the repo, branch and MR, and quote the user's reply word for word. Merging an MR, deleting anything, and a command auto mode blocks still need the user in that member's own session.
 10. Wrapping up starts only when the user asks (the page's 收尾 button sends 「收尾這個專案」); once every task is 完成 you may say the project can be wrapped up. Then, in this order: (1) Take stock: every task, every MR of the project (state, pipeline, comments not answered), and in every repo the team touched, unpushed commits and uncommitted changes (each member checks its own and tells you). (2) What is not done: what the user must approve or do (merging MRs, the Jira status changes the MRs' state calls for) goes under \`## ${DECIDE_HEADING()}\`, all at once; what waits on others goes into the handoff file ${handoffPath(project)} (what is done, what is left and what it waits on, where things are), which the next lead of this project reads first; delete the file when nothing is left. (3) Run a retrospective (the user's retrospective skill, if they have one) so the lessons are kept. (4) Tell each member to wrap up: check its leftovers (unpushed commits, background jobs) and report; in a member's clone, \`git status --porcelain\` empty and nothing unpushed (\`git log @{u}..\`) means it goes to ~/.Trash, anything else is listed for the user. Then close the member with the office \`dismiss\` tool. (5) Report a short summary; the user closes your own session.`
 const MEMBER_REPORT = (lead: string) => `# Your reply (Session Office)
@@ -998,6 +998,42 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
 // A member that left a question for the user in its reply to a teammate or the board, instead of putting it to its
 // lead, has it forwarded to the lead once, when the lead is not mid-turn and has nothing waiting in its inbox
 // (the bridge's first round only marks what is already there, so a restart forwards nothing twice).
+// A conversation past these shares of its window is re-read every turn at that size: the lead is told when its own is,
+// and when a member's is. Each 10-point step up warns once (kept on disk, so a mod reload does not warn again).
+const LEAD_CTX_WARN = 30
+const MEMBER_CTX_WARN = 60
+const ctxWarnedPath = () => `${home}/.claude/office/ctx-warned.json`
+async function ctxWarnStep($: EngineInterface, key: string, percent: number | null | undefined, warnAt: number): Promise<boolean> {
+  let warned: Record<string, number> = {}
+  try { warned = JSON.parse(await $.fs.read(ctxWarnedPath())) } catch { /* none yet */ }
+  const band = typeof percent === 'number' && percent >= warnAt ? Math.floor(percent / 10) : 0
+  if (band === (warned[key] ?? 0) || (band > 0 && band < (warned[key] ?? 0))) return false
+  if (band) warned[key] = band; else delete warned[key]    // fell back under (a compaction): the next climb warns again
+  await $.fs.write(ctxWarnedPath(), JSON.stringify(warned))
+  return band > 0
+}
+const LEAD_CTX_CONTEXT = (percent: number, tokens: number | null, file: string) => `# Your conversation is getting large (Session Office)
+It is at ${percent}% of its window${tokens ? ` (about ${Math.round(tokens / 1000)}k tokens)` : ''}, and every turn re-reads all of it. Before anything else this turn, bring ${file} up to date: the decisions and findings so far, the questions still open, who is on what, and where things are. Then, in this turn's \`## ${DECIDE_HEADING()}\`, ask the user whether to compact you now (the page's /compact) or open a fresh lead that starts from that file, and say which you recommend.`
+const MEMBER_CTX_NOTE = (name: string, percent: number, tokens: number | null) => `（Session Office：成員「${name}」的對話已用到 ${percent}%${tokens ? `（約 ${Math.round(tokens / 1000)}k tokens）` : ''}，再下去每一輪都更慢、更貴，快滿時會自動壓縮、細節會掉。請它把手上的工作寫成交接檔（做到哪、還剩什麼、證據在哪），再用 hire 開一位新成員從那份交接檔接手，交接完用 dismiss 解散它。這件事在已核准的計畫內，你自己處理，不用問使用者。）`
+// tells a lead when one of its members' conversations passes MEMBER_CTX_WARN; waits while the lead is busy
+async function warnMemberContext($: EngineInterface, desks: Desk[]) {
+  for (const d of desks) {
+    if (d.role !== 'member' || !d.lead || typeof d.ctx?.percent !== 'number') continue
+    const lead = desks.find(x => x.role === 'lead' && (x.title || x.label) === d.lead)
+    if (!lead) continue
+    if (d.ctx.percent >= MEMBER_CTX_WARN) {
+      if (lead.state === 'working' || lead.blocked) continue
+      try {
+        const inbox = JSON.parse(await $.fs.read(inboxPath(lead.id))) as { instructionAt?: number }
+        if ((inbox.instructionAt ?? 0) > (lead.instructionDoneAt ?? 0)) continue
+      } catch { /* no inbox yet */ }
+    }
+    if (!(await ctxWarnStep($, `member:${d.id}`, d.ctx.percent, MEMBER_CTX_WARN))) continue
+    const name = d.title || d.label || d.id.slice(0, 8)
+    await $.fs.write(inboxPath(lead.id), JSON.stringify({ instruction: `<cross-session-message from-name="Session Office">\n${MEMBER_CTX_NOTE(name, d.ctx.percent, d.ctx.tokens)}`, instructionAt: Date.now() }))
+    logEvent($, 'ctxWarn', { member: name, to: d.lead, percent: d.ctx.percent })
+  }
+}
 const forwardedAt: Record<string, number> = {}
 const forwardSent: Record<string, number> = {}    // only what was handed over, not what priming skipped
 let forwardsPrimed = false
@@ -1528,6 +1564,7 @@ async function bridgeTick($: EngineInterface) {
     try { await syncBoards($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `boards: ${String(error).slice(0, 200)}`) }
     try { await syncTasks($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `tasks: ${String(error).slice(0, 200)}`) }
     try { await forwardQuestions($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `forward: ${String(error).slice(0, 200)}`) }
+    try { await warnMemberContext($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `ctx warn: ${String(error).slice(0, 200)}`) }
     await openRequestedSessions($)
     await openHires($)
 
@@ -1717,6 +1754,8 @@ export const register: Register = on => {
     }
     const role = me?.role === 'lead' && team ? LEAD_CONTEXT(team, me.cap ?? TEAM_CAP) : me?.role === 'member' && team && me.lead ? MEMBER_CONTEXT(team, me.lead) : ''
     if (role && role !== roleShown) { context.push(role); roleShown = role }
+    if (me?.role === 'lead' && team && (await ctxWarnStep($, `lead:${me.id}`, me.ctx?.percent, LEAD_CTX_WARN)))
+      context.push(LEAD_CTX_CONTEXT(me.ctx!.percent!, me.ctx!.tokens, handoffPath(team)))
     return next({ ...e, context })
   })
   on('session.start', async ($, e, next) => {

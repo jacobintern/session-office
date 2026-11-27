@@ -148,8 +148,11 @@
   .proj .ask-q { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 1px 0; font: inherit; font-size: .78rem; color: var(--fg); cursor: pointer; overflow-wrap: anywhere; }
   .proj .ask-q:hover { color: var(--accent); }
   .proj .ask-q.at-desk { color: var(--muted); }
-  .unread .item { border-left: 3px solid var(--wait); padding: 2px 0 6px 10px; margin-bottom: 10px; }
-  .unread .when { font-size: .78rem; color: var(--wait); font-weight: 600; margin-bottom: 4px; }
+  .sh { font-size: .8rem; font-weight: 700; letter-spacing: .06em; color: var(--muted); margin: 2px 0 6px; }
+  .unread .sh { color: var(--wait); }
+  .unread details { border-left: 3px solid var(--wait); padding: 2px 0 4px 10px; margin-bottom: 10px; }
+  .unread summary { font-size: .8rem; color: var(--wait); font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+  .unread details .report { margin-top: 6px; }
   .proj .ph .wrapup { margin-left: auto; font: inherit; font-size: .72rem; padding: 0 8px; border: 1px solid var(--line); border-radius: 10px; background: none; color: var(--muted); cursor: pointer; }
   .proj .ph .wrapup.sure { border-color: var(--wait); color: var(--wait); font-weight: 600; }
   .roster h2 { font-size: .9rem; font-weight: 600; margin: 0 0 6px; color: var(--muted); }
@@ -408,6 +411,7 @@
         <div class="project" id="m-project"><span id="m-project-name"></span><input class="project-edit" id="m-project-edit" maxlength="60" hidden><button type="button" class="copyname" id="m-project-rename" hidden>✎</button><span class="mates" id="m-mates"></span></div>
         <div class="line" id="m-task"></div>
         <div class="unread" id="m-unread" hidden></div>
+        <div class="sh" id="m-report-h" hidden></div>
         <div class="report" id="m-report"></div>
         <div class="decide" id="m-decide" hidden><div class="dh">要你決定</div><div class="report" id="m-decide-body"></div></div>
         <div class="blocked" id="m-blocked" hidden></div>
@@ -555,7 +559,7 @@
       canvasAria: '辦公室平面圖，每張桌子是一個 session', more: '點開看全文、回覆', connecting: '正在連線資料庫…', close: '關閉',
       decide: '要你決定', decideOlder: '要你決定（{ago}問的，還沒回）', decideLeft: '要你決定（還沒回的題目）', decideN: '要你決定（{n} 件）',
       replyPh: '回覆或下一步…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', taskPh: '給它一個任務…（Enter 送出，Shift+Enter 換行，截圖可直接貼上）', send: '送出',
-      ack: '收到，回座位', unreadOlder: '較早的回報，還沒讀（{ago}）', unreadHint: '{n} 則回報還沒讀，打開會一起列出', later: '稍後處理', laterTag: '稍後', laterHint: '你標了稍後處理：它回座位等你，題目留在專案總覽；它有新回報時會再來排隊', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
+      ack: '收到，回座位', unreadOlder: '{ago}', unreadHead: '回報（{n} 則你還沒看過，舊的在上）', reportHead: '過程（最新回報）', unreadHint: '{n} 則回報你還沒看過，打開會一起列出', later: '稍後處理', laterTag: '稍後', laterHint: '你標了稍後處理：它回座位等你，題目留在專案總覽；它有新回報時會再來排隊', compact: '壓縮對話（/compact）', clear: '清空對話（/clear）', fire: '開除（結束 session）', fireYes: '確定開除', cancel: '取消', pause: '暫停', pausing: '暫停中…', switchGroup: '換模型中', switchTag: '換模型中', modelBusy: '它正在工作，等閒置再換模型', modelConfirm: '換成 {m}？會重啟這個 session 接回對話', confirm: '確定', pauseHint: '停掉它正在跑的這一輪，之後可以直接在這裡給新的指示', pauseQueued: '它還沒開始跑：按了會取消這則指令，或在它一開始就停掉',
       spawnTitle: '新開 session', cwd: '目錄', deskName: '桌牌（可空，空的話用第一句任務）', spawnProject: '專案／話題（可空；同話題的 session 共用公佈欄）', firstTask: '第一個任務（可空）', modeSolo: '單人', modeTeam: '專案（開組長）', teamName: '專案名稱（必填）', teamGoal: '目標與限制（必填）：組長會先跟你討論計畫，你核准後才找人', teamCap: '成員上限（不含組長）', openTeam: '開專案', teamLine: '橋接會開一個 session 當組長，桌牌是「專案名稱 組長」。它先拆工作、寫任務、跟你討論計畫；你核准後，它才在上限內找成員，每人各一個分頁。', enterHint: 'Enter 送出，Shift+Enter 換行',
       spawnLine: '橋接視窗會在 iTerm 開一個新分頁，在那個目錄跑 <code>claude</code>，幾秒後新同事就會進辦公室坐下。', open: '開',
       jiraTitle: 'Jira 我的票', notSynced: '還沒同步', jiraWait: '等橋接視窗抓 Jira（每 2 分鐘一次，需要在 <code>~/.claude/office/config.json</code> 設定 <code>jira</code>）。',
@@ -573,7 +577,7 @@
       tutorOff: '這裡叫不到 Claude（要在 claude.ai 上開這個頁面）。', tutorDenied: '這個頁面沒有被允許使用 Claude。重新整理後再按一次，會再問你一次。',
       tutorRate: 'Claude 的用量或次數到上限了，等一下再試。', tutorFail: '沒有完成（{code}），可以再按一次。',
       analyst: '用量分析師', analystHint: '照最近的消耗速度預估額度，數字由橋接每分鐘記一次', analystPh: '問分析師，例如「哪個 session 最燒」「要不要先交接」（Enter 送出，Shift+Enter 換行）', analystAsk: '問分析師',
-      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', evGuard: '警衛', evTitle: '警衛：最近事件', evHint: '每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log', evFilter: '只看', evAll: '全部 session', evEmpty: '還沒有事件。橋接會把 ~/.claude/office/events.log 最近 100 筆同步到這裡。', evLoad: '重新載入：專案 {p}', evNoProject: '重新載入：沒有專案', evInstr: '收到指令「{x}」', evState: '{a} → {b}', evProject: '專案 {a} → {b}', evFailed: '指令沒送到：{x}', evNone: '（無）', evWake: '{b} 貼了新卡，叫醒 {a} 去讀', evTask: '任務 #{n}「{t}」→ {s}', evHire: '{a} 找了 {b}', evDismiss: '解散 {b}', routedNote: '（頁面已把第 {items} 題的回覆直接送到「{who}」，不用再轉達。）', routedText: '我在「{lead}」那桌回覆了要你執行的這題：\n題目：{q}\n我的回答：{a}', evForward: '把 {a} 沒交出去的問題轉給 {b}', routeMissed: '第 {items} 題的回覆要直接送到「{who}」，但對不上：{why}。補上題號（例如「1. a」）再送；再按一次送出就只交給這桌。', routeNoNumber: '回覆裡沒有題號', routeNoDesk: '那桌現在不在線上', ovHead: '專案', ovWrap: '收尾', ovWrapSure: '確定收尾？', ovWrapHint: '請組長收尾：盤點任務和 MR、沒做完的寫交接、回顧、解散成員；按兩下才會送出', wrapText: '收尾這個專案', ovDone: '{d}/{t} 完成', ovNoTasks: '還沒有任務', ovPlanning: '組長規劃中', ovAsks: '要你決定（點一下打開回覆）', ovDesk: '到電腦前再做', ovDeskHint: '{who} 的待處理：只有你本人在電腦前做得了', ovAskHint: '打開 {who} 回覆', ovStuckOthers: '卡住（等別人）', ovClear: '沒卡', ovWaitYou: '等你 {n} 件', ovWait: '（等 {w}，{d}）', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
+      cxTitle: '問 Codex', cxHint: '唯讀：只查不改檔；在背景跑，答案會回到這裡', cxPh: '問 Codex，例如「這個 repo 的金流 callback 在哪裡處理」（Enter 送出，Shift+Enter 換行）', cxCwd: '資料夾', cxNew: '新對話', cxStop: '停止', cxPending: '排隊中…', cxRunning: 'Codex 查資料中…（{s}）', cxFailed: '失敗：{e}', cxCancelled: '已停止', cxCancelling: '停止中…', cxNewNext: '下一題會開新對話', cxFollow: '接續上一題（{cwd}）', cxFresh: '新對話（{cwd}）', cxNoBridge: '橋接沒在跑，問題會排隊到它回來', evGuard: '警衛', evTitle: '警衛：最近事件', evHint: '每個 session 的載入、收到指令、狀態和專案改變；完整紀錄在這台 Mac 的 ~/.claude/office/events.log', evFilter: '只看', evAll: '全部 session', evEmpty: '還沒有事件。橋接會把 ~/.claude/office/events.log 最近 100 筆同步到這裡。', evLoad: '重新載入：專案 {p}', evNoProject: '重新載入：沒有專案', evInstr: '收到指令「{x}」', evState: '{a} → {b}', evProject: '專案 {a} → {b}', evFailed: '指令沒送到：{x}', evNone: '（無）', evWake: '{b} 貼了新卡，叫醒 {a} 去讀', evTask: '任務 #{n}「{t}」→ {s}', evHire: '{a} 找了 {b}', evDismiss: '解散 {b}', routedNote: '（頁面已把第 {items} 題的回覆直接送到「{who}」，不用再轉達。）', routedText: '我在「{lead}」那桌回覆了要你執行的這題：\n題目：{q}\n我的回答：{a}', evForward: '把 {a} 沒交出去的問題轉給 {b}', evCtxWarn: '{a} 的對話用到 {p}%，通知 {b} 換人接手', routeMissed: '第 {items} 題的回覆要直接送到「{who}」，但對不上：{why}。補上題號（例如「1. a」）再送；再按一次送出就只交給這桌。', routeNoNumber: '回覆裡沒有題號', routeNoDesk: '那桌現在不在線上', ovHead: '專案', ovWrap: '收尾', ovWrapSure: '確定收尾？', ovWrapHint: '請組長收尾：盤點任務和 MR、沒做完的寫交接、回顧、解散成員；按兩下才會送出', wrapText: '收尾這個專案', ovDone: '{d}/{t} 完成', ovNoTasks: '還沒有任務', ovPlanning: '組長規劃中', ovAsks: '要你決定（點一下打開回覆）', ovDesk: '到電腦前再做', ovDeskHint: '{who} 的待處理：只有你本人在電腦前做得了', ovAskHint: '打開 {who} 回覆', ovStuckOthers: '卡住（等別人）', ovClear: '沒卡', ovWaitYou: '等你 {n} 件', ovWait: '（等 {w}，{d}）', cxEmpty: '還沒問過。問題會交給橋接在背景用 `codex exec` 唯讀模式回答，三天後自動清掉。',
       anForecast: '**額度預估**', anRank: '**各 session 花費**（還在線上的）', anNoData: '還沒有用量紀錄（橋接每分鐘記一次，剛開始要等幾分鐘）。', anNoDesk: '沒有在線上的 session。',
       anUsed: '- {label}：已用 {p}%', anResets: '（{when} 重置）', anAvg: '，這個週期平均每小時 +{a}%', anRecent: '（近 1 小時 +{r}%）', anEta: '，照平均速度 **{when} 用完**（比重置早 {early}）', anSafe: '，照平均速度撐得到重置，到時約 {q}%', anIdle: '，這個週期還沒在消耗', anFew: '，週期剛開始、先不預估', anResetNow: '- {label}：已重置',
       anCols: '| session | 花費 | context 剩 |\n|---|---:|---:|', anRole: '你是一位軟體工程師的 Claude 用量分析師。',
@@ -603,7 +607,7 @@
       canvasAria: 'Office floor plan, one desk per session', more: 'Open for the full report and reply', connecting: 'Connecting to the database…', close: 'Close',
       decide: 'Decisions for you', decideOlder: 'Decisions for you (asked {ago}, not answered yet)', decideLeft: 'Decisions for you (the ones not answered yet)', decideN: 'Decisions for you ({n})',
       replyPh: 'Reply or next step… (Enter to send, Shift+Enter for a new line, paste screenshots)', taskPh: 'Give it a task… (Enter to send, Shift+Enter for a new line, paste screenshots)', send: 'Send',
-      ack: 'Got it, back to desk', unreadOlder: 'An earlier report, not read yet ({ago})', unreadHint: '{n} reports not read yet; opening it lists them all', later: 'Later', laterTag: 'later', laterHint: 'You marked it for later: it waits at its seat and its questions stay in the overview; it queues again when it reports something new', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
+      ack: 'Got it, back to desk', unreadOlder: '{ago}', unreadHead: 'Reports ({n} you have not seen, oldest first)', reportHead: 'Progress (latest report)', unreadHint: '{n} reports you have not seen yet; opening it lists them all', later: 'Later', laterTag: 'later', laterHint: 'You marked it for later: it waits at its seat and its questions stay in the overview; it queues again when it reports something new', compact: 'Compact (/compact)', clear: 'Clear (/clear)', fire: 'Let go (end session)', fireYes: 'Yes, end it', cancel: 'Cancel', pause: 'Pause', pausing: 'Pausing…', switchGroup: 'Switching model', switchTag: 'switching model', modelBusy: 'It is working; switch the model once it is idle', modelConfirm: 'Switch to {m}? The session restarts and resumes this conversation', confirm: 'Confirm', pauseHint: 'Stops the round it is running; you can give it a new instruction here right after', pauseQueued: 'It has not started yet: this cancels the instruction, or ends the round as it starts',
       spawnTitle: 'New session', cwd: 'Folder', deskName: 'Desk name (optional; defaults to the first task)', spawnProject: 'Project / topic (optional; sessions of one topic share a board)', firstTask: 'First task (optional)', modeSolo: 'On its own', modeTeam: 'Project (opens a lead)', teamName: 'Project name (required)', teamGoal: 'Goal and limits (required): the lead plans with you first and hires only after you approve', teamCap: 'Member limit (lead not counted)', openTeam: 'Open project', teamLine: 'The bridge opens a session as the lead, named “project lead”. It breaks the work into tasks and goes over the plan with you; once you approve, it hires members within the limit, each in its own tab.', enterHint: 'Enter to send, Shift+Enter for a new line',
       spawnLine: 'The bridge opens a new iTerm tab running <code>claude</code> in that folder; the new coworker takes a desk a few seconds later.', open: 'Open',
       jiraTitle: 'My Jira tickets', notSynced: 'Not synced yet', jiraWait: 'Waiting for the bridge to fetch Jira (every 2 minutes; needs <code>jira</code> in <code>~/.claude/office/config.json</code>).',
@@ -621,7 +625,7 @@
       tutorOff: 'Claude is not reachable here (open this page on claude.ai).', tutorDenied: 'This page is not allowed to use Claude. Reload and try again to be asked once more.',
       tutorRate: 'Claude’s usage or rate limit is reached; try again later.', tutorFail: 'Did not finish ({code}); try again.',
       analyst: 'Usage analyst', analystHint: 'Forecasts your limits from the recent burn rate; the bridge records a reading every minute', analystPh: 'Ask the analyst, e.g. “which session burns most”, “should I hand off now” (Enter sends, Shift+Enter for a new line)', analystAsk: 'Ask',
-      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', evGuard: 'Guard', evTitle: 'Guard: recent events', evHint: "Each session's loads, instructions taken, state and project changes; the full log is ~/.claude/office/events.log on this Mac", evFilter: 'Show', evAll: 'All sessions', evEmpty: 'No events yet. The bridge copies the last 100 lines of ~/.claude/office/events.log here.', evLoad: 'Reloaded: project {p}', evNoProject: 'Reloaded: no project', evInstr: 'Took the instruction “{x}”', evState: '{a} → {b}', evProject: 'Project {a} → {b}', evFailed: 'Instruction not delivered: {x}', evNone: '(none)', evWake: '{b} posted a card; woke {a} to read it', evTask: 'Task #{n} “{t}” → {s}', evHire: '{a} hired {b}', evDismiss: 'Dismissed {b}', routedNote: '(The page sent the answer to item {items} straight to "{who}"; no need to relay it.)', routedText: 'I answered this item for you to carry out, at "{lead}":\nQuestion: {q}\nMy answer: {a}', evForward: 'Forwarded the question {a} left to {b}', routeMissed: 'The answer to item {items} should go straight to "{who}", but it could not be matched: {why}. Add the item number (e.g. "1. a") and send again; press send once more to give it to this desk only.', routeNoNumber: 'the reply has no item number', routeNoDesk: 'that desk is not online', ovHead: 'Projects', ovWrap: 'Wrap up', ovWrapSure: 'Wrap up?', ovWrapHint: 'Ask the lead to wrap up: take stock of tasks and MRs, hand off what is left, run a retrospective, dismiss the members; click twice to send', wrapText: 'Wrap up this project', ovDone: '{d}/{t} done', ovNoTasks: 'no tasks yet', ovPlanning: 'the lead is planning', ovAsks: 'For you to decide (click to answer)', ovDesk: 'At the computer', ovDeskHint: "From {who}'s to-dos: only you can do it, at the computer", ovAskHint: 'Open {who} to answer', ovStuckOthers: 'Stuck (waiting on others)', ovClear: 'nothing stuck', ovWaitYou: '{n} waiting on you', ovWait: ' (waiting on {w}, {d})', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
+      cxTitle: 'Ask Codex', cxHint: 'Read-only: it looks, it does not edit; runs in the background and answers here', cxPh: 'Ask Codex, e.g. “where does this repo handle the payment callback” (Enter sends, Shift+Enter for a new line)', cxCwd: 'Folder', cxNew: 'New chat', cxStop: 'Stop', cxPending: 'Queued…', cxRunning: 'Codex is looking… ({s})', cxFailed: 'Failed: {e}', cxCancelled: 'Stopped', cxCancelling: 'Stopping…', cxNewNext: 'The next question starts a new chat', cxFollow: 'Follows up ({cwd})', cxFresh: 'New chat ({cwd})', cxNoBridge: 'The bridge is not running; questions wait until it is back', evGuard: 'Guard', evTitle: 'Guard: recent events', evHint: "Each session's loads, instructions taken, state and project changes; the full log is ~/.claude/office/events.log on this Mac", evFilter: 'Show', evAll: 'All sessions', evEmpty: 'No events yet. The bridge copies the last 100 lines of ~/.claude/office/events.log here.', evLoad: 'Reloaded: project {p}', evNoProject: 'Reloaded: no project', evInstr: 'Took the instruction “{x}”', evState: '{a} → {b}', evProject: 'Project {a} → {b}', evFailed: 'Instruction not delivered: {x}', evNone: '(none)', evWake: '{b} posted a card; woke {a} to read it', evTask: 'Task #{n} “{t}” → {s}', evHire: '{a} hired {b}', evDismiss: 'Dismissed {b}', routedNote: '(The page sent the answer to item {items} straight to "{who}"; no need to relay it.)', routedText: 'I answered this item for you to carry out, at "{lead}":\nQuestion: {q}\nMy answer: {a}', evForward: 'Forwarded the question {a} left to {b}', evCtxWarn: "{a}'s conversation is at {p}%; told {b} to hand it over", routeMissed: 'The answer to item {items} should go straight to "{who}", but it could not be matched: {why}. Add the item number (e.g. "1. a") and send again; press send once more to give it to this desk only.', routeNoNumber: 'the reply has no item number', routeNoDesk: 'that desk is not online', ovHead: 'Projects', ovWrap: 'Wrap up', ovWrapSure: 'Wrap up?', ovWrapHint: 'Ask the lead to wrap up: take stock of tasks and MRs, hand off what is left, run a retrospective, dismiss the members; click twice to send', wrapText: 'Wrap up this project', ovDone: '{d}/{t} done', ovNoTasks: 'no tasks yet', ovPlanning: 'the lead is planning', ovAsks: 'For you to decide (click to answer)', ovDesk: 'At the computer', ovDeskHint: "From {who}'s to-dos: only you can do it, at the computer", ovAskHint: 'Open {who} to answer', ovStuckOthers: 'Stuck (waiting on others)', ovClear: 'nothing stuck', ovWaitYou: '{n} waiting on you', ovWait: ' (waiting on {w}, {d})', cxEmpty: 'Nothing asked yet. The bridge answers in the background with `codex exec`, read-only; answers are cleared after three days.',
       anForecast: '**Forecast**', anRank: '**Cost per session** (live ones)', anNoData: 'No usage history yet (the bridge records a reading every minute; give it a few minutes).', anNoDesk: 'No live sessions.',
       anUsed: '- {label}: {p}% used', anResets: ' (resets {when})', anAvg: ', {a}% an hour on average this window', anRecent: ' (last hour: {r}%)', anEta: ', at the average rate runs out **at {when}** ({early} before the reset)', anSafe: ', at the average rate lasts until the reset at about {q}%', anIdle: ', nothing used this window yet', anFew: ', the window just started; no forecast yet', anResetNow: '- {label}: reset',
       anCols: '| session | cost | context left |\n|---|---:|---:|', anRole: 'You are the Claude usage analyst of a software engineer.',
@@ -705,8 +709,15 @@
   const liveness = d => { const dt = now() - (d.seenAt || 0); return dt > GONE_MS ? 'gone' : dt > STALE_MS ? 'stale' : 'live'; };
   const isWaiting = d => d.state === 'reporting' && !(d.ackAt && d.ackAt >= (d.reportedAt || 0));
   // 稍後處理: you sent a desk with open questions back to its seat; it queues again once it reports something new
-  // reports to you since you last replied or pressed 收到 (a reply that went only to a teammate does not count)
-  const unreadOf = d => (Array.isArray(d.history) ? d.history : []).filter(h => h.toYou !== false && h.at > (d.ackAt || 0));
+  // reports to you that you have not seen: a report counts as read once its desk window showed it to you
+  // (a reply that went only to a teammate does not count)
+  // readAt: everything up to it was shown to you; readItems: reports after it you unfolded one by one (a folded one is
+  // not read). 收到, 稍後處理 or a reply (ackAt) count as reading them all.
+  const readMark = d => Math.max(d.readAt || 0, d.ackAt || 0);
+  const isUnread = (d, h) => h.toYou !== false && h.at > readMark(d) && !(d.readItems || []).includes(h.at);
+  const unreadOf = d => (Array.isArray(d.history) ? d.history : []).filter(h => isUnread(d, h));
+  // while the window is open, what was unread when it opened stays listed, though it may count as read by now
+  const shownUnread = d => modalId === d.id && modalUnread ? (Array.isArray(d.history) ? d.history : []).filter(h => modalUnread.has(h.at) || isUnread(d, h)) : unreadOf(d);
   const isLater = d => !!(d.ackAt && d.ackAt >= Math.max(d.reportedAt || 0, d.asked?.at || 0) && openDecide(d).decide);
   // a reply sent from the page but not yet started by the session still counts as work, so it doesn't look sent back to its seat
   const deliveryOf = d => d.delivery && d.delivery.at === d.instructionAt ? d.delivery : null;
@@ -1777,7 +1788,7 @@
         if (key !== 'gone' && isLost(d)) { const b = document.createElement('span'); b.className = 'dup lost'; b.textContent = tt('lostTag'); b.title = tt('lostHint'); el.querySelector('.label').after(b); }
         if (key === 'switching') { const b = document.createElement('span'); b.className = 'dup switching'; b.innerHTML = '<i></i>'; b.append(modelName((MODELS.find(([a]) => a === switchingOf(d).to) || [])[1] || switchingOf(d).to)); b.title = trMod(d.activity || ''); el.querySelector('.label').after(b); }
         if (key === 'working' && d.bg?.n) { const b = document.createElement('span'); b.className = 'dup bgwait'; b.textContent = '⏳ ' + d.bg.n; b.title = d.activity || ''; el.querySelector('.label').after(b); }
-        if (key !== 'gone' && unreadOf(d).length > 1) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = '📨 ' + unreadOf(d).length; b.title = tt('unreadHint', { n: unreadOf(d).length }); el.querySelector('.label').after(b); }
+        if (key !== 'gone' && unreadOf(d).length) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = '📨 ' + unreadOf(d).length; b.title = tt('unreadHint', { n: unreadOf(d).length }); el.querySelector('.label').after(b); }
         if (key !== 'gone' && isLater(d)) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = '📌 ' + tt('laterTag'); b.title = tt('laterHint'); el.querySelector('.label').after(b); }
         if (key !== 'gone' && dupNames.has(nameKey(d))) { const b = document.createElement('span'); b.className = 'dup'; b.textContent = tt('dupName'); b.title = tt('dupHint'); el.querySelector('.label').after(b); }
         // waiting: how long the report has sat there; working / idle: how long in that state (older mods
@@ -1970,6 +1981,7 @@
   let hoverId = null;   // the roster row under the pointer: its project's desks get a ring on the canvas
   function openModal(id) {
     modalId = id; lastFocus = document.activeElement;
+    modalUnread = new Set(desks.get(id) ? unreadOf(desks.get(id)).map(h => h.at) : []);
     { const w = document.getElementById('m-route-warn'); w.hidden = true; delete w.dataset.for; }
     try { mReply.value = drafts[id] || ''; } catch (e) {}
     modal.hidden = false; histEl.open = false; fireReset(); modelReset(); projectEditing = false; projectEdit.hidden = true; document.querySelector('#modal .panel').classList.remove('more'); fillModal(); renderShots(); watchBoard(desks.get(id));
@@ -1978,7 +1990,7 @@
   function closeModal() {
     endRename(); watchBoard(null);
     if (modalId) drafts[modalId] = mReply.value;
-    modalId = null; modal.hidden = true;
+    modalId = null; modalUnread = null; modal.hidden = true;
     if (lastFocus && lastFocus.focus) lastFocus.focus();
   }
   function renderReport(el, text) {
@@ -2082,6 +2094,10 @@
     document.querySelector('#m-decide .dh').textContent = open.left ? tt('decideLeft') : open.older ? tt('decideOlder', { ago: ago(open.at) }) : tt('decide');
     if (open.decide) renderReport(document.getElementById('m-decide-body'), open.decide);
     document.getElementById('m-report').hidden = asking || (!!decide && !rest);
+    // with earlier reports or decisions on the page, the latest report gets its own heading
+    const rh = document.getElementById('m-report-h');
+    rh.hidden = document.getElementById('m-report').hidden || (!shownUnread(d).some(h => h.at !== d.reportedAt) && !open.decide);
+    rh.textContent = tt('reportHead');
     renderReport(document.getElementById('m-report'), (decide ? rest : trMod(d.report)) || tt('noReport'));
     // the mod's own commands (pause, rename) finish within a tick: no "sent, waiting" line for them
     const quiet = /^\/office\s/.test(d.instruction || '');
@@ -2090,7 +2106,7 @@
     if (lost) sent.textContent = tt('sentLost', { text: sentText, why: trMod(dv.reason || '') });
     else if (pending) sent.textContent = tt(dv && dv.state === 'retried' ? 'sentRetried' : 'sent', { text: sentText, ago: ago(d.instructionAt) });
     document.getElementById('m-meta').textContent = (d.reportedAt ? tt('reportedAgo', { ago: ago(d.reportedAt) }) + '  ·  ' : '') + tt('updatedAgo', { ago: ago(d.seenAt) });
-    renderUnread(d); renderHistory(d);
+    renderUnread(d); renderHistory(d); markRead(d);
     mSend.disabled = !(lv === 'live' && canWrite);
     document.getElementById('m-ack').hidden = !(isWaiting(d) && lv === 'live' && canWrite);
     // with questions still open it is not "got it" but "later": back to its seat, marked, the questions kept
@@ -2113,18 +2129,23 @@
   // stay above it, oldest first, so nothing slips past you
   function renderUnread(d) {
     const el = document.getElementById('m-unread');
-    const older = unreadOf(d).filter(h => h.at !== d.reportedAt);
+    // what was unread when you opened the window stays listed while it is open, though it now counts as read
+    const older = shownUnread(d).filter(h => h.at !== d.reportedAt);
     el.hidden = !older.length;
     const key = d.id + ':' + older.map(h => h.at).join(',');
     if (el.dataset.key === key) return;
     el.dataset.key = key;
-    el.replaceChildren(...older.map(h => {
-      const item = document.createElement('div'); item.className = 'item';
-      const when = document.createElement('div'); when.className = 'when';
-      when.textContent = tt('unreadOlder', { ago: ago(h.at) }) + (h.task ? '　·　' + tt('task', { t: h.task }) : '');
+    // numbered oldest first, each folds away; only the newest of them starts open
+    const head = document.createElement('div'); head.className = 'sh'; head.textContent = tt('unreadHead', { n: older.length });
+    el.replaceChildren(head, ...older.map((h, i) => {
+      const item = document.createElement('details'); item.open = i === older.length - 1;
+      if (item.open) seeAt(d, h.at);
+      item.addEventListener('toggle', () => { if (item.open) seeAt(d, h.at); });
+      const sum = document.createElement('summary');
+      sum.textContent = `#${i + 1}　${tt('unreadOlder', { ago: ago(h.at) })}` + (h.task ? '　·　' + tt('task', { t: h.task }) : '');
       const rep = document.createElement('div'); rep.className = 'report';
       renderReport(rep, trMod(splitDecide(h.report).rest || h.report) || tt('noContent'));
-      item.append(when, rep); return item;
+      item.append(sum, rep); return item;
     }));
   }
   function renderHistory(d) {
@@ -2369,6 +2390,23 @@
       out.push({ id: to.id, n, name: it.to, text: tt('routedText', { lead: d.title || d.label || '', q: it.q, a: pick ? `(${letter[1].toLowerCase()}) ${pick}${a.slice(1).trim() ? '；' + a.slice(1).trim() : ''}` : a }) });
     }
     return out;
+  }
+  // the report the open window shows you is read: stamped once per report, and only while the page is in front of you
+  const readSent = {}, seenHere = {};   // desk id → the last read mark written; the reports this page showed you
+  let modalUnread = null;
+  function seeAt(d, at) { (seenHere[d.id] ||= new Set()).add(at); markRead(d); }
+  async function markRead(d) {
+    if (!db || !canWrite || modalId !== d.id || modal.hidden || document.visibilityState !== 'visible') return;
+    const seen = (seenHere[d.id] ||= new Set());
+    if (d.reportedAt) seen.add(d.reportedAt);
+    const unread = unreadOf(d), left = unread.filter(h => !seen.has(h.at));
+    if (unread.length === left.length) return;    // nothing newly shown
+    // all shown: move the mark up to the latest; some still folded: list the unfolded ones
+    const upd = left.length ? { readItems: [...new Set([...(d.readItems || []), ...unread.filter(h => seen.has(h.at)).map(h => h.at)])] } : { readAt: d.reportedAt, readItems: [] };
+    const key = d.id + JSON.stringify(upd);
+    if (readSent[d.id] === key) return;
+    readSent[d.id] = key;
+    try { await db.doc('desks/' + d.id).update(upd); } catch (e) { delete readSent[d.id]; console.warn('read mark failed', e); }
   }
   async function ack(id) {
     if (!db || !canWrite) return;
@@ -2990,6 +3028,7 @@
     if (e.ev === 'hire') return tt('evHire', { a: e.lead || '', b: e.name || '' });
     if (e.ev === 'dismiss') return tt('evDismiss', { b: e.name || '' });
     if (e.ev === 'forward') return tt('evForward', { a: e.from || '', b: e.to || '' });
+    if (e.ev === 'ctxWarn') return tt('evCtxWarn', { a: e.member || '', b: e.to || '', p: e.percent ?? '?' });
     return e.ev;
   }
   function renderEvents() {

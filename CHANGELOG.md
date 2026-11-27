@@ -9,6 +9,11 @@ under **Unreleased**.
 
 ### Added
 
+- **Context warnings for teams.** A lead whose conversation passes 30% of its
+  window is told to bring its handoff file up to date and ask you whether to
+  compact it or open a fresh lead. When a member's passes 60%, its lead is told
+  to have it write a handoff and hire a fresh member. Each 10-point step warns
+  once.
 - **稍後處理.** On a desk with open questions, the 收到 button becomes 稍後處理.
   The desk goes back to its seat with a 📌 on its nameplate, in the roster and
   in the overview, and its questions stay open. It queues again when it
@@ -33,12 +38,20 @@ under **Unreleased**.
     are done.
   - A one-letter answer a member relays is not a decision to change code;
     the lead asks again at its own desk.
+- Leads write their decisions and members' proven findings into the project's
+  handoff file as they go, and keep the ones still in force on their board card
+  with a pointer to the file, so a new member or a session back from a
+  compaction finds them.
+- Lead rule 8 is shorter: sentences that only described what the page does
+  on its own were dropped.
 
 ### Fixed
 
 - A second report soon after the first no longer hides it. Reports you have not
-  read yet (since your last reply or 收到) stay above the latest one, and the
-  roster shows 📨 with their count.
+  seen stay above the latest one, numbered and folded, and the roster shows 📨
+  with their count. A report counts as read once its desk window has shown it
+  to you; a folded one only once you unfold it. 收到, 稍後處理 or a reply count
+  as reading them all. The desk window heads its parts 回報, 過程 and 要你決定.
 
 ## [0.3.0] - 2026-11-27
 
