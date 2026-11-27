@@ -806,7 +806,13 @@
   let queueSeq = 0;
   function syncActors(L) {
     const seen = new Set();
-    const isQueued = s => (isWaiting(s.d) || s.d.blocked) && liveness(s.d) === 'live';
+    // a desk with questions you have not answered stays at your desk while it handles a teammate or a background job
+    // in between (it would walk back to its seat and out again each time); your reply or 收到 sends it back
+    // while its own background work runs, a report is not the last word: it stays at its seat until that lands
+    const stillAsking = d => !!(d.asked && !d.bg && !(d.ackAt >= d.asked.at));
+    // a report settles a moment after the turn ends (the mod checks for background work 1.5 s later): no walk out and straight back
+    const settled = d => !d.reportedAt || now() - d.reportedAt > 3000;
+    const isQueued = s => ((isWaiting(s.d) && settled(s.d)) || s.d.blocked || stillAsking(s.d)) && liveness(s.d) === 'live';
     const joining = L.slots.filter(s => isQueued(s) && actors.get(s.d.id)?.queueNo === undefined).sort((a, b) => (a.d.reportedAt || 0) - (b.d.reportedAt || 0));
     for (const s of joining) { let a = actors.get(s.d.id); if (!a) { a = { x: s.seatX, y: s.seatY, path: [], facing: 1, step: 0 }; actors.set(s.d.id, a); } a.queueNo = ++queueSeq; }
     for (const s of L.slots) if (!isQueued(s)) { const a = actors.get(s.d.id); if (a) delete a.queueNo; }

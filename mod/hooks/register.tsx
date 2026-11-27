@@ -314,7 +314,9 @@ async function noteModel($: EngineInterface) {
 }
 
 async function checkBackground($: EngineInterface, turnAt: number) {
-  if (!me || me.state !== 'reporting' || me.reportedAt !== turnAt || me.blocked || DECIDE_RE.test(me.report)) return
+  // questions included: a report made while its own background work still runs is not the last word, so it
+  // waits for that work to land (the notification's turn reports again) instead of calling the person over twice
+  if (!me || me.state !== 'reporting' || me.reportedAt !== turnAt || me.blocked) return
   const kinds: string[] = []
   try { for (const a of await $.agent.list()) if (a.status === 'running' || a.status === 'pending') kinds.push('subagent') } catch { /* none */ }
   try {
@@ -475,7 +477,8 @@ let runningTurn: string | null = null
 let turnFrom: string | null = null          // the teammate whose message started the running turn; null when the person did
 const BOARD_WAKE_FROM = '公佈欄'            // turnFrom of a turn the bridge started for a new board card
 let toldLead = false                        // a member sent its lead a message in the running turn
-const NOTIFICATION_RE = /^\s*<task-notification>/
+// background work landing: a task notification, or a subagent's hand-back (it comes in like a session message)
+const NOTIFICATION_RE = /^\s*(?:Another Claude session sent a message:\s*)?(?:<task-notification>|<agent-message\b[^>]*>\s*\[Subagent hand-back\])/
 const sentFor = new Set<string>()          // teammates this session messaged for the person: their replies are reported (kept until /clear)
 let pausing = false
 
@@ -1140,7 +1143,7 @@ const TEAMMATE_RE = /<cross-session-message\b[^>]*\bfrom-name="([^"]*)"[^>]*>\s*
 const teammateOf = (text: string) => { const m = TEAMMATE_RE.exec(text ?? ''); return m?.[1] ? { name: m[1], body: m[2] ?? '' } : null }
 const RELAY_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis message is from the teammate session "${name}", not from the user. Do what it asks, then send your answer back to "${name}" with SendMessage. The text you end this turn with is not shown to the user as a report, so it should not be the only place the answer lives. Add a \`## ${DECIDE_HEADING()}\` section only for what the user must approve in person in this session (opening, closing or merging an MR, a destructive step, spending money, a permission); that is the only thing that calls the user over.`
 const COMMANDER_CONTEXT = (name: string) => `# Who you answer to (Session Office)\nThis is a reply from "${name}", a teammate you sent work to on the user's behalf. You report to the user: put the teammates' answers together for them, and say who you are still waiting on, if anyone.`
-const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer now, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: a numbered list (\`1.\` \`2.\` \`3.\`, never \`-\` bullets), one item per number with the question, the options labelled (a) (b) (c) and your recommendation, at most 5 items, so the user can answer by number with a letter or free text ("1. a 2. <a sentence>"). Only the numbered items need a reply; anything the user must do but cannot answer yet (waiting on a review or someone else) stays out of this section, as a to-do the user need not reply to. An item the user skips is still open: list it again at the next wrap-up, do not chase it. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
+const REPORT_FORMAT = () => `# Report format (Session Office)\nWhen a reply has anything the user must decide or answer now, collect all of it in a final section headed exactly \`## ${DECIDE_HEADING()}\`: a numbered list (\`1.\` \`2.\` \`3.\`, never \`-\` bullets), one item per number: the question alone on the numbered line, then each option on its own indented sub-bullet labelled (a) (b) (c), with your recommendation marked by （建議） at the end of that option rather than as a separate sentence; at most 5 items, so the user can answer by number with a letter or free text ("1. a 2. <a sentence>"). Only the numbered items need a reply; anything the user must do but cannot answer yet (waiting on a review or someone else) stays out of this section, as a to-do the user need not reply to. An item the user skips is still open: list it again at the next wrap-up, do not chase it. Do not leave such questions in the conclusion or the details, and put nothing after this section. Leave the heading out when there is nothing to decide. The Session Office page finds this heading to show the decisions as their own highlighted block.`
 
 // Codex: every Codex call logs the account's limits in its rollout file
 // (~/.codex/sessions/**/rollout-*.jsonl, a token_count event). The bridge
@@ -2053,12 +2056,13 @@ export const register: Register = on => {
         // a teammate's errand is answered to that teammate; only a decision the person must make calls them over
         const asks = DECIDE_RE.test(e.answer ?? '') && !(me.role === 'member' && toldLead)
         // a member never calls the person over from a turn they did not start: the lead speaks to them, and a
-        // question the member left here instead shows in the project overview
+        // question the member left here instead shows in the project overview. Once the person is talking to the
+        // member themselves (a merge only they can approve), their open question keeps the member at their desk.
         const quietMember = me.role === 'member' && turnFrom !== null
         const relay = e.reason === 'answer' && turnFrom !== null && !sentFor.has(turnFrom) && (!asks || quietMember) ? turnFrom : null
-        const asked = asks ? { asked: { report, at } } : {}   // a member's question went to its lead, not to the person
+        const asked = asks && (!quietMember || me.asked) ? { asked: { report, at } } : {}
         // with questions to the person still open it stays waiting at their desk; only a desk with nothing to ask goes back to rest
-        if (relay && (!me.asked || quietMember)) patch($, { ...asked, state: 'idle', activity: asks ? '有問題沒交給組長' : relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
+        if (relay && !me.asked) patch($, { ...asked, state: 'idle', activity: asks ? '有問題沒交給組長' : relay === BOARD_WAKE_FROM ? '讀過公佈欄' : `已回覆 ${relay}`, relay, blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         else patch($, { ...asked, state: 'reporting', activity: '等你回覆', blocked: null, ask: null, report, reportedAt: at, history, bg: null })
         // the Stop settings hook writes what is still running a moment later
         $.clock.after(1500, () => { void checkBackground($, at) })
