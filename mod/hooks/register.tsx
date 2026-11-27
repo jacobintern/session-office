@@ -437,7 +437,10 @@ async function takeInstruction($: EngineInterface) {
         else if (rest[0] === 'project') { me.projectManual = rest.slice(1).join(' ').trim().slice(0, 60); await setProject($) }
         return
       }
+      // $.command.run skips this plugin's own command.run hooks, so a /compact from the page shows itself and refills the bar here
+      const beforeCompact = name === 'compact' && me.state !== 'working' ? { state: me.state } : null
       if (name === 'clear') patch($, { ...CLEARED, activity: '執行 /clear' })
+      else if (name === 'compact') patch($, beforeCompact ? { state: 'working', activity: '壓縮對話中' } : { activity: '壓縮對話中' })
       else patch($, { activity: `執行 /${name}` })
       if (name === 'model') pageModelSwitchAt = Date.now()
       // a command that opens a dialog in the terminal resolves only when the dialog is answered there;
@@ -449,6 +452,18 @@ async function takeInstruction($: EngineInterface) {
         stuck.cancel()
         if (me?.blocked === 'dialog') patch($, { state: 'idle', activity: '對話框已處理', blocked: null, dialog: null })
       }
+      // the command returns before the compaction is done: wait for the transcript to record it (or give up after a few minutes)
+      if (name === 'compact' && me) void (async () => {
+        const startedAt = Date.now()
+        let done = false
+        while (me && !done && Date.now() - startedAt < COMPACT_WAIT_MS) {
+          await new Promise<void>(r => { $.clock.after(5000, () => r()) })
+          done = (await lastCompactAt($)) > startedAt - 1000
+        }
+        if (!me) return
+        if (done) estimateContextAfterCompaction($)
+        if (me.activity === '壓縮對話中') patch($, { ...(beforeCompact ? { state: beforeCompact.state } : {}), activity: done ? '已壓縮對話' : '沒有壓縮（對話太短，或在 terminal 看原因）' })
+      })()
       if (name === 'model') await noteModel($)
       if (name === 'effort') {
         await restoreEffortDefaults($, settingsBefore)
@@ -751,7 +766,7 @@ You lead this project's team: you plan, give out the work and collect it. You do
 5. When a problem comes up, solve it before you bring it to the user: (1) have a 查證 member find the cause, with evidence, not a guess; and never pass on a member's claim (a failing count, "it can't be done") you have not had checked. (2) Find at least two ways out, one of them the part your team can do now (fix one of three lines now, the rest after a merge). (3) Before you tell the user something cannot be done or must wait, have it refuted: a member who was not on it, or a one-off read-only Codex check (\`codex exec\`) for a small question; you choose. (4) Before you propose a fix, check it against the repo: its docs, its last few MRs of the same kind, and what people said on the MRs (the target branch, the flow, a reviewer's comment). (5) A fix inside the approved plan you carry out yourself and report ("我決定了 X"); only a write the user must approve or work outside the plan goes to them, with the fix and the options, not the bare problem. A question whose answer only means something later (when a list arrives, after a merge) is not asked now: put it in your to-do list with what it waits on.
 6. Every report opens with one line on what the user must do now ("現在要你回 2 題" or "不用你做事"). Questions are in plain words: a code (M1, #4, L5) is never used without saying what it is.
 7. Before you report the project's state, look at every MR of the project (\`glab\`, read-only): new comments from anyone and pipeline results. Sum up new comments for the user, or give them to a member to handle.
-8. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing your last questions until the user speaks to you. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When a member needs the user to answer in its own session (an "allow" for a blocked command), list it with the member's name so the user knows which desk to answer.
+8. Calling the user over: a turn started by a member's report ends without \`## ${DECIDE_HEADING()}\` unless it raises a new question. Do not repeat questions you already asked and the user has not answered; the page keeps showing your last questions until the user speaks to you. Collect approvals (opening MRs, pushes) and ask them together, or when the work cannot go on without them, not one per member. When the approval is for something a member will run (a production or UAT query, a deploy, a merge, anything its own auto mode or permission prompt holds back for the user's own word), end that question's numbered line with \`→ <the member's desk name>\`: the page sends the user's answer to that item straight into the member's session as the user's own words, and tells you it did, so you do not relay it.
 9. Hard rules: whoever built something never verifies it. Writes the user must approve (opening, closing or merging an MR, a push, a Jira status change, deleting anything) are collected and asked under \`## ${DECIDE_HEADING()}\`; you cannot approve them for the user. Once the user approves a push or opening an MR, pass it to the member who does it: say "使用者已核准" with the repo, branch and MR, and quote the user's reply word for word. Merging an MR, deleting anything, and a command auto mode blocks still need the user in that member's own session.
 10. Wrapping up starts only when the user asks (the page's 收尾 button sends 「收尾這個專案」); once every task is 完成 you may say the project can be wrapped up. Then, in this order: (1) Take stock: every task, every MR of the project (state, pipeline, comments not answered), and in every repo the team touched, unpushed commits and uncommitted changes (each member checks its own and tells you). (2) What is not done: what the user must approve or do (merging MRs, the Jira status changes the MRs' state calls for) goes under \`## ${DECIDE_HEADING()}\`, all at once; what waits on others goes into the handoff file ${handoffPath(project)} (what is done, what is left and what it waits on, where things are), which the next lead of this project reads first; delete the file when nothing is left. (3) Run a retrospective (the user's retrospective skill, if they have one) so the lessons are kept. (4) Tell each member to wrap up: check its leftovers (unpushed commits, background jobs) and report; in a member's clone, \`git status --porcelain\` empty and nothing unpushed (\`git log @{u}..\`) means it goes to ~/.Trash, anything else is listed for the user. Then close the member with the office \`dismiss\` tool. (5) Report a short summary; the user closes your own session.`
 const MEMBER_REPORT = (lead: string) => `# Your reply (Session Office)
@@ -946,6 +961,33 @@ async function syncBoards($: EngineInterface, desks: Desk[]) {
     boardWokeAt[d.id] = nowMs
     logEvent($, 'board-wake', { to: d.title || d.label || d.id.slice(0, 8), from: w.by })
   }
+}
+
+// A member that left a question for the user in its reply to a teammate or the board, instead of putting it to its
+// lead, has it forwarded to the lead once, when the lead is not mid-turn and has nothing waiting in its inbox
+// (the bridge's first round only marks what is already there, so a restart forwards nothing twice).
+const forwardedAt: Record<string, number> = {}
+let forwardsPrimed = false
+async function forwardQuestions($: EngineInterface, desks: Desk[]) {
+  for (const d of desks) {
+    if (d.role !== 'member' || !d.lead || d.activity !== '有問題沒交給組長' || !d.report || !d.reportedAt) continue
+    if ((forwardedAt[d.id] ?? 0) >= d.reportedAt) continue
+    if (!forwardsPrimed) { forwardedAt[d.id] = d.reportedAt; continue }
+    const lead = desks.find(x => x.role === 'lead' && (x.title || x.label) === d.lead)
+    if (!lead || lead.state === 'working' || lead.blocked) continue
+    try {
+      const inbox = JSON.parse(await $.fs.read(inboxPath(lead.id))) as { instructionAt?: number }
+      if ((inbox.instructionAt ?? 0) > (lead.instructionDoneAt ?? 0)) continue
+    } catch { /* no inbox yet */ }
+    const m = DECIDE_RE.exec(d.report)
+    if (!m) continue
+    const name = d.title || d.label || d.id.slice(0, 8)
+    const text = `（Session Office 代轉：${name} 把下面的問題寫在它的回覆裡給使用者，沒有交給你。照你的規則處理：計畫內的自己決定、用 SendMessage 告訴它；要使用者決定的併進你的「要你決定」。）\n${d.report.slice(m.index)}`
+    await $.fs.write(inboxPath(lead.id), JSON.stringify({ instruction: `<cross-session-message from-name="${name.replace(/"/g, "'")}">\n${text}`, instructionAt: Date.now() }))
+    forwardedAt[d.id] = d.reportedAt
+    logEvent($, 'forward', { from: name, to: d.lead })
+  }
+  forwardsPrimed = true
 }
 
 const BOARD_CONTEXT = (b: { project: string; notes: Note[] }, includeArchived = false) => {
@@ -1451,6 +1493,7 @@ async function bridgeTick($: EngineInterface) {
 
     try { await syncBoards($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `boards: ${String(error).slice(0, 200)}`) }
     try { await syncTasks($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `tasks: ${String(error).slice(0, 200)}`) }
+    try { await forwardQuestions($, live.map(id => files.get(id)!).filter(Boolean)) } catch (error) { report($, `forward: ${String(error).slice(0, 200)}`) }
     await openRequestedSessions($)
     await openHires($)
 
@@ -1543,8 +1586,7 @@ async function runChecks($: EngineInterface): Promise<Check[]> {
     const when = (name: string) => hookSeen[name] ? ago(Date.now() - hookSeen[name]) : '沒跑過'
     ok(true, `hook 最後跑到：prompt.submit ${when('prompt.submit')}、turn.start ${when('turn.start')}、turn.complete ${when('turn.complete')}、session.compact ${when('session.compact')}（mod 載入 ${ago(Date.now() - loadedAt)}）`)
     // a compaction the transcript recorded after this mod loaded, that session.compact never saw
-    const ran = await $.process.run(['sh', '-c', `grep -h '"compact_boundary"' "$HOME"/.claude/projects/*/${me.id}.jsonl | grep -o '"timestamp":"[^"]*"' | tail -1`], { timeoutMs: 5000 }).catch(() => null)
-    const lastCompact = ran?.stdout ? Date.parse(ran.stdout.trim().slice(13, -1)) : NaN
+    const lastCompact = await lastCompactAt($)
     if (lastCompact > loadedAt && !hookSeen['session.compact'])
       ok(false, `session.compact hook 被跳過：transcript 在 ${ago(Date.now() - lastCompact)} 有壓縮，hook 沒跑到`, '更高一層的 plugin 用 next.to 略過了使用者層的 hook；壓縮後的血條改靠 /compact 指令本身更新，自動壓縮則等回合結束。要查是誰：看引擎的通知（"… runs first and sent the event on past it"）')
     else if (lastCompact > loadedAt) ok(true, 'session.compact hook 跑得到（最近一次壓縮有看到）')
@@ -1576,6 +1618,14 @@ async function startupCheck($: EngineInterface) {
 // session.compact (seen with cc-plugin-sec-default: the hook never ran): the hook when
 // it runs, and /compact's own command.run, which lands once the compaction is done.
 let ctxEstimatedAt = 0
+const COMPACT_WAIT_MS = 5 * 60 * 1000
+// when the transcript last recorded a compaction (NaN when it never did)
+async function lastCompactAt($: EngineInterface): Promise<number> {
+  if (!me) return NaN
+  const ran = await $.process.run(['sh', '-c', `grep -h '"compact_boundary"' "$HOME"/.claude/projects/*/${me.id}.jsonl | grep -o '"timestamp":"[^"]*"' | tail -1`], { timeoutMs: 5000 }).catch(() => null)
+  return ran?.stdout ? Date.parse(ran.stdout.trim().slice(13, -1)) : NaN
+}
+
 function estimateContextAfterCompaction($: EngineInterface, fallback?: number) {
   if (Date.now() - ctxEstimatedAt < 5000) return
   ctxEstimatedAt = Date.now()
@@ -1907,10 +1957,15 @@ export const register: Register = on => {
     if (me && e.agentId === undefined && e.trigger !== 'precompute' && !('skip' in result)) estimateContextAfterCompaction($, result.tokensAfter)
     return result
   })
+  // a compaction takes a minute or so with no turn running: show it as work, so the desk does not look like it ignored the command
   on('command.run', { command: 'compact' }, async ($, e, next) => {
-    const result = await next(e)
-    if (me) estimateContextAfterCompaction($)
-    return result
+    const before = me && me.state !== 'working' ? { state: me.state, activity: me.activity } : null
+    if (before) patch($, { state: 'working', activity: '壓縮對話中' })
+    try { return await next(e) }
+    finally {
+      if (me) estimateContextAfterCompaction($)
+      if (before && me?.activity === '壓縮對話中') patch($, { state: before.state, activity: '已壓縮對話' })
+    }
   })
 
   on('command.run', { command: 'office' }, async ($, e) => {
