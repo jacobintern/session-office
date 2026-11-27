@@ -1,8 +1,9 @@
 # Token cost
 
-**Session Office is not a token-heavy tool: it costs under US$1 a month.**
-Measured over 30 days on one heavy user's machine (2026-11-18), that was about
-0.04% of the same period's Opus use (about US$1,500).
+**Session Office is not a token-heavy tool: about US$2 a month.**
+Measured over 30 days on one heavy user's machine (2026-11-18), it was under
+US$1, about 0.04% of the same period's Opus use (about US$1,500). Since v0.3.0
+the report-format note is longer; see *Since v0.3.0* for the estimate.
 
 Almost everything it does runs in the mod and never reaches the model.
 
@@ -49,3 +50,14 @@ Scan the session logs under `~/.claude/projects` changed in the last 30 days:
 
 Not separated: the tokens spent developing Session Office itself, which are
 mixed into sessions in other folders.
+
+## Since v0.3.0 (estimated, not measured again)
+
+- The report-format note grew from ~600 to ~1,400 characters (~350 tokens):
+  numbered questions with options, and the 〔等你・電腦〕 to-do tag. Scaling the
+  measured US$0.62 by 350/130 gives about **US$1.7 a month**.
+- Project teams add their role rules once per session, again after a
+  compaction or `/clear`, not with every prompt: ~2,200 tokens for a lead,
+  ~300 for a member.
+- While questions to the user are open, a short list of them rides along with
+  that session's prompts, so it can carry them over.

@@ -115,6 +115,7 @@ html { scroll-behavior: smooth; }
     <li><a href="#tutor">英文小老師</a></li>
     <li><a href="#manage">管理 session</a></li>
     <li><a href="#project">專案與公佈欄</a></li>
+    <li><a href="#team">專案小組</a></li>
     <li><a href="#mobile">在手機上用</a></li>
     <li><a href="#more">其他功能</a></li>
     <li><a href="#tokens">會不會燒 token</a></li>
@@ -159,7 +160,7 @@ html { scroll-behavior: smooth; }
     <tbody>
       <tr><td>工作中</td><td>坐在位子上，螢幕亮著</td><td><span class="dot" style="background:var(--ok)"></span>工作中</td></tr>
       <tr><td>等背景工作</td><td>一樣坐在位子上，名牌前多一個 ⏳；它在等自己開的背景工作（subagent、背景指令）跑完</td><td><span class="dot" style="background:var(--ok)"></span>工作中，後面標 ⏳ 和幾件</td></tr>
-      <tr><td>來匯報</td><td>走進你的辦公室排隊，前三位在你桌前，其餘在門外</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
+      <tr><td>來匯報</td><td>走進你的辦公室排隊，前三位在你桌前，其餘在門外。有題目等你、但還在處理別的事（例如組長在看成員的回報）時，它留在座位上，停下來才來：在你面前的，內容不會再變</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
       <tr><td>卡住等你</td><td>一樣來排隊，匯報視窗標「卡住等你」</td><td><span class="dot" style="background:var(--wait)"></span>等你處理</td></tr>
       <tr><td>換模型中</td><td>名牌旁標「換模型中」，約 15 秒，期間送它的指令會先排隊</td><td><span class="dot" style="background:var(--accent)"></span>換模型中</td></tr>
       <tr><td>閒置</td><td>坐在位子上，頭上冒 z</td><td><span class="dot" style="background:var(--muted)"></span>閒置</td></tr>
@@ -172,12 +173,36 @@ html { scroll-behavior: smooth; }
     <li><b>你頭上的兩條</b>：帳號 5 小時和每週用量還剩多少，重置後自動回滿。</li>
     <li><b>匯報泡泡</b>（電腦）：排第一位的同事頭上冒泡泡，有「要你決定」時只顯示那幾件。</li>
     <li><b>圖示</b>（手機）：泡泡改成小圖示，❗N 是有 N 件要你決定、💬 是一般匯報、🔒 是在 terminal 等權限。</li>
+    <li><b>📌</b>：你按了「稍後處理」，它回座位等你，題目還開著（見〈處理匯報〉）。</li>
+    <li><b>📨 N</b>（名單上）：有 N 則回報你還沒看過。</li>
   </ul>
 </section>
 
 <section id="report">
   <h2><span class="no">04</span>處理匯報</h2>
   <p>點名單上的一列、點同事或點泡泡，都會打開同一個匯報視窗。讀完、回一句或按「收到」，它就回座位。</p>
+  <h3>視窗裡的三塊</h3>
+  <div class="tw"><table>
+    <thead><tr><th>標題</th><th>內容</th></tr></thead>
+    <tbody>
+      <tr><td>回報</td><td>你還沒看過的較早回報，舊的在上、編了號；每則可以收合，預設只展開最新那則。只有一則回報時不會出現</td></tr>
+      <tr><td>過程</td><td>最新一則回報。上面有較早的回報或下面有題目時才加這個標題</td></tr>
+      <tr><td>要你決定</td><td>它要你回答的題目，一題一個編號，選項是 (a) (b) (c)，推薦的那個標「（建議）」</td></tr>
+    </tbody></table></div>
+  <h3>已讀、收到、稍後處理</h3>
+  <ul class="plain">
+    <li><b>已讀</b>：打開視窗、頁面在你眼前，顯示出來的回報就算讀過；收起來沒點開的較早回報不算，點開才算。名單上的 📨 是還沒看過的則數。</li>
+    <li><b>收到，回座位</b>：讀過了、沒事要回，它回座位。</li>
+    <li><b>稍後處理</b>：有題目但你現在不想回時，按鈕會變成這個。它回座位、名牌標 📌，題目留在專案總覽；它有新回報時會再來排隊。</li>
+    <li>回覆它、按「收到」或「稍後處理」，都算把回報讀完了。</li>
+  </ul>
+  <h3>怎麼回「要你決定」</h3>
+  <ul class="plain">
+    <li>照編號回字母或打字：<code>1. a 2. b</code>、<code>1. a 但只查 DEV</code>。</li>
+    <li>只有一題時，直接回 <code>a</code> 也可以；要以選項字母開頭才算答案，其他話（例如問它問題）只是聊天，題目照樣開著。</li>
+    <li>沒回到的題目會留著，下一則回報沒再列也不會消失，直到你回答。有好幾題卻只回一個字母、沒寫題號時，頁面會先擋下來請你補題號。</li>
+    <li>要你到電腦前才能做的事（跑指令、存鑰匙圈、按信任提示），不會放在「要你決定」，而是在待處理標 <code>〔等你・電腦〕</code>，專案總覽另外列在「🖥 到電腦前再做」。</li>
+  </ul>
   <figure class="shot" data-shot="report"><div class="frame"><div class="imgbox"><img src="img/report.jpg" width="2204" height="1684" alt="匯報視窗"></div></div>
     <figcaption><span>示範資料。</span><span>點圖放大</span></figcaption></figure>
   <ol class="legend" data-for="report"></ol>
@@ -248,25 +273,45 @@ html { scroll-behavior: smooth; }
     <thead><tr><th>專案怎麼決定</th><th>括號裡寫</th><th>說明</th></tr></thead>
     <tbody>
       <tr><td>你指定的話題</td><td>你指定的</td><td>最優先。按專案列的 ✎ 打一個名字，或開新 session 時填「專案／話題」欄；在 terminal 打 <code>/office project 名字</code> 也行。不是工程專案也能用，例如「報稅」</td></tr>
-      <tr><td>桌名裡的票號</td><td>桌名票號</td><td>沒指定時，桌名（<code>/rename</code> 或 <code>/office name</code>）裡有票號就用票號，例如取名「code review IT-123」；設定了 Jira 的話，子票會往上併到母票（寫「母單」）</td></tr>
+      <tr><td>桌名裡的票號</td><td>桌名票號</td><td>沒指定時，桌名（<code>/rename</code> 或 <code>/office name</code>）裡有票號就用票號，例如取名「code review ABC-123」；設定了 Jira 的話，子票會往上併到母票（寫「母單」）</td></tr>
       <tr><td>分支裡的票號</td><td>分支票號</td><td>桌名沒票號時，分支名稱裡有票號就用票號；一樣會往上併到母票。排在桌名後面，因為同一個 repo 的分支會被別的 session 切走</td></tr>
       <tr><td>repo 名稱</td><td>repo</td><td>沒票號時用 git repo 的名字</td></tr>
       <tr><td>都沒有</td><td>未指定</td><td>不在 git 裡、桌名也沒票號的 session 不會有預設專案，公佈欄和同事清單先不顯示；按 ✎ 指定話題就有</td></tr>
     </tbody></table></div>
   <h3>公佈欄</h3>
-  <p>每個專案一塊板，在匯報視窗「之前的回覆」下面，<b>每位成員一張卡</b>：同專案的每個 session 一則、你一則，寫的是那位目前的狀態或要大家知道的事。板上的卡會自動附在同專案每位 session 的下一句 prompt 前面，所以不用一個一個去講。IT-2861 小組四個 session，板上就是四張卡加你的一張。</p>
+  <p>每個專案一塊板，在匯報視窗「之前的回覆」下面，<b>每位成員一張卡</b>：同專案的每個 session 一則、你一則，寫的是那位目前的狀態或要大家知道的事。板上的卡會自動附在同專案每位 session 的下一句 prompt 前面，所以不用一個一個去講。一個四人小組，板上就是四張卡加你的一張。</p>
   <ul class="plain">
     <li><b>你的卡</b>：在公佈欄的輸入框打字按 Enter，例如「今天不要動 staging」；再貼一次就換掉上一則，所以常駐的指示寫在同一則裡。</li>
     <li><b>session 的卡</b>：它改了共用的東西、進度有變、在等某位同事、或接手的人要知道的事，會自己更新；你也可以叫它「更新公佈欄」。</li>
     <li><b>小組內先談</b>：介面長怎樣、共用檔誰改、命名、誰先誰後這類技術協調，它們會先傳訊問同事或寫在卡上，談好再做；只有範圍、優先順序、開工、MR、刪東西、花錢或談不攏的事才來問你。</li>
-    <li><b>誰來跟你匯報</b>：你交代工作的那個 session 才來匯報；它找來幫忙的同事回覆給它，自己的桌子不亮燈，只在匯報視窗寫「已回覆 某某」，內容留在「之前的回覆」。同事那邊有只有你能決定的事（MR、刪東西、花錢、權限）時，才會帶著「要你決定」直接找你。</li>
+    <li><b>誰來跟你匯報</b>：你交代工作的那個 session 才來匯報；它找來幫忙的同事回覆給它，自己的桌子不亮燈，只在匯報視窗寫「已回覆 某某」，內容留在「之前的回覆」。專案小組裡，成員一律透過組長找你（見〈專案小組〉）。</li>
     <li><b>封存</b>：被換掉的卡和已離開的成員的卡收在折起來的「封存」裡，要追查才點開；每條卡右邊有「刪除」。</li>
   </ul>
   <div class="note">留空 ✎ 的輸入框按 Enter 會改回自動判定（票號或 repo）。改話題後公佈欄會立刻換成那個話題的。</div>
 </section>
 
+<section id="team">
+  <h2><span class="no">09</span>專案小組</h2>
+  <p>一個目標要好幾個 session 分頭做時，開一個專案：你只跟<b>組長</b>講話，組長拆工作、找成員、收回報，只把卡在哪和要你決定的事帶回來。</p>
+  <h3>開專案</h3>
+  <p>頁首「＋ 新開」切到「專案」，填目標、限制、資料夾和成員上限（預設 3 位）。開出來的是組長，它先看過票、MR 和 repo，寫成任務清單和計畫回報給你；<b>你核准計畫之前，它不找人、不派工</b>。要加人跟組長說，不能從表單直接加進專案。</p>
+  <h3>組長和成員</h3>
+  <ul class="plain">
+    <li><b>組長</b>：不寫程式，只規劃、派工、彙整。計畫內的事自己決定，回報裡寫一行「我決定了 X」；範圍外的事預設不做、記成待辦。合併 MR、push、刪東西這類寫入照樣要你同意。</li>
+    <li><b>成員</b>：組長用派工單交代定位（實作、驗收、查證）、範圍和完成條件。做的人不驗收自己做的。成員不直接問你：有題目寫進給組長的訊息；寫在自己回報裡的，頁面會自動轉給組長，成員那桌也不再顯示。</li>
+    <li><b>直送成員</b>：要成員執行的題目，組長會在題號那行結尾標 <code>→ 成員桌名</code>。你在組長那桌回答，頁面會把那一題的答案直接送進成員的 session，算你本人的話，組長不用轉達。所有題目都在組長那桌回，不用跑到成員那桌。</li>
+    <li><b>決策留檔</b>：組長拍板的事和查證結論寫進專案的交接檔（<code>~/.claude/office/handoffs/&lt;專案&gt;.md</code>），公佈欄的卡只放還有效的幾條並指向那份檔案；新成員或壓縮過的 session 都看得到。</li>
+  </ul>
+  <h3>專案總覽</h3>
+  <p>名單上方一個專案一列：任務完成幾件、卡在哪（等誰、多久）、要你決定的題目（點了打開那桌），和「🖥 到電腦前再做」的事。</p>
+  <h3>對話太長時</h3>
+  <p>組長自己的對話用到 30% 時，它會先把交接檔更新好，再問你要壓縮它還是換一位新組長接手；之後每多 10% 再提醒一次。成員用到 60% 時，組長會收到通知，請那位成員寫交接、開新成員接手，這件事組長自己處理，不會來問你。警衛的事件紀錄看得到這類通知。</p>
+  <h3>收尾</h3>
+  <p>專案總覽那列的「收尾」按兩下才會送出。組長會盤點任務和 MR、把沒做完的寫進交接檔、跑回顧、確認成員沒有留下未 push 的東西後解散它們，最後回報摘要；組長自己的分頁由你關。</p>
+</section>
+
 <section id="mobile">
-  <h2><span class="no">09</span>在手機上用</h2>
+  <h2><span class="no">10</span>在手機上用</h2>
   <p>用同一個 claude.ai 帳號在手機打開同一個連結（畫面寬 860px 以下都算手機，iPad 直立也是）。手機上不畫辦公室，整頁是一張待辦清單：最上面「等你處理」是一張張卡片，「要你決定」直接攤在卡上，等權限的卡片有「允許」「拒絕」，其他有「回覆」和「收到，回座位」；下面是「工作中」「閒置」的列表，點一列就打開匯報視窗（手機上是滿版，最下面一條「‹ 回清單」回去，壓縮、清空、換模型這些收在「⋯」裡）；Jira 在最下面。</p>
   <h3>出門前檢查</h3>
   <ul class="check">
@@ -278,7 +323,7 @@ html { scroll-behavior: smooth; }
 </section>
 
 <section id="more">
-  <h2><span class="no">10</span>其他功能</h2>
+  <h2><span class="no">11</span>其他功能</h2>
   <div class="cards">
     <div class="card"><h4>Codex 秘書</h4><p>你辦公室裡的秘書，頭上是 Codex 5 小時和每週用量還剩多少。Codex 在跑時（2 分鐘內有動靜）她會上下晃、旁邊冒跳動的小點，名牌燈變綠；沒在跑是灰燈。太久沒用 Codex 時，名牌會標資料是多久前的。不用 Codex 的話，在 <code>config.json</code> 設 <code>"codex": false</code> 就會拿掉秘書。</p></div>
     <div class="card"><h4>Jira 我的票</h4><p>選用的：<code>config.json</code> 沒設 <code>jira</code> 時整欄不顯示。橋接每 2 分鐘抓一次。票號出現在某個 session 的桌牌、任務或分支名稱裡，票就會標綠框並附上那位同事，點了打開它。</p></div>
@@ -288,8 +333,8 @@ html { scroll-behavior: smooth; }
 </section>
 
 <section id="tokens">
-  <h2><span class="no">11</span>會不會燒 token</h2>
-  <p>不會多燒。辦公室搬資料、畫畫面都不經過模型，只有你本來就會花的量，再加上每輪一行很短的提示。</p>
+  <h2><span class="no">12</span>會不會燒 token</h2>
+  <p>不會多燒。辦公室搬資料、畫畫面都不經過模型，只有你本來就會花的量，再加上每輪一段格式說明。</p>
   <h3>不花 token 的部分</h3>
   <div class="cards">
     <div class="card"><h4>同事走動、匯報</h4><p>session 的狀態由 office mod 直接寫進 Mac 上的檔案。mod 是 Claude Code 跑的一段程式，不是叫模型去做。</p></div>
@@ -300,7 +345,8 @@ html { scroll-behavior: smooth; }
   <div class="tw"><table>
     <thead><tr><th>哪裡</th><th>用多少</th></tr></thead>
     <tbody>
-      <tr><td>每輪附加的一行提示</td><td>請 session 需要你決定時加上「要你決定」段落；每輪約 130 個 token；實測一個月加起來不到 US$1</td></tr>
+      <tr><td>每輪附加的格式說明</td><td>請 session 需要你決定時加上「要你決定」段落；每輪約 350 個 token；估算一個月約 US$2</td></tr>
+      <tr><td>組長／成員的規則</td><td>專案小組的 session 開始時、壓縮或 /clear 後各附一次（不是每輪）：組長約 2,200 個 token、成員約 300 個</td></tr>
       <tr><td>從網頁回覆或派工</td><td>你打的字會送進那個 session，跟在 terminal 打字一樣，不會多</td></tr>
       <tr><td>英文小老師</td><td>只有按「逐段翻譯」或「問老師」時才用你的 claude.ai 額度；沒按就不用</td></tr>
     </tbody></table></div>
@@ -313,7 +359,7 @@ html { scroll-behavior: smooth; }
 </section>
 
 <section id="faq">
-  <h2><span class="no">12</span>常見問題</h2>
+  <h2><span class="no">13</span>常見問題</h2>
   <div class="faq">
     <div class="card"><h4>上方出現橘色「橋接視窗沒在跑」</h4><div class="why">橋接 session 關了，或 Mac 睡著</div><p>看門狗一分鐘內會自動重開；Mac 睡著就先叫醒它。</p></div>
     <div class="card"><h4>上方出現「你的網路斷了」或「重新連線中…」</h4><div class="why">是這台瀏覽器的網路斷了，不是橋接器</div><p>畫面停在最後收到的狀態；網路回來會自動接上，不用重新整理。「重新連線中」久久不消失才重新整理。</p></div>

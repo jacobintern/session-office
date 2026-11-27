@@ -21,6 +21,9 @@ under **Unreleased**.
 
 ### Changed
 
+- The READMEs, the manual and `docs/token-cost.md` cover project teams, the
+  report window's parts, reads and 稍後處理, answering decisions, and the
+  current token estimate (about US$2 a month).
 - A desk with questions you have not answered comes to your desk only once it
   has stopped working. While it handles a member's report, its questions can
   still change, so it waits at its seat.
@@ -48,11 +51,21 @@ under **Unreleased**.
 - Lead rules: keeping to scope is the lead's own call (leave it out, note it as
   a to-do). The rule that a fix outside the plan waits for the user moved to
   the user's own instructions.
+- Lead rules: a choice outside the tickets goes to the user only when the ticket
+  is itself an improvement or staying in scope leaves it open. A Jira status
+  change needs the user's approval unless their own rules have the lead move
+  tickets itself, after checking the conditions with evidence.
+- Lead rules: once options are put to the user, no one carries any of them out
+  until the user answers; meanwhile the team looks up what helps the decision.
 - Lead rule 8 is shorter: sentences that only described what the page does
   on its own were dropped.
 
 ### Fixed
 
+- The Codex panel's default folder is the first of `newSessionDirs` (or `~`),
+  not a folder from the author's machine.
+- A section headed like the decisions but not it ("## 要你決定的") is no longer
+  taken for the decisions, which showed the real ones a second time.
 - A reply to a lone question that does not open with one of its options ("a",
   "(b) 但…") is no longer passed on to the member as the answer, nor does it
   settle the question.

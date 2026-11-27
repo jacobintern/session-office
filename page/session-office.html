@@ -2023,7 +2023,9 @@
   // A report with a "要你決定" heading has its decisions split out:
   // the modal highlights them in their own block under the rest and the bubble shows only them.
   function splitDecide(text) {
-    const t = text || '', m = t.match(/^#{1,4}\s*(?:要你決定|Decisions for you)[^\n]*$/mi);
+    // the heading itself, not one that only starts with it ("## 要你決定的" is a section about the decisions): at most a
+    // note in brackets after it, the way the mod's DECIDE_RE reads it
+    const t = text || '', m = t.match(/^#{1,4}\s*(?:要你決定|Decisions for you)\s*(?:[（(][^\n]*[)）])?\s*$/mi);
     if (!m) {
       // no heading (a session that has not seen the format yet): a closing
       // paragraph that asks something counts, with a lead-in line ending in "："
@@ -2927,10 +2929,10 @@
     return last ? last.thread : null;
   }
   function openCodex() {
-    const dirs = new Set([cxGet('codexCwd') || '~/Ventem_Projects', ...(officeCfg?.newSessionDirs || [])]);
+    const dirs = new Set([cxGet('codexCwd') || officeCfg?.newSessionDirs?.[0] || '~', ...(officeCfg?.newSessionDirs || [])]);
     for (const d of desks.values()) if (d.cwd) dirs.add(d.cwd);
     document.getElementById('cx-dirs').replaceChildren(...[...dirs].map(v => { const o = document.createElement('option'); o.value = v; return o; }));
-    if (!cCwd.value) cCwd.value = cxGet('codexCwd') || '~/Ventem_Projects';
+    if (!cCwd.value) cCwd.value = cxGet('codexCwd') || officeCfg?.newSessionDirs?.[0] || '~';
     codexq.hidden = false; renderCodex(); cxTimer = setInterval(renderCodex, 1000);
     setTimeout(() => cText.focus(), 0);
   }
@@ -3001,7 +3003,7 @@
   }
   cForm.addEventListener('submit', async ev => {
     ev.preventDefault();
-    const q = cText.value.trim(), cwd = cCwd.value.trim() || '~/Ventem_Projects';
+    const q = cText.value.trim(), cwd = cCwd.value.trim() || officeCfg?.newSessionDirs?.[0] || '~';
     if (!q || !db || !canWrite) return;
     cGo.disabled = true;
     try {

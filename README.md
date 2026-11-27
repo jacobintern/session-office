@@ -7,7 +7,10 @@
 A pixel-art office for your Claude Code sessions. Every running session sits at
 a desk; when it finishes a turn it walks over to your desk to report. From the
 page you can reply, acknowledge, `/clear`, `/compact`, rename it,
-end it, or open a new session.
+end it, or open a new session. For bigger work, open a project: a lead plans it,
+hires member sessions and brings back only what is stuck and what you must decide.
+
+What changed in each release: [CHANGELOG.md](CHANGELOG.md).
 
 ## How it works
 
@@ -45,9 +48,10 @@ updates it within minutes).
 
 ## Token cost
 
-Under US$1 a month: syncing and desk cards run in the mod without any model
-turn; only the short report-format note added to each prompt (~130 tokens)
-costs tokens.
+About US$2 a month (estimated): syncing and desk cards run in the mod without
+any model turn; what costs tokens is the report-format note added to each
+prompt (~350 tokens), and in project teams the role rules, sent once per
+session.
 See [docs/token-cost.md](docs/token-cost.md).
 
 ## Before you start
@@ -186,11 +190,38 @@ and writes the answer back. A follow-up in the same folder resumes the same Code
 thread until you press 新對話. One question runs at a time, for up to 10 minutes;
 停止 ends it. Answers are cleared after three days.
 
+## Project teams
+
+Pick 專案 (project) in the page's 新開 form, give a goal, limits, a folder and a
+member limit (3 by default), and you get a **lead** session:
+
+- The lead plans first (tasks, scope, order, what it decides itself) and hires
+  no one until you approve the plan. It then opens **members** with its `hire`
+  tool and gives each a dispatch: a role (build, verify, look up), the scope and
+  when it is done. Whoever built something never verifies it.
+- You talk only to the lead. A question a member leaves in its own report is
+  forwarded to the lead. An item the lead ends with `→ <member desk>` sends your
+  answer straight into that member's session, as your own words.
+- Each project has a task list (the `task` tool) and a row in the overview above
+  the roster: how far it is, where it is stuck, the questions waiting on you,
+  and the to-dos only you can do at the computer.
+- The lead keeps its decisions and members' proven findings in the project's
+  handoff file (`~/.claude/office/handoffs/<project>.md`). It is told when its
+  own conversation passes 30% of its window, and when a member's passes 60%, so
+  the work moves to a fresh session before it gets slow and costly.
+- 收尾 (wrap up) in the overview asks the lead to take stock, hand off what is
+  left, run a retrospective and dismiss the members.
+
 ## Report format
 
-The mod adds one line of context to every prompt asking the model to end its
-answer with a `## 要你決定` (decisions for you) section when it needs your
-input; the page shows that section as a highlighted block.
+The mod adds a note to every prompt asking the model to end its answer with a
+`## 要你決定` (decisions for you) section when it needs your input: one numbered
+question per item, its options as (a) (b) (c), the recommended one marked
+（建議）. The page shows that section as its own block. Answer by number
+(`1. a 2. b`); a lone question takes a bare letter. Questions you have not
+answered stay open item by item until you do, and a report you have not seen is
+kept above the newest one until you open it. Things only you can do at the
+computer are listed as to-dos tagged 〔等你・電腦〕 instead.
 
 ## License
 
