@@ -7,6 +7,33 @@ under **Unreleased**.
 
 ## [Unreleased]
 
+### Added
+
+- **稍後處理.** On a desk with open questions, the 收到 button becomes 稍後處理.
+  The desk goes back to its seat with a 📌 on its nameplate, in the roster and
+  in the overview, and its questions stay open. It queues again when it
+  reports something new.
+
+### Changed
+
+- A desk with questions you have not answered comes to your desk only once it
+  has stopped working. While it handles a member's report, its questions can
+  still change, so it waits at its seat.
+- A lead's and a member's role rules are sent once, not with every prompt.
+  They are sent again after a compaction, a `/clear`, or when the rules
+  change, so they no longer pile up in the conversation.
+- New lead rules, drawn from what users corrected:
+  - Look for a way out that does not need the user at the computer.
+  - Do the work yourself before handing the user a message to pass on.
+  - Give a fix outside the plan to no one until the user has chosen it.
+  - Lead a risk with how bad it is and how likely.
+  - Check what a fix does to the other tickets shipping with it.
+  - List every MR, including others' under the same parent ticket.
+  - Before asking to merge, show that the code review and the verification
+    are done.
+  - A one-letter answer a member relays is not a decision to change code;
+    the lead asks again at its own desk.
+
 ## [0.3.0] - 2026-11-27
 
 ### Added
